@@ -1,0 +1,433 @@
+﻿/* ============================================================
+   DashboardPage.module.css - Premium Modern Dark Navy Theme
+   ============================================================ */
+
+.page {
+  min-height: 100vh;
+  background: #09121d;
+  color: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Top Navbar ────────────────────────────────────────────── */
+.header {
+  height: 68px;
+  background: #0d1a29;
+  border-bottom: 1px solid #1e2e42;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brandInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.brandTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+}
+
+.brandSub {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.statusPill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 9999px;
+}
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.profilePill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #132337;
+  border: 1px solid #23354c;
+  padding: 5px 12px 5px 6px;
+  border-radius: 9999px;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.userName {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.adminBadge {
+  background: rgba(37, 99, 235, 0.25);
+  border: 1px solid rgba(37, 99, 235, 0.45);
+  color: #60a5fa;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.logoutBtn {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  padding: 6px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logoutBtn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+
+/* ── Main Layout ───────────────────────────────────────────── */
+.main {
+  flex: 1;
+  padding: 28px 32px;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── KPI Stats Grid ────────────────────────────────────────── */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.statCard {
+  background: #0f1d2e;
+  border: 1px solid #1e3149;
+  border-radius: 12px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  border-color: #2e4766;
+}
+
+.statLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.statValue {
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.statSub {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ── Content Panels ────────────────────────────────────────── */
+.panel {
+  background: #0f1d2e;
+  border: 1px solid #1e3149;
+  border-radius: 12px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.panelTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panelActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.searchInput {
+  background: #09121d;
+  border: 1px solid #23374e;
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  width: 260px;
+  outline: none;
+}
+
+.searchInput:focus {
+  border-color: #38bdf8;
+}
+
+.primaryBtn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.primaryBtn:hover {
+  background: #1d4ed8;
+}
+
+/* ── Table ─────────────────────────────────────────────────── */
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid #1e3149;
+  border-radius: 10px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.table th {
+  background: #09121d;
+  color: #94a3b8;
+  font-weight: 600;
+  padding: 12px 16px;
+  border-bottom: 1px solid #1e3149;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #162436;
+  color: #cbd5e1;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr:hover td {
+  background: rgba(30, 49, 73, 0.4);
+}
+
+.codeCell {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.statusPillTable {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.statusProgress {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.statusDone {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.statusHold {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* ── Admin Tools Row ───────────────────────────────────────── */
+.adminToolsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.toolBox {
+  background: #09121d;
+  border: 1px solid #1e3149;
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toolTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.toolDesc {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.toolBtnRow {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.actionBtn {
+  background: #1e3149;
+  border: 1px solid #2e4766;
+  color: #f1f5f9;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.actionBtn:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.terminal {
+  background: #04090f;
+  border: 1px solid #162436;
+  border-radius: 8px;
+  padding: 14px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  color: #38bdf8;
+  max-height: 160px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Toast ─────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  animation: slideIn 0.2s ease;
+}
+
+.toast_success {
+  background: #064e3b;
+  border: 1px solid #059669;
+  color: #a7f3d0;
+}
+
+.toast_error {
+  background: #7f1d1d;
+  border: 1px solid #b91c1c;
+  color: #fecaca;
+}
+
+.toast_info {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #93c5fd;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
