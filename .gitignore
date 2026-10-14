@@ -25,6 +25,10 @@ backend/uploads/
 # Environment variables
 # .env
 
+# Uploads
+backend/uploads/
+uploads/
+
 # IDE & OS
 .vscode/
 .idea/

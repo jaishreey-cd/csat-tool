@@ -1,13 +1,68 @@
 client_code,client_name,project_code,project_name,team_name
-CL-1001,Acme Global Technologies,PR-1001,Cloud Infrastructure Modernization,DevOps Core
-CL-1001,Acme Global Technologies,PR-1002,Zero Trust Security Implementation,Security Operations
-CL-1001,Acme Global Technologies,PR-1003,Data Lakehouse Architecture,Data Platform
-CL-1002,Nexus Health Solutions,PR-2001,HIPAA Cloud Migration,Healthcare Engineering
-CL-1002,Nexus Health Solutions,PR-2002,Telehealth Microservices Platform,Digital Health
-CL-1003,FinEdge Capital,PR-3001,Algorithmic Trading Cluster,Fintech Alpha
-CL-1003,FinEdge Capital,PR-3002,Core Banking API Gateway,Integration Team
-CL-1003,FinEdge Capital,PR-3003,Fraud Detection AI Pipeline,Machine Learning
-CL-1004,Vanguard Retailers,PR-4001,Omnichannel POS Integration,Retail Engineering
-CL-1004,Vanguard Retailers,PR-4002,Real-Time Inventory Stream,Supply Chain
-CL-1005,AeroLogistics International,PR-5001,Fleet Telematics IoT Platform,IoT Embedded
-CL-1005,AeroLogistics International,PR-5002,Automated Dispatch Optimizer,Operations Tech
+CL-1780318145648,Bespin US,CD-PR0099,"Bespin Non pod -SRTA ,THEA",PMO
+CL-1780461517893,On Lok,CD-PR0098,CD-ONL-MS003 -ITaas 04- Zero-Day Vulnerability Management​,Security Engineering
+CL-1788975834607,test client,CD-PR0094,Test Project 1111Test Project 1111Test Project 1111Test Project 1111Test Project 1111Test Project 11,Quality Engineering
+CL-1788759004624,nClouds,CD-PR0091,nClouds-POD,Cloud Solutions Engineering
+CL-1780464873604,DYCOM,CD-PR0097,DYCOM Phase 2,Data Engineering
+CL-1780313739064,RF FAGER,CD-PR0085,RF FAGER-Celigo Integration-Phase 2,Software Engineering
+CL-1784616727807,SRTA,CD-PR0058,Bespin Non-SRTA,Cloud Solutions Engineering
+CL-1785822616332,Bespin SEA (3)1,CD-PR0065,Bespin - SEA,Cloud Solutions Engineering
+CL-1780461517893,On Lok,CD-PR0055,On Lok -IT as a Service,IT Operations
+CL-1787734793441,Five9,CD-PR0089,Five9 Claude Enablement Training Programme,Training & Development
+CL-1784616659626,CareSoft,CD-PR0057,Caresoft - Managed Cloud Service,Cloud Solutions Engineering
+CL-1780461517893,On Lok,CD-PR0026,Slack and Zoom to Microsoft Teams Migration,System Operations
+CL-1780461517893,On Lok,CD-PR0051,Home Care Data Quality & Reporting  Modernization – Phase 1,Data Engineering
+CL-1780461517893,On Lok,CD-PR0067,On Lok - Box to SharePoint Migration,System Operations
+CL-1780463915274,Symphony Corp,CD-PR0078,Bakertilly Workday Reporting,Cloud Solutions Engineering
+CL-INTERNAL,Cloud Destinations (Product),CD-PR0090,carevoy,Product Engineering
+CL-1779954081765,Onyx,CD-PR0066,ONYX CSP,Security Engineering
+CL-1789465837942,Neology,CD-PR0096,Bespin Non Pod_phoenix,Cloud Solutions Engineering
+CL-INTERNAL,Cloud Destinations (Internal),CD-PR0045,CD AI-Website,Software Engineering
+CL-1779953174480,Bespin US Global,CD-PR0044,Bespin Non-POD -Composecure,PMO
+CL-1780463915526,Symphony Corp,CD-PR0080,Trinetix,IT Operations
+CL-1780461517893,On Lok,CD-PR0039,On Lok - Crowdstrike to Windows Defender Migration,Security Engineering
+CL-1780463915274,Symphony Corp,CD-PR0079,People soft Archival,Data Engineering
+CL-1780318168175,Zaelabs,CD-PR0016,Zaelabs-Architectural Supplements Full Build,Software Engineering
+CL-1780313739064,RF FAGER,CD-PR0012,RF FAGER-Celigo Integration Phase 1,Software Engineering
+CL-1779953174480,Bespin US Global,CD-PR0007,Bespin Non-PROD Aptos: MAP Migration,Cloud Solutions Engineering
+CL-1780464873604,DYCOM,CD-PR0035,DYCOM,Data Engineering
+CL-1786008347831,UC Health,CD-PR0075,UC Health-Oracle Compensation,Cloud Solutions Engineering
+CL-1780317771179,Fairbank,CD-PR0015,Shopify Integration-Phase 2,Software Engineering
+CL-1780461249628,Movius,CD-PR0021,Movius - Resource Management,Software Engineering
+CL-1780458835511,CalWaters,CD-PR0020,Calwaters - Data Engineering,Data Engineering
+CL-1780463913902,Symphony Corp,CD-PR0068,Grady Health - Workday,Finance
+CL-1779952811064,Josys,CD-PR0001,Josys Infra Provisioning and Management,Cloud Solutions Engineering
+CL-1786009810914,ProHealth,CD-PR0077,ProHealth,Cloud Solutions Engineering
+CL-1780459047373,Optum,CD-PR0031,Optum -AIOPS,Cloud Solutions Engineering
+CL-1780461517893,On Lok,CD-PR0028,Security Tools Migration & Modernization,Security Engineering
+CL-1780461517893,On Lok,CD-PR0022,On Lok - Managed SOC Services,Security Engineering
+CL-1780461517893,On Lok,CD-PR0024,AWS to Azure Migration,Cloud Solutions Engineering
+CL-1780461517893,On Lok,CD-PR0034,Symphony-On Lok,System Operations
+CL-1780461517893,On Lok,CD-PR0023,On Lok - Managed NOC Services,System Operations
+CL-1779953174480,Bespin US Global,CD-PR0005,Bespin  Non- POD-CTRMA,Cloud Solutions Engineering
+CL-INTERNAL,Cloud Destinations (Internal),CD-PR0042,CD Website Revamp-Phase 2,Software Engineering
+CL-1779953462999,Marana Health Care,CD-PR0004,MHC - Enterprise Data Warehouse,Data Engineering
+CL-INTERNAL,Cloud Destinations (Product),CD-PR0063,Careliva,Product Engineering
+CL-INTERNAL,Cloud Destinations (Internal),CD-PR0041,Utiliza - Project and Resource Management Dashboard,Cloud Solutions Engineering
+CL-1780463377948,ExpensePoint,CD-PR0029,ExpensePoint - VAPT Added Services,Security Engineering
+CL-1780313469186,WellStack,CD-PR0030,WHIO - Adhoc Support,System Operations
+CL-1780463913902,Symphony Corp,CD-PR0032,IRSF,System Operations
+CL-1780462958001,Baker Tilly,CD-PR0027,Patch Management Windows/Linux,System Operations
+CL-1780462508053,Inertia,CD-PR0025,Inertia Cloud Operations,Cloud Solutions Engineering
+CL-1780458565254,Forge,CD-PR0019,Forge - Platform Engineering Project,Cloud Solutions Engineering
+CL-1780465461273,Privaplan,CD-PR0038,Priva Plan - Extra support for vulnerability scan for Priva Plan ’ s clients,Security Engineering
+CL-1780313280967,Qualitia,CD-PR0010,Qualitia-Docutech Integration,Quality Engineering
+CL-1780317771179,Fairbank,CD-PR0014,Fairbank-Managed Services,Software Engineering
+CL-1780463874917,Chicago Public School,CD-PR0033,Chicago Public School,Data Engineering
+CL-1780463962341,VOSS,CD-PR0037,Managed Services -VOSS,System Operations
+CL-1779953174480,Bespin US Global,CD-PR0002,Bespin POD,Cloud Solutions Engineering
+CL-INTERNAL,Cloud Destinations (Internal),CD-PR0061,Schedule Shaper,Data Engineering
+CL-1779953125320,RightSkale,CD-PR0013,Broadvoice,Software Engineering
+CL-1780459047373,Optum,CD-PR0095,Optum -Sage,Software Engineering
+CL-1780048423220,Onyx,CD-PR0036,Onyx Managed Services,System Operations
+CL-1780458280478,CondeNast,CD-PR0018,EverGreen Unification,Data Engineering
+CL-1780458163908,EXO,CD-PR0017,Exo - Smartlink,Software Engineering
+CL-1779953155342,Google,CD-PR0003,Veear - Resource Management,Data Engineering
+CL-1780047092763,Paradigm,CD-PR0009,Managed Services - Paradigm,Site Reliability Engineering
+CL-1779954081765,Onyx,CD-PR0006,DevOps Support Onyx,Cloud Solutions Engineering
+CL-1780313469186,WellStack,CD-PR0011,Web Application Scanning,Security Engineering
