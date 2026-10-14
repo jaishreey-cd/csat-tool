@@ -16,7 +16,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 globally → clear session
+// Handle 401 globally -> clear session
 api.interceptors.response.use(
   (res) => res,
   (error) => {
@@ -32,7 +32,7 @@ export const authApi = {
   /** Standard username/password login */
   login: async (username_or_email, password) => {
     const res = await api.post("/auth/login", { username_or_email, password });
-    return res.data; // { access_token, token_type, role, user }
+    return res.data;
   },
 
   /** Exchange Microsoft SSO access token for a backend JWT */
@@ -69,21 +69,51 @@ export const dataApi = {
     return res.data;
   },
 
-  /** Get all clients */
+  /** Get all clients with their project count */
   getClients: async () => {
     const res = await api.get("/data/clients");
     return res.data;
   },
 
-  /** Get projects with optional search */
-  getProjects: async (search = "", skip = 0, limit = 50) => {
-    const res = await api.get("/data/projects", {
-      params: { search, skip, limit },
+  /** Get projects with optional search and filter */
+  getProjects: async (search = "", statusFilter = "") => {
+    const params = {};
+    if (search) params.search = search;
+    if (statusFilter && statusFilter !== "ALL") params.status_filter = statusFilter;
+    const res = await api.get("/data/projects", { params });
+    return res.data;
+  },
+
+  /** Upload CSV or Excel (.xlsx, .xls) file for import */
+  uploadFile: async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await api.post("/data/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
     });
     return res.data;
   },
 
-  /** Trigger CSV re-import */
+  /** Get projects by client ID */
+  getClientProjects: async (clientId) => {
+    const res = await api.get(`/data/clients/${encodeURIComponent(clientId)}/projects`);
+    return res.data;
+  },
+
+  /** Download standard CSV template */
+  downloadTemplate: async () => {
+    const res = await api.get("/data/template", { responseType: "blob" });
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "utiliza_projects_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  /** Trigger backend CSV re-import */
   reimport: async () => {
     const res = await api.post("/data/reimport");
     return res.data;

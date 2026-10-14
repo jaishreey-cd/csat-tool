@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -7,19 +8,43 @@
 }
 
 :root {
-  --bg-deep:    #0a1628;
-  --bg-surface: #0d1b2a;
-  --bg-card:    rgba(14, 30, 50, 0.8);
-  --border:     rgba(96, 165, 250, 0.1);
-  --text-main:  #e2e8f0;
-  --text-muted: #94a3b8;
-  --text-dim:   #64748b;
-  --primary:    #2563eb;
-  --primary-lt: #60a5fa;
-  --accent:     #06b6d4;
-  --success:    #22c55e;
-  --warning:    #f59e0b;
-  --danger:     #ef4444;
+  /* Brand palette from existing PMO theme */
+  --bg-deep:       #0a1628;
+  --bg-surface:    #0d1b2a;
+  --bg-card:       rgba(14, 30, 50, 0.8);
+  --bg-hover:      rgba(30, 58, 95, 0.4);
+  --bg-active:     rgba(37, 99, 235, 0.15);
+  
+  --border:        rgba(96, 165, 250, 0.1);
+  --border-strong: rgba(96, 165, 250, 0.25);
+  
+  --text-main:     #e2e8f0;
+  --text-muted:    #94a3b8;
+  --text-dim:      #64748b;
+  --text-white:    #ffffff;
+  
+  --primary:       #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-lt:    #60a5fa;
+  --accent:        #06b6d4;
+  --success:       #22c55e;
+  --warning:       #f59e0b;
+  --danger:        #ef4444;
+
+  /* Theme Radii */
+  --radius-sm:     6px;
+  --radius-md:     9px;
+  --radius-lg:     12px;
+  --radius-full:   9999px;
+
+  /* Layout dimensions */
+  --sidebar-w:     260px;
+  --topbar-h:      68px;
+
+  /* Shadows */
+  --shadow-sm:     0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-md:     0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg:     0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
 html, body {
@@ -39,11 +64,11 @@ html, body {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.15); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.3); }
+::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.15); border-radius: var(--radius-sm); }
+::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.3); }
 
 /* Selection */
-::selection { background: rgba(37, 99, 235, 0.3); color: #f1f5f9; }
+::selection { background: rgba(37, 99, 235, 0.3); color: var(--text-white); }
 
 a { color: var(--primary-lt); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -54,4 +79,4 @@ code {
 }
 
 button { font-family: inherit; }
-input  { font-family: inherit; }
+input, select, textarea { font-family: inherit; }

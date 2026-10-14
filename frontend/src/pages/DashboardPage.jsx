@@ -1,289 +1,375 @@
-﻿import { useState, useEffect, useCallback } from "react";
-import { useMsal } from "@azure/msal-react";
-import { useAuth } from "../context/AuthContext";
-import { dataApi, authApi } from "../api";
-import styles from "./DashboardPage.module.css";
+import { useState, useEffect, useCallback } from "react";
+import Badge from "../components/Badge";
+import ClientProjectList from "../components/ClientProjectList";
+import clientsApi from "../api/clientsApi";
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
-  const { instance } = useMsal();
+  const [clients, setClients] = useState([]);
+  const [totalClients, setTotalClients] = useState(0);
+  const [totalProjects, setTotalProjects] = useState(0);
 
-  const [stats, setStats] = useState(null);
-  const [projects, setProjects] = useState([]);
-  const [search, setSearch] = useState("");
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [terminalOutput, setTerminalOutput] = useState("// PMO Admin console ready. Live Neon PostgreSQL connected.");
-  const [actionLoading, setActionLoading] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [viewMode, setViewMode] = useState("grid");
 
-  const showToast = (msg, type = "info") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
-  };
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const fetchStats = useCallback(async () => {
+  // Debounce search query by 300ms
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Fetch clients from API
+  const fetchClients = useCallback(async (search = "", includeArchived = false) => {
+    setLoading(true);
+    setError("");
     try {
-      const s = await dataApi.getStats();
-      setStats(s);
-    } catch {
-      setStats(null);
+      const data = await clientsApi.getClients({
+        search,
+        includeArchived,
+      });
+      setClients(data.clients || []);
+      setTotalClients(data.total_clients || 0);
+      setTotalProjects(data.total_projects || 0);
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Failed to load clients and projects.");
     } finally {
-      setStatsLoading(false);
-    }
-  }, []);
-
-  const fetchProjects = useCallback(async (q = "") => {
-    try {
-      const data = await dataApi.getProjects(q, 0, 80);
-      setProjects(Array.isArray(data) ? data : data.projects || []);
-    } catch {
-      setProjects([]);
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchStats();
-    fetchProjects();
-  }, [fetchStats, fetchProjects]);
+    fetchClients(debouncedSearch, showArchived);
+  }, [fetchClients, debouncedSearch, showArchived]);
 
-  useEffect(() => {
-    const t = setTimeout(() => fetchProjects(search), 300);
-    return () => clearTimeout(t);
-  }, [search, fetchProjects]);
-
-  const handleLogout = () => {
-    logout();
-    try {
-      instance.logoutSilent();
-    } catch {
-      /* silent */
-    }
-  };
-
-  const runApiTest = async (label, fn) => {
-    setActionLoading(true);
-    setTerminalOutput(`// Executing: ${label}...`);
-    try {
-      const res = await fn();
-      setTerminalOutput(JSON.stringify(res, null, 2));
-      showToast(`${label} completed successfully ✓`, "success");
-    } catch (err) {
-      const msg = err?.response?.data?.detail || err?.message || "Execution error";
-      setTerminalOutput(`// Error: ${msg}`);
-      showToast(msg, "error");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleReimport = async () => {
-    showToast("Re-importing Utiliza dataset...", "info");
-    try {
-      const res = await dataApi.reimport();
-      showToast(`Dataset synchronized: ${res.projects_created ?? 0} projects registered`, "success");
-      fetchStats();
-      fetchProjects(search);
-    } catch (err) {
-      showToast(err?.response?.data?.detail || "Re-import failed", "error");
-    }
-  };
-
-  const avatarChar = (user?.full_name || user?.username || "A")[0].toUpperCase();
+  // Average projects per client
+  const avgProjects = totalClients > 0 ? (totalProjects / totalClients).toFixed(1) : "0";
 
   return (
-    <div className={styles.page}>
-      {/* Top Header */}
-      <header className={styles.header}>
-        <div className={styles.brand}>
-          <img src="/image.png" alt="Utiliza" style={{ width: 28, height: 28, objectFit: "contain" }} />
-          <div className={styles.brandInfo}>
-            <span className={styles.brandTitle}>PMO Tool · CSAT Survey System</span>
-            <span className={styles.brandSub}>Connected to Utiliza & Neon PostgreSQL</span>
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px", maxWidth: "1200px" }}>
+      {/* ── Page Header ────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "16px",
+        }}
+      >
+        <div>
+          <h2
+            style={{
+              fontSize: "24px",
+              fontWeight: 700,
+              color: "var(--text-white, #ffffff)",
+              margin: 0,
+              letterSpacing: "-0.3px",
+            }}
+          >
+            Clients & Projects
+          </h2>
+          <p
+            style={{
+              fontSize: "14px",
+              color: "var(--text-muted, #94a3b8)",
+              margin: "4px 0 0 0",
+            }}
+          >
+            Directory of active client accounts and associated project engagements
+          </p>
+        </div>
+      </div>
+
+      {/* ── Key Metrics Cards ───────────────────────────────────────── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        {/* Total Clients Card */}
+        <div
+          style={{
+            background: "var(--bg-surface, #0d1b2a)",
+            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+            borderRadius: "var(--radius-lg, 12px)",
+            padding: "18px 22px",
+            display: "flex",
+            alignItems: "center",
+            gap: "16px",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+          }}
+        >
+          <div
+            style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "var(--radius-md, 9px)",
+              background: "rgba(37, 99, 235, 0.15)",
+              border: "1px solid rgba(96, 165, 250, 0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+              color: "var(--primary-lt, #60a5fa)",
+            }}
+          >
+            🏢
+          </div>
+          <div>
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Total Clients
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-white, #ffffff)", lineHeight: 1.2, marginTop: "2px" }}>
+              {totalClients}
+            </div>
           </div>
         </div>
 
-        <div className={styles.headerRight}>
-          <div className={styles.statusPill}>
-            <span className={styles.statusDot} />
-            <span>Database Live</span>
+        {/* Total Projects Card */}
+        <div
+          style={{
+            background: "var(--bg-surface, #0d1b2a)",
+            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+            borderRadius: "var(--radius-lg, 12px)",
+            padding: "18px 22px",
+            display: "flex",
+            alignItems: "center",
+            gap: "16px",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+          }}
+        >
+          <div
+            style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "var(--radius-md, 9px)",
+              background: "rgba(6, 182, 212, 0.15)",
+              border: "1px solid rgba(6, 182, 212, 0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+              color: "var(--accent, #06b6d4)",
+            }}
+          >
+            📁
           </div>
-
-          <div className={styles.profilePill}>
-            <div className={styles.avatar}>{avatarChar}</div>
-            <span className={styles.userName}>{user?.full_name || user?.username}</span>
-            <span className={styles.adminBadge}>Admin</span>
+          <div>
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Active Projects
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-white, #ffffff)", lineHeight: 1.2, marginTop: "2px" }}>
+              {totalProjects}
+            </div>
           </div>
-
-          <button id="logoutBtn" className={styles.logoutBtn} onClick={handleLogout}>
-            Sign Out
-          </button>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className={styles.main}>
-        {/* KPI Stats Grid */}
-        <section className={styles.statsGrid}>
-          <StatCard
-            label="Total Clients"
-            value={statsLoading ? "…" : stats?.total_clients ?? "--"}
-            sub="Imported from Utiliza"
-          />
-          <StatCard
-            label="Total Projects"
-            value={statsLoading ? "…" : stats?.total_projects ?? "--"}
-            sub="Registered in Neon PostgreSQL"
-          />
-          <StatCard
-            label="In Progress"
-            value={statsLoading ? "…" : stats?.in_progress_projects ?? "--"}
-            sub="Active Engagements"
-            color="#60a5fa"
-          />
-          <StatCard
-            label="Completed"
-            value={statsLoading ? "…" : stats?.completed_projects ?? "--"}
-            sub="Ready for CSAT Survey"
-            color="#34d399"
-          />
-        </section>
-
-        {/* Projects Table Panel */}
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}>
-            <h2 className={styles.panelTitle}>
-              📁 Projects & CSAT Engagement Pipeline
-            </h2>
-            <div className={styles.panelActions}>
-              <input
-                id="projectSearchInput"
-                type="text"
-                placeholder="Search project, client, ID..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className={styles.searchInput}
-              />
-              <button
-                id="btnReimportCsv"
-                className={styles.primaryBtn}
-                onClick={handleReimport}
-              >
-                🔄 Re-sync Utiliza Data
-              </button>
+        {/* Avg Projects per Client Card */}
+        <div
+          style={{
+            background: "var(--bg-surface, #0d1b2a)",
+            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+            borderRadius: "var(--radius-lg, 12px)",
+            padding: "18px 22px",
+            display: "flex",
+            alignItems: "center",
+            gap: "16px",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+          }}
+        >
+          <div
+            style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "var(--radius-md, 9px)",
+              background: "rgba(34, 197, 94, 0.15)",
+              border: "1px solid rgba(34, 197, 94, 0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+              color: "var(--success, #22c55e)",
+            }}
+          >
+            📊
+          </div>
+          <div>
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Avg. Projects / Client
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-white, #ffffff)", lineHeight: 1.2, marginTop: "2px" }}>
+              {avgProjects}
             </div>
           </div>
-
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Project ID</th>
-                  <th>Project Name</th>
-                  <th>Client</th>
-                  <th>Status</th>
-                  <th>Project Manager</th>
-                  <th>Resources</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projects.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: "center", padding: "24px", color: "#64748b" }}>
-                      No matching projects found.
-                    </td>
-                  </tr>
-                ) : (
-                  projects.map((p) => (
-                    <tr key={p.id || p.project_id}>
-                      <td>
-                        <span className={styles.codeCell}>{p.project_id}</span>
-                      </td>
-                      <td style={{ fontWeight: 600, color: "#ffffff" }}>{p.project_name}</td>
-                      <td>{p.client_name || "—"}</td>
-                      <td>
-                        <span className={`${styles.statusPillTable} ${getStatusClass(p.status, styles)}`}>
-                          {p.status || "—"}
-                        </span>
-                      </td>
-                      <td>{p.project_manager_name || "—"}</td>
-                      <td>{p.resource_count ?? "—"}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* Admin Tools Panel */}
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}>
-            <h2 className={styles.panelTitle}>
-              ⚙️ PMO Administrative Controls & Live API Inspector
-            </h2>
-          </div>
-
-          <div className={styles.adminToolsGrid}>
-            <div className={styles.toolBox}>
-              <div className={styles.toolTitle}>Active Session Details</div>
-              <div className={styles.toolDesc}>
-                All authenticated users have full PMO Admin privileges. You can verify your live JWT and permissions below.
-              </div>
-              <div className={styles.toolBtnRow}>
-                <button
-                  id="btnTestMeRoute"
-                  className={styles.actionBtn}
-                  onClick={() => runApiTest("Inspect Profile (GET /api/auth/me)", authApi.getMe)}
-                  disabled={actionLoading}
-                >
-                  Verify JWT Profile
-                </button>
-                <button
-                  id="btnTestAdminRoute"
-                  className={styles.actionBtn}
-                  onClick={() => runApiTest("Test Admin Route (GET /api/auth/admin-only)", authApi.testAdminRoute)}
-                  disabled={actionLoading}
-                >
-                  Test Admin Route
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.toolBox}>
-              <div className={styles.toolTitle}>Live Terminal Output</div>
-              <pre className={styles.terminal}>{terminalOutput}</pre>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      {/* Floating Toast */}
-      {toast && (
-        <div className={`${styles.toast} ${styles[`toast_${toast.type}`]}`}>
-          {toast.msg}
         </div>
-      )}
+      </div>
+
+      {/* ── Search & Filter Controls ─────────────────────────────────── */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "14px",
+          background: "var(--bg-surface, #0d1b2a)",
+          padding: "14px 18px",
+          borderRadius: "var(--radius-lg, 12px)",
+          border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+        }}
+      >
+        {/* Search Input */}
+        <div style={{ position: "relative", flex: 1, minWidth: "260px", maxWidth: "480px" }}>
+          <input
+            type="text"
+            placeholder="Search by client or project name / code..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: "100%",
+              height: "40px",
+              padding: "0 34px 0 38px",
+              background: "rgba(255, 255, 255, 0.04)",
+              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+              borderRadius: "var(--radius-md, 9px)",
+              color: "var(--text-main, #e2e8f0)",
+              fontSize: "13px",
+              outline: "none",
+              transition: "border-color 0.15s ease",
+            }}
+          />
+          {/* Search Icon */}
+          <span
+            style={{
+              position: "absolute",
+              left: "12px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "var(--text-dim, #64748b)",
+              fontSize: "15px",
+              pointerEvents: "none",
+            }}
+          >
+            🔍
+          </span>
+
+          {/* Clear button */}
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              aria-label="Clear search"
+              style={{
+                position: "absolute",
+                right: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "transparent",
+                border: "none",
+                color: "var(--text-muted, #94a3b8)",
+                cursor: "pointer",
+                fontSize: "14px",
+                padding: "4px",
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Right Controls: View Switcher & Archived Toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+          {/* View Switcher */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              background: "rgba(255, 255, 255, 0.04)",
+              borderRadius: "var(--radius-sm, 6px)",
+              padding: "2px",
+              border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              style={{
+                padding: "4px 10px",
+                fontSize: "12px",
+                fontWeight: 500,
+                borderRadius: "4px",
+                border: "none",
+                cursor: "pointer",
+                background: viewMode === "grid" ? "var(--primary, #2563eb)" : "transparent",
+                color: viewMode === "grid" ? "#ffffff" : "var(--text-muted, #94a3b8)",
+                transition: "all 0.15s ease",
+              }}
+            >
+              ▦ Cards
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("table")}
+              style={{
+                padding: "4px 10px",
+                fontSize: "12px",
+                fontWeight: 500,
+                borderRadius: "4px",
+                border: "none",
+                cursor: "pointer",
+                background: viewMode === "table" ? "var(--primary, #2563eb)" : "transparent",
+                color: viewMode === "table" ? "#ffffff" : "var(--text-muted, #94a3b8)",
+                transition: "all 0.15s ease",
+              }}
+            >
+              ☰ Directory
+            </button>
+          </div>
+
+          {/* Archived Toggle */}
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "13px",
+              color: "var(--text-muted, #94a3b8)",
+              cursor: "pointer",
+              userSelect: "none",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+              style={{
+                accentColor: "var(--primary, #2563eb)",
+                cursor: "pointer",
+                width: "16px",
+                height: "16px",
+              }}
+            />
+            <span>Show archived</span>
+          </label>
+        </div>
+      </div>
+
+      {/* ── Client & Project Listing ─────────────────────────────────── */}
+      <ClientProjectList
+        clients={clients}
+        loading={loading}
+        error={error}
+        viewMode={viewMode}
+        onRetry={() => fetchClients(debouncedSearch, showArchived)}
+      />
     </div>
   );
-}
-
-function StatCard({ label, value, sub, color }) {
-  return (
-    <div className={styles.statCard}>
-      <span className={styles.statLabel}>{label}</span>
-      <span className={styles.statValue} style={color ? { color } : {}}>
-        {value}
-      </span>
-      <span className={styles.statSub}>{sub}</span>
-    </div>
-  );
-}
-
-function getStatusClass(status, styles) {
-  if (!status) return "";
-  const s = status.toLowerCase();
-  if (s.includes("progress")) return styles.statusProgress;
-  if (s.includes("complete") || s.includes("done")) return styles.statusDone;
-  if (s.includes("hold")) return styles.statusHold;
-  return "";
 }

@@ -1,43 +1,34 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import os
 
-from app.config import settings
-from app.database import engine, Base
-from app.routers import auth, data, sso
-from app.seed_data import seed_database
+from app.core.config import settings
+from app.api.routes import auth_router, clients_router, data_sync_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: ensure tables exist and seed initial data from CSV if needed
-    print("[INFO] Starting PMO CSAT Survey System Backend...")
-    try:
-        Base.metadata.create_all(bind=engine)
-        seed_database()
-        print("[INFO] Startup database initialization & seeding complete.")
-    except Exception as e:
-        print(f"[ERROR] Failed during startup seeding: {e}")
+    # Startup: ensure tables created with Base.metadata.create_all()
+    from app.db.session import engine
+    from app.db.base import Base
+    import app.models  # noqa: F401
+    Base.metadata.create_all(bind=engine)
+    print(f"[INFO] Started {settings.PROJECT_NAME} Backend")
     yield
-    print("[INFO] Shutting down PMO CSAT System Backend...")
+    # Shutdown
+    print(f"[INFO] Shutting down {settings.PROJECT_NAME} Backend")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description=(
-        "Backend API for CSAT Survey System — "
-        "Login, Authentication (JWT + Microsoft SSO), Role-Based Access & Utiliza Data Store"
-    ),
+    description="CSAT Backend API",
     version="1.0.0",
     lifespan=lifespan,
 )
 
-# ── CORS ─────────────────────────────────────────────────────────────────────
-# Allow React dev server (5173) and any production origin
+# ── CORS Middleware ────────────────────────────────────────────────────────
 allowed_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     settings.FRONTEND_URL,
-    "*",  # Remove '*' in production and list explicit origins instead
 ]
 
 app.add_middleware(
@@ -48,17 +39,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Routers ───────────────────────────────────────────────────────────────────
-app.include_router(auth.router, prefix=settings.API_V1_STR)
-app.include_router(sso.router,  prefix=settings.API_V1_STR)
-app.include_router(data.router, prefix=settings.API_V1_STR)
+# ── Router Registration (/api prefix) ──────────────────────────────────────
+app.include_router(auth_router, prefix=settings.API_V1_STR)
+app.include_router(clients_router, prefix=settings.API_V1_STR)
+app.include_router(data_sync_router, prefix=settings.API_V1_STR)
 
 @app.get("/api/health", tags=["Health"])
 def health_check():
+    """Health check endpoint."""
     return {
         "status": "healthy",
-        "system": "PMO CSAT Survey System",
+        "system": settings.PROJECT_NAME,
         "version": "1.0.0",
-        "database": settings.DATABASE_URL.split("://")[0],  # e.g. "postgresql"
-        "sso_configured": bool(settings.AAD_CLIENT_ID and settings.AAD_CLIENT_ID != "your-azure-ad-client-id-here"),
+        "database": settings.DATABASE_URL.split("://")[0]
     }

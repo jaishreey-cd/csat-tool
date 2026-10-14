@@ -105,9 +105,13 @@ def seed_database():
                             "partner_id": p_id if p_id != "N/A" else None,
                         }
 
+            # Pre-fetch existing records to avoid N+1 network queries over Neon SSL
+            existing_clients = {c.client_id: c for c in db.query(Client).all()}
+            existing_projects = {p.project_id: p for p in db.query(Project).all()}
+
             # Upsert Clients
             for c_id, c_info in clients_dict.items():
-                existing_client = db.query(Client).filter(Client.client_id == c_id).first()
+                existing_client = existing_clients.get(c_id)
                 if not existing_client:
                     new_client = Client(
                         client_id=c_info["client_id"],
@@ -116,14 +120,13 @@ def seed_database():
                         partner_id=c_info["partner_id"],
                     )
                     db.add(new_client)
+                    existing_clients[c_id] = new_client
                     clients_created += 1
                 else:
                     existing_client.client_name = c_info["client_name"]
                     existing_client.partner_name = c_info["partner_name"]
                     existing_client.partner_id = c_info["partner_id"]
                     clients_updated += 1
-
-            db.commit()
 
             # Second pass: Upsert Projects
             for row in rows:
@@ -141,7 +144,7 @@ def seed_database():
                 if c_id_val == "N/A" or not c_id_val:
                     c_id_val = None
 
-                existing_proj = db.query(Project).filter(Project.project_id == p_id).first()
+                existing_proj = existing_projects.get(p_id)
                 if not existing_proj:
                     new_proj = Project(
                         project_id=p_id,
@@ -168,6 +171,7 @@ def seed_database():
                         project_manager_name=row.get("project_manager_name", "").strip(),
                     )
                     db.add(new_proj)
+                    existing_projects[p_id] = new_proj
                     projects_created += 1
                 else:
                     existing_proj.project_name = row.get("project_name", "").strip()

@@ -1,5 +1,6 @@
-﻿/* ============================================================
-   DashboardPage.module.css - Premium Modern Dark Navy Theme
+/* ============================================================
+   DashboardPage.module.css - Modern Dark Navy Dashboard
+   Modules: Data Import, Client & Project Management
    ============================================================ */
 
 .page {
@@ -11,7 +12,7 @@
   flex-direction: column;
 }
 
-/* ── Top Navbar ────────────────────────────────────────────── */
+/* ── Top Header Navbar ─────────────────────────────────────── */
 .header {
   height: 68px;
   background: #0d1a29;
@@ -136,12 +137,52 @@
 .main {
   flex: 1;
   padding: 28px 32px;
-  max-width: 1400px;
+  max-width: 1440px;
   width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+/* ── Navigation Tabs ───────────────────────────────────────── */
+.navTabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #1e3149;
+  padding-bottom: 2px;
+}
+
+.tabBtn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #94a3b8;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tabBtn:hover {
+  color: #ffffff;
+}
+
+.activeTab {
+  color: #38bdf8;
+  border-bottom-color: #38bdf8;
+}
+
+.tabBadge {
+  background: #1e3149;
+  color: #cbd5e1;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 10px;
 }
 
 /* ── KPI Stats Grid ────────────────────────────────────────── */
@@ -193,7 +234,7 @@
   padding: 22px 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .panelHeader {
@@ -218,6 +259,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .searchInput {
@@ -245,13 +287,47 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .primaryBtn:hover {
   background: #1d4ed8;
 }
 
-/* ── Table ─────────────────────────────────────────────────── */
+/* ── Filter Pills ──────────────────────────────────────────── */
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filterPill {
+  background: #09121d;
+  border: 1px solid #1e3149;
+  color: #94a3b8;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filterPill:hover {
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
+.filterPillActive {
+  background: rgba(37, 99, 235, 0.2);
+  border-color: #2563eb;
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+/* ── Tables ────────────────────────────────────────────────── */
 .tableWrap {
   overflow-x: auto;
   border: 1px solid #1e3149;
@@ -323,58 +399,196 @@
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
-/* ── Admin Tools Row ───────────────────────────────────────── */
-.adminToolsGrid {
+/* ── Client Cards Grid ─────────────────────────────────────── */
+.clientGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
 }
 
-.toolBox {
+.clientCard {
   background: #09121d;
   border: 1px solid #1e3149;
   border-radius: 10px;
-  padding: 16px 18px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.toolTitle {
-  font-size: 14px;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.toolDesc {
-  font-size: 12px;
-  color: #94a3b8;
-  line-height: 1.5;
-}
-
-.toolBtnRow {
-  display: flex;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.actionBtn {
-  background: #1e3149;
-  border: 1px solid #2e4766;
-  color: #f1f5f9;
-  padding: 7px 14px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  gap: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.actionBtn:hover {
-  background: #2563eb;
-  border-color: #2563eb;
+.clientCard:hover {
+  border-color: #38bdf8;
+  transform: translateY(-2px);
 }
 
+.clientCardSelected {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.clientCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.clientName {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.clientCountBadge {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.clientMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* ── Upload Box (Module 2) ─────────────────────────────────── */
+.uploadDropzone {
+  border: 2px dashed #2e4766;
+  border-radius: 12px;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 14px;
+  cursor: pointer;
+  background: #09121d;
+  transition: all 0.2s ease;
+}
+
+.uploadDropzone:hover,
+.uploadDropzoneActive {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.04);
+}
+
+.uploadIcon {
+  width: 52px;
+  height: 52px;
+  background: rgba(37, 99, 235, 0.15);
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.uploadTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.uploadDesc {
+  font-size: 13px;
+  color: #94a3b8;
+  max-width: 480px;
+  line-height: 1.5;
+}
+
+.uploadFormats {
+  display: flex;
+  gap: 8px;
+}
+
+.formatBadge {
+  background: #162436;
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.fileInputHidden {
+  display: none;
+}
+
+/* ── Import Results Box ────────────────────────────────────── */
+.importResultCard {
+  background: #09121d;
+  border: 1px solid #1e3149;
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.resultSuccessHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #34d399;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.resultMetricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.metricItem {
+  background: #0f1d2e;
+  border: 1px solid #1e3149;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metricItemLabel {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metricItemVal {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.errorList {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #fca5a5;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+/* ── Terminal Console ──────────────────────────────────────── */
 .terminal {
   background: #04090f;
   border: 1px solid #162436;
@@ -424,10 +638,494 @@
 @keyframes slideIn {
   from {
     transform: translateY(12px);
-    opacity: 0;
+    opacity: 1;
   }
   to {
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+/* ── Secondary Outline Buttons ────────────────────────────── */
+.secondaryBtn {
+  background: rgba(30, 49, 73, 0.6);
+  border: 1px solid #2e4766;
+  color: #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.secondaryBtn:hover {
+  background: #1e3149;
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+/* ── File Selection Preview Bar ────────────────────────────── */
+.filePreviewCard {
+  background: #0f1f33;
+  border: 1px solid #2563eb;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.12);
+  animation: slideIn 0.2s ease;
+}
+
+.filePreviewInfo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.filePreviewIcon {
+  width: 44px;
+  height: 44px;
+  background: rgba(37, 99, 235, 0.2);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.filePreviewDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filePreviewName {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  word-break: break-all;
+}
+
+.filePreviewMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.fileMetaBadge {
+  background: #1e2e42;
+  color: #38bdf8;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.fileActionsGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.removeFileBtn {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.removeFileBtn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #ffffff;
+}
+
+/* ── Utiliza Import Guidelines Box ──────────────────────────── */
+.guidelinesCard {
+  background: #09121d;
+  border: 1px solid #1e3149;
+  border-radius: 10px;
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.guidelinesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.guidelinesTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.guidelinesGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.guidelinesPill {
+  background: #112033;
+  border: 1px solid #1e3550;
+  color: #94a3b8;
+  font-size: 11px;
+  font-family: monospace;
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+
+.guidelinesPillRequired {
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+}
+
+/* ── Detailed Import Results Breakdown ──────────────────────── */
+.resultTabsNav {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #1e3149;
+  padding-bottom: 8px;
+}
+
+.resultTabBtn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+
+.resultTabBtn:hover {
+  color: #ffffff;
+  background: #132337;
+}
+
+.resultTabBtnActive {
+  background: #172a42;
+  border-color: #2e4766;
+  color: #38bdf8;
+}
+
+.badgePill {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  font-weight: 700;
+}
+
+.badgeSuccess {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.badgeWarning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.badgeError {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+/* ── Result Tables (Duplicates & Errors) ─────────────────────── */
+.resultsTableWrap {
+  border: 1px solid #1e3149;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.resultsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.resultsTable th {
+  background: #0f1f33;
+  color: #94a3b8;
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: 1px solid #1e3149;
+}
+
+.resultsTable td {
+  padding: 9px 14px;
+  border-bottom: 1px solid #132337;
+  color: #cbd5e1;
+}
+
+.resultsTable tr:hover {
+  background: rgba(30, 49, 73, 0.35);
+}
+
+.severityError {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.severityWarning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+/* ── Client Cards Enhancements ──────────────────────────────── */
+.clientCardStats {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.clientStatPill {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-weight: 500;
+}
+
+.clientStatActive {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.clientStatDone {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+/* ── Selected Client Detail Header Banner ────────────────────── */
+.clientBanner {
+  background: linear-gradient(135deg, #0d1e33, #091424);
+  border: 1px solid #1e3b5f;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.clientBannerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.clientBannerTitle {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.clientBannerMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.clientBannerMetrics {
+  display: flex;
+  gap: 12px;
+}
+
+.clientBannerMetricBox {
+  background: rgba(15, 31, 51, 0.8);
+  border: 1px solid #1e3550;
+  border-radius: 8px;
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.clientBannerMetricVal {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.clientBannerMetricLabel {
+  font-size: 10px;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+/* ── Project Quick Detail Modal ─────────────────────────────── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.75);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+  animation: fadeIn 0.15s ease;
+}
+
+.modalCard {
+  background: #0d1a29;
+  border: 1px solid #1e3550;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  padding: 18px 24px;
+  border-bottom: 1px solid #1e2e42;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modalTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.modalCloseBtn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.modalCloseBtn:hover {
+  color: #ffffff;
+  background: #1e2e42;
+}
+
+.modalBody {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.modalGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.modalAttr {
+  background: #09121d;
+  border: 1px solid #1a2a3e;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.modalAttrLabel {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+
+.modalAttrVal {
+  font-size: 13px;
+  color: #ffffff;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.skillsTagsWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.skillPill {
+  background: #13253b;
+  border: 1px solid #233e61;
+  color: #38bdf8;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.modalFooter {
+  padding: 14px 24px;
+  border-top: 1px solid #1e2e42;
+  display: flex;
+  justify-content: flex-end;
+  background: #0a1420;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

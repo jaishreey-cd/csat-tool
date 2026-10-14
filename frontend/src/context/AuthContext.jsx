@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { authApi } from "../api";
+import authApi from "../api/authApi";
 
 const AuthContext = createContext(null);
 
@@ -8,44 +8,50 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session from localStorage on mount
+  // Restore session via /auth/me on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem("pmo_token");
-    const storedUser = localStorage.getItem("pmo_user");
-    if (storedToken && storedUser) {
+    const restoreSession = async () => {
+      // NOTE: Storing the JWT in localStorage is implemented here as requested.
+      // In production, httpOnly Secure SameSite cookies are the recommended more secure future option
+      // to guard against XSS token extraction.
+      const storedToken = localStorage.getItem("csat_token");
+      if (!storedToken) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        const me = await authApi.getMe();
+        setUser(me);
+        localStorage.setItem("csat_user", JSON.stringify(me));
       } catch {
-        localStorage.removeItem("pmo_token");
-        localStorage.removeItem("pmo_user");
+        // Token invalid or expired
+        localStorage.removeItem("csat_token");
+        localStorage.removeItem("csat_user");
+        setToken(null);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-    }
-    setLoading(false);
+    };
+
+    restoreSession();
   }, []);
 
-  const saveSession = (accessToken, userData) => {
-    localStorage.setItem("pmo_token", accessToken);
-    localStorage.setItem("pmo_user", JSON.stringify(userData));
-    setToken(accessToken);
-    setUser(userData);
-  };
-
-  const login = useCallback(async (usernameOrEmail, password) => {
-    const data = await authApi.login(usernameOrEmail, password);
-    saveSession(data.access_token, data.user);
-    return data;
-  }, []);
-
-  const loginWithSSO = useCallback(async (msAccessToken) => {
-    const data = await authApi.ssoExchange(msAccessToken);
-    saveSession(data.access_token, data.user);
+  const login = useCallback(async (email, password) => {
+    const data = await authApi.login(email, password);
+    // Persist JWT and user profile in localStorage
+    localStorage.setItem("csat_token", data.access_token);
+    localStorage.setItem("csat_user", JSON.stringify(data.user));
+    setToken(data.access_token);
+    setUser(data.user);
     return data;
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("pmo_token");
-    localStorage.removeItem("pmo_user");
+    localStorage.removeItem("csat_token");
+    localStorage.removeItem("csat_user");
     setToken(null);
     setUser(null);
   }, []);
@@ -54,7 +60,14 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, login, loginWithSSO, logout, isAuthenticated }}
+      value={{
+        user,
+        token,
+        loading,
+        login,
+        logout,
+        isAuthenticated,
+      }}
     >
       {children}
     </AuthContext.Provider>
@@ -63,6 +76,10 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  if (!ctx) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
   return ctx;
 }
+
+export default AuthContext;

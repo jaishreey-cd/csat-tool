@@ -37,6 +37,8 @@ class ClientResponse(BaseModel):
     partner_name: Optional[str] = None
     partner_id: Optional[str] = None
     project_count: Optional[int] = 0
+    active_project_count: Optional[int] = 0
+    completed_project_count: Optional[int] = 0
 
     class Config:
         from_attributes = True
@@ -51,13 +53,20 @@ class ProjectResponse(BaseModel):
     type: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    effective_start: Optional[str] = None
+    effective_end: Optional[str] = None
     resource_count: Optional[int] = 0
     resource_names: Optional[str] = None
     client_name: Optional[str] = None
     partner_name: Optional[str] = None
     billable: Optional[str] = None
     client_id: Optional[str] = None
+    partner_id: Optional[str] = None
+    uuid: Optional[str] = None
+    department_id: Optional[str] = None
     department_name: Optional[str] = None
+    skills: Optional[str] = None
+    project_manager_employee_id: Optional[str] = None
     project_manager_name: Optional[str] = None
 
     class Config:

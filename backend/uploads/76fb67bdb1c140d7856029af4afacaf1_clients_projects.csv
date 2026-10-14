@@ -1,0 +1,13 @@
+client_code,client_name,project_code,project_name,team_name
+CL-1001,Acme Global Technologies,PR-1001,Cloud Infrastructure Modernization,DevOps Core
+CL-1001,Acme Global Technologies,PR-1002,Zero Trust Security Implementation,Security Operations
+CL-1001,Acme Global Technologies,PR-1003,Data Lakehouse Architecture,Data Platform
+CL-1002,Nexus Health Solutions,PR-2001,HIPAA Cloud Migration,Healthcare Engineering
+CL-1002,Nexus Health Solutions,PR-2002,Telehealth Microservices Platform,Digital Health
+CL-1003,FinEdge Capital,PR-3001,Algorithmic Trading Cluster,Fintech Alpha
+CL-1003,FinEdge Capital,PR-3002,Core Banking API Gateway,Integration Team
+CL-1003,FinEdge Capital,PR-3003,Fraud Detection AI Pipeline,Machine Learning
+CL-1004,Vanguard Retailers,PR-4001,Omnichannel POS Integration,Retail Engineering
+CL-1004,Vanguard Retailers,PR-4002,Real-Time Inventory Stream,Supply Chain
+CL-1005,AeroLogistics International,PR-5001,Fleet Telematics IoT Platform,IoT Embedded
+CL-1005,AeroLogistics International,PR-5002,Automated Dispatch Optimizer,Operations Tech
