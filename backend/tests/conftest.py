@@ -81,3 +81,19 @@ def test_user(db):
 def auth_headers(test_user):
     token = create_access_token(data={"sub": str(test_user.id), "email": test_user.email})
     return {"Authorization": f"Bearer {token}"}
+
+@pytest.fixture
+def test_client_and_project(db):
+    from app.models.client import Client
+    from app.models.project import Project
+    c = Client(client_code="CLI-TEST", name="Test Client", is_active=True)
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+
+    p = Project(project_code="PRJ-TEST", name="Test Project", client_id=c.id, is_active=True)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+
+    return c, p

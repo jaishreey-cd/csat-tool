@@ -116,7 +116,7 @@ CSAT is an internal customer satisfaction platform designed to collect, evaluate
 - **Components:**
   - `Stepper`: Steps `[1. Client & Project, 2. Phase, 3. Question Bank, 4. Review & Submit]`.
   - Dependent Dropdowns: Client Select $\to$ Project Select (filtered to chosen client's active projects).
-  - Phase Selector: Segmented radio group (`Kickoff`, `Mid-Execution`, `Pre-UAT`, `Final Delivery`).
+  - Phase Selector: Segmented radio group (`Weekly`, `Monthly`, `Quarterly`, `Closure`).
   - Question Bank Builder:
     - 6 Tabbed or Accordion sections.
     - Checkbox selection from 25 hardcoded questions per section.

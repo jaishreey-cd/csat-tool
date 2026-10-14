@@ -1,0 +1,74 @@
+import pytest
+
+def test_create_survey_success(client, test_user, test_client_and_project):
+    """Test successful creation of a survey across 6 sections."""
+    db_client, db_project = test_client_and_project
+    
+    # Login to obtain token
+    login_resp = client.post(
+        "/api/auth/login",
+        json={"email": "testadmin@example.com", "password": "Password123!"}
+    )
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1 question per section across all 6 sections
+    questions = [
+        {"section_number": 1, "section_title": "Project Management", "question_text": "Clarity of milestones?", "response_type": "star_rating"},
+        {"section_number": 2, "section_title": "Technical Competence", "question_text": "Code quality standard?", "response_type": "star_rating"},
+        {"section_number": 3, "section_title": "Team Responsiveness", "question_text": "Speed of communication?", "response_type": "star_rating"},
+        {"section_number": 4, "section_title": "Delivery & Execution", "question_text": "Defect rate in UAT?", "response_type": "star_rating"},
+        {"section_number": 5, "section_title": "Value & Impact", "question_text": "Business ROI achieved?", "response_type": "star_rating"},
+        {"section_number": 6, "section_title": "Qualitative Feedback", "question_text": "General comments?", "response_type": "free_text"},
+    ]
+
+    payload = {
+        "client_id": db_client.id,
+        "project_id": db_project.id,
+        "phase": "Monthly",
+        "questions": questions
+    }
+
+    resp = client.post("/api/surveys", json=payload, headers=headers)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["status"] == "Draft"
+    assert len(data["questions"]) == 6
+    assert data["phase"] == "Monthly"
+    assert data["creator_id"] == test_user.id
+
+    # Test submit for approval
+    survey_id = data["id"]
+    submit_resp = client.post(f"/api/surveys/{survey_id}/submit-approval", headers=headers)
+    assert submit_resp.status_code == 200
+    assert submit_resp.json()["status"] == "Pending Approval"
+
+def test_create_survey_missing_section_fails(client, test_user, test_client_and_project):
+    """Test that skipping any section fails with 400 Bad Request."""
+    db_client, db_project = test_client_and_project
+    login_resp = client.post(
+        "/api/auth/login",
+        json={"email": "testadmin@example.com", "password": "Password123!"}
+    )
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Only sections 1 to 5 (Section 6 missing)
+    questions = [
+        {"section_number": 1, "section_title": "Project Management", "question_text": "Clarity of milestones?", "response_type": "star_rating"},
+        {"section_number": 2, "section_title": "Technical Competence", "question_text": "Code quality standard?", "response_type": "star_rating"},
+        {"section_number": 3, "section_title": "Team Responsiveness", "question_text": "Speed of communication?", "response_type": "star_rating"},
+        {"section_number": 4, "section_title": "Delivery & Execution", "question_text": "Defect rate in UAT?", "response_type": "star_rating"},
+        {"section_number": 5, "section_title": "Value & Impact", "question_text": "Business ROI achieved?", "response_type": "star_rating"},
+    ]
+
+    payload = {
+        "client_id": db_client.id,
+        "project_id": db_project.id,
+        "phase": "Closure",
+        "questions": questions
+    }
+
+    resp = client.post("/api/surveys", json=payload, headers=headers)
+    assert resp.status_code == 400
+    assert "Section 6 has no questions" in resp.json()["detail"]

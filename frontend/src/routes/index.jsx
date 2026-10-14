@@ -3,6 +3,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import AppLayout from "../layouts/AppLayout";
 import LoginPage from "../pages/LoginPage";
 import DashboardPage from "../pages/DashboardPage";
+import CreateSurveyPage from "../pages/CreateSurveyPage";
 import ComingSoonPage from "../pages/ComingSoonPage";
 import PublicSurveyPage from "../pages/PublicSurveyPage";
 import NotFoundPage from "../pages/NotFoundPage";
@@ -34,8 +35,8 @@ export default function AppRoutes() {
         {/* Project Analytics Placeholder */}
         <Route path="/projects/:projectId" element={<ComingSoonPage />} />
 
-        {/* Create Survey Placeholder */}
-        <Route path="/surveys/new" element={<ComingSoonPage />} />
+        {/* Create Survey Stepper Wizard */}
+        <Route path="/surveys/new" element={<CreateSurveyPage />} />
 
         {/* Surveys List & Statuses Placeholder */}
         <Route path="/surveys" element={<ComingSoonPage />} />
