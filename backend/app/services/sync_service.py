@@ -32,6 +32,14 @@ MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 REQUIRED_COLUMNS = ["client_code", "client_name", "project_code", "project_name"]
 OPTIONAL_COLUMNS = ["team_name"]
 
+COLUMN_ALIASES = {
+    "client_code": ["client_code", "client_id"],
+    "client_name": ["client_name"],
+    "project_code": ["project_code", "project_id"],
+    "project_name": ["project_name"],
+    "team_name": ["team_name", "department_name"],
+}
+
 def normalize_header(header: str) -> str:
     """Normalize column header: lowercase, strip, replace spaces/dashes with underscores."""
     if not header:
@@ -44,6 +52,7 @@ def parse_file(file_bytes: bytes, filename: str) -> Tuple[List[Dict[str, str]], 
     Parse uploaded .csv or .xlsx file bytes into normalized row dictionaries.
     Validates headers case-insensitively, trims whitespace, catches blank required fields,
     and detects in-file duplicates on project_code.
+    Supports standard columns as well as Projects_Overview_Report.csv column aliases.
     """
     if len(file_bytes) > MAX_FILE_SIZE_BYTES:
         raise HTTPException(
@@ -119,8 +128,17 @@ def parse_file(file_bytes: bytes, filename: str) -> Tuple[List[Dict[str, str]], 
                 detail=f"Failed to parse Excel file: {str(e)}"
             )
 
+    # Map headers to target canonical columns using aliases
+    col_map: Dict[str, str] = {}
+    for target_col, aliases in COLUMN_ALIASES.items():
+        for alias in aliases:
+            norm_alias = normalize_header(alias)
+            if norm_alias in headers:
+                col_map[target_col] = norm_alias
+                break
+
     # Validate required columns
-    missing_cols = [c for c in REQUIRED_COLUMNS if c not in headers]
+    missing_cols = [c for c in REQUIRED_COLUMNS if c not in col_map]
     if missing_cols:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -138,22 +156,50 @@ def parse_file(file_bytes: bytes, filename: str) -> Tuple[List[Dict[str, str]], 
 
     for idx, r in enumerate(raw_rows, start=2):  # Row 2 is first data row
         row_has_error = False
-        for req_col in REQUIRED_COLUMNS:
-            val = r.get(req_col, "").strip()
-            if not val:
-                errors.append(
-                    RowError(
-                        row=idx,
-                        field=req_col,
-                        message=f"Row {idx}: Required field '{req_col}' is missing or blank."
-                    )
-                )
-                row_has_error = True
+
+        c_code_key = col_map["client_code"]
+        c_name_key = col_map["client_name"]
+        p_code_key = col_map["project_code"]
+        p_name_key = col_map["project_name"]
+        team_key = col_map.get("team_name")
+
+        raw_c_code = r.get(c_code_key, "").strip()
+        raw_c_name = r.get(c_name_key, "").strip()
+        raw_p_code = r.get(p_code_key, "").strip()
+        raw_p_name = r.get(p_name_key, "").strip()
+        raw_team = r.get(team_key, "").strip() if team_key else ""
+
+        # Normalize internal/product projects where client is N/A or empty
+        if not raw_c_code or raw_c_code.upper() == "N/A":
+            partner = r.get("partner_name", "").strip() or "Cloud Destinations"
+            ptype = r.get("type", "").strip() or "Internal"
+            raw_c_code = "CL-INTERNAL"
+            if not raw_c_name or raw_c_name.upper() == "N/A":
+                raw_c_name = f"{partner} ({ptype})"
+        elif not raw_c_name or raw_c_name.upper() == "N/A":
+            raw_c_name = raw_c_code
+
+        if not raw_team or raw_team.upper() == "N/A":
+            raw_team = r.get("type", "").strip() or ""
+
+        # Validate required fields
+        if not raw_c_code:
+            errors.append(RowError(row=idx, field="client_code", message=f"Row {idx}: Required field 'client_code' is missing or blank."))
+            row_has_error = True
+        if not raw_c_name:
+            errors.append(RowError(row=idx, field="client_name", message=f"Row {idx}: Required field 'client_name' is missing or blank."))
+            row_has_error = True
+        if not raw_p_code:
+            errors.append(RowError(row=idx, field="project_code", message=f"Row {idx}: Required field 'project_code' is missing or blank."))
+            row_has_error = True
+        if not raw_p_name:
+            errors.append(RowError(row=idx, field="project_name", message=f"Row {idx}: Required field 'project_name' is missing or blank."))
+            row_has_error = True
 
         if row_has_error:
             continue
 
-        p_code = r["project_code"].strip()
+        p_code = raw_p_code
         if p_code.upper() in seen_project_codes:
             in_file_duplicates.append(
                 InFileDuplicate(
@@ -166,11 +212,11 @@ def parse_file(file_bytes: bytes, filename: str) -> Tuple[List[Dict[str, str]], 
 
         seen_project_codes.add(p_code.upper())
         valid_rows.append({
-            "client_code": r["client_code"].strip(),
-            "client_name": r["client_name"].strip(),
+            "client_code": raw_c_code,
+            "client_name": raw_c_name,
             "project_code": p_code,
-            "project_name": r["project_name"].strip(),
-            "team_name": r.get("team_name", "").strip() or None,
+            "project_name": raw_p_name,
+            "team_name": raw_team or None,
             "_row_number": idx
         })
 

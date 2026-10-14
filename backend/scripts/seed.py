@@ -5,10 +5,13 @@ from pathlib import Path
 backend_dir = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(backend_dir))
 
+from datetime import datetime, timezone
 from app.core.config import settings
 from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models.user import User
+from app.models.client import Client
+from app.models.project import Project
 from app.services.sync_service import confirm_sync
 
 def seed():
@@ -61,10 +64,30 @@ def seed():
             db.commit()
             print(f"[SEED] Reviewer user verified: {reviewer_email}")
 
-        # 3. Seed initial clients & projects from CSV
-        seed_csv_path = backend_dir / "seed" / "clients_projects.csv"
-        if not seed_csv_path.exists():
-            print(f"[WARN] Seed file not found at {seed_csv_path}, skipping data load.")
+        # 3. Soft-archive legacy dummy test data (CL-1001 to CL-1005) if present
+        dummy_clients = db.query(Client).filter(
+            Client.client_code.in_(["CL-1001", "CL-1002", "CL-1003", "CL-1004", "CL-1005"])
+        ).all()
+        if dummy_clients:
+            now = datetime.now(timezone.utc)
+            for dc in dummy_clients:
+                dc.is_active = False
+                dc.archived_at = now
+                for dp in dc.projects:
+                    dp.is_active = False
+                    dp.archived_at = now
+            db.commit()
+            print("[SEED] Soft-archived legacy dummy clients (CL-1001 to CL-1005)")
+
+        # 4. Seed initial clients & projects from CSV (prefer Projects_Overview_Report.csv)
+        candidates = [
+            backend_dir.parent / "Projects_Overview_Report.csv",
+            backend_dir / "Projects_Overview_Report.csv",
+            backend_dir / "seed" / "clients_projects.csv",
+        ]
+        seed_csv_path = next((p for p in candidates if p.exists()), None)
+        if not seed_csv_path:
+            print(f"[WARN] No seed file found in {[str(p) for p in candidates]}, skipping data load.")
             return
 
         print(f"[SEED] Loading clients and projects from {seed_csv_path} via sync service...")
@@ -74,7 +97,7 @@ def seed():
         result = confirm_sync(
             db=db,
             file_bytes=file_bytes,
-            filename="clients_projects.csv",
+            filename=seed_csv_path.name,
             mode="add_update",
             user_id=admin_user.id
         )
