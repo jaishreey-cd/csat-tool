@@ -20,6 +20,21 @@ export const surveysApi = {
     const response = await axiosClient.post(`/surveys/${id}/submit-approval`);
     return response.data;
   },
+
+  dispatchSurvey: async (id, dispatchData) => {
+    const response = await axiosClient.post(`/surveys/${id}/dispatch`, dispatchData);
+    return response.data;
+  },
+
+  getPublicSurvey: async (token) => {
+    const response = await axiosClient.get(`/surveys/public/${token}`);
+    return response.data;
+  },
+
+  submitPublicSurvey: async (token, submissionData) => {
+    const response = await axiosClient.post(`/surveys/public/${token}/submit`, submissionData);
+    return response.data;
+  },
 };
 
 export default surveysApi;

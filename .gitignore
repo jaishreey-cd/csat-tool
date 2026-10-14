@@ -1,4 +1,4 @@
-﻿# Virtual Environment
+# Virtual Environment
 venv/
 .venv/
 env/
@@ -19,6 +19,8 @@ frontend/dist/
 *.db
 *.sqlite3
 csat_pmo.db
+backend/uploads/
+
 
 # Environment variables
 # .env

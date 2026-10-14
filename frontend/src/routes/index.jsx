@@ -4,6 +4,7 @@ import AppLayout from "../layouts/AppLayout";
 import LoginPage from "../pages/LoginPage";
 import DashboardPage from "../pages/DashboardPage";
 import CreateSurveyPage from "../pages/CreateSurveyPage";
+import SurveysPage from "../pages/SurveysPage";
 import ComingSoonPage from "../pages/ComingSoonPage";
 import PublicSurveyPage from "../pages/PublicSurveyPage";
 import NotFoundPage from "../pages/NotFoundPage";
@@ -38,11 +39,8 @@ export default function AppRoutes() {
         {/* Create Survey Stepper Wizard */}
         <Route path="/surveys/new" element={<CreateSurveyPage />} />
 
-        {/* Surveys List & Statuses Placeholder */}
-        <Route path="/surveys" element={<ComingSoonPage />} />
-
-        {/* Approvals Placeholder */}
-        <Route path="/approvals" element={<ComingSoonPage />} />
+        {/* Surveys List & Management */}
+        <Route path="/surveys" element={<SurveysPage />} />
       </Route>
 
       {/* Fallback 404 Route */}

@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Float
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -7,7 +7,7 @@ from app.db.base import Base
 class Survey(Base):
     """
     Survey model representing a CSAT survey configured for a client project phase.
-    Statuses: Draft -> Pending Approval -> Approved (or Rejected with comment) -> Sent -> Completed
+    Statuses: Draft -> Ready -> Sent -> Completed
     """
     __tablename__ = "surveys"
 
@@ -30,6 +30,7 @@ class Survey(Base):
     sent_at = Column(DateTime, nullable=True)
     followup_sent_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
+    average_score = Column(Float, nullable=True)
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -41,6 +42,7 @@ class Survey(Base):
     creator = relationship("User", foreign_keys=[creator_id], lazy="joined")
     reviewer = relationship("User", foreign_keys=[reviewer_id], lazy="joined")
     questions = relationship("SurveyQuestion", back_populates="survey", cascade="all, delete-orphan", order_by="SurveyQuestion.section_number, SurveyQuestion.display_order")
+    answers = relationship("SurveyAnswer", back_populates="survey", cascade="all, delete-orphan")
 
 
 class SurveyQuestion(Base):
@@ -63,3 +65,21 @@ class SurveyQuestion(Base):
 
     # Relationship back to Survey
     survey = relationship("Survey", back_populates="questions")
+
+
+class SurveyAnswer(Base):
+    """
+    Individual response submitted by a client for a question.
+    """
+    __tablename__ = "survey_answers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    survey_id = Column(Integer, ForeignKey("surveys.id", ondelete="CASCADE"), nullable=False)
+    question_id = Column(Integer, ForeignKey("survey_questions.id", ondelete="CASCADE"), nullable=False)
+    rating_score = Column(Integer, nullable=True)  # 1 to 5 for star rating questions
+    text_answer = Column(Text, nullable=True)       # for section 6 qualitative questions
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    survey = relationship("Survey", back_populates="answers")
+    question = relationship("SurveyQuestion")

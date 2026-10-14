@@ -50,6 +50,10 @@ class ProjectSimple(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class SurveyDispatch(BaseModel):
+    client_contact_name: str
+    client_contact_email: str
+
 class SurveyResponse(BaseModel):
     id: int
     survey_code: str
@@ -66,6 +70,7 @@ class SurveyResponse(BaseModel):
     sent_at: Optional[datetime] = None
     followup_sent_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    average_score: Optional[float] = None
     created_at: datetime
     updated_at: datetime
 
@@ -80,3 +85,34 @@ class SurveyResponse(BaseModel):
 class SurveyListResponse(BaseModel):
     surveys: List[SurveyResponse]
     total: int
+
+class PublicQuestionResponse(BaseModel):
+    id: int
+    section_number: int
+    section_title: str
+    question_text: str
+    response_type: str
+    display_order: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+class PublicSurveyDetail(BaseModel):
+    survey_code: str
+    unique_token: str
+    client_name: str
+    project_name: str
+    project_code: str
+    phase: str
+    status: str
+    client_contact_name: Optional[str] = None
+    completed_at: Optional[datetime] = None
+    average_score: Optional[float] = None
+    questions: List[PublicQuestionResponse]
+
+class AnswerItem(BaseModel):
+    question_id: int
+    rating_score: Optional[int] = None
+    text_answer: Optional[str] = None
+
+class PublicSurveySubmission(BaseModel):
+    answers: List[AnswerItem]

@@ -73,7 +73,7 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
         client_id=client.id,
         project_id=project.id,
         phase=survey_in.phase,
-        status="Draft",
+        status="Ready",
         creator_id=creator_id,
     )
     db.add(survey)
@@ -131,9 +131,112 @@ def get_surveys(
 
     return query.order_by(desc(Survey.created_at)).all()
 
+from app.models.survey import Survey, SurveyQuestion, SurveyAnswer
+from app.models.client import Client
+from app.models.project import Project
+from app.schemas.survey import SurveyCreate, PublicSurveyDetail, PublicQuestionResponse, AnswerItem
+from datetime import datetime
+
 def get_survey_by_id(db: Session, survey_id: int) -> Survey:
     """Fetch single survey with joined relationships."""
     survey = db.query(Survey).filter(Survey.id == survey_id).first()
     if not survey:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
     return survey
+
+def dispatch_survey(db: Session, survey_id: int, client_contact_name: str, client_contact_email: str) -> Survey:
+    """
+    Dispatch survey to client contact.
+    Generates a secure unique token for the public response URL.
+    """
+    survey = db.query(Survey).filter(Survey.id == survey_id).first()
+    if not survey:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
+
+    if not survey.unique_token:
+        survey.unique_token = str(uuid.uuid4()).replace("-", "")
+
+    survey.client_contact_name = client_contact_name
+    survey.client_contact_email = client_contact_email
+    survey.sent_at = datetime.utcnow()
+    survey.status = "Sent"
+
+    db.commit()
+    db.refresh(survey)
+    return survey
+
+def get_public_survey_by_token(db: Session, token: str) -> PublicSurveyDetail:
+    """Fetch survey and its questions by unique public token."""
+    survey = db.query(Survey).filter(Survey.unique_token == token).first()
+    if not survey:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey link not found or invalid")
+
+    questions_data = [
+        PublicQuestionResponse(
+            id=q.id,
+            section_number=q.section_number,
+            section_title=q.section_title,
+            question_text=q.question_text,
+            response_type=q.response_type,
+            display_order=q.display_order,
+        )
+        for q in survey.questions
+    ]
+
+    return PublicSurveyDetail(
+        survey_code=survey.survey_code,
+        unique_token=survey.unique_token,
+        client_name=survey.client.name if survey.client else "Client",
+        project_name=survey.project.name if survey.project else "Project",
+        project_code=survey.project.project_code if survey.project else "",
+        phase=survey.phase,
+        status=survey.status,
+        client_contact_name=survey.client_contact_name,
+        completed_at=survey.completed_at,
+        average_score=survey.average_score,
+        questions=questions_data,
+    )
+
+def submit_public_survey_response(db: Session, token: str, answers: List[AnswerItem]) -> dict:
+    """Record client survey response and calculate overall average."""
+    survey = db.query(Survey).filter(Survey.unique_token == token).first()
+    if not survey:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey link not found or invalid")
+
+    if survey.status == "Completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This survey has already been submitted. Thank you for your feedback!"
+        )
+
+    # Save answers
+    star_scores = []
+    for item in answers:
+        answer_record = SurveyAnswer(
+            survey_id=survey.id,
+            question_id=item.question_id,
+            rating_score=item.rating_score,
+            text_answer=item.text_answer,
+            created_at=datetime.utcnow(),
+        )
+        db.add(answer_record)
+        if item.rating_score is not None and item.rating_score >= 1:
+            star_scores.append(item.rating_score)
+
+    # Calculate average rating
+    if star_scores:
+        survey.average_score = round(sum(star_scores) / len(star_scores), 2)
+
+    survey.status = "Completed"
+    survey.completed_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(survey)
+
+    return {
+        "status": "success",
+        "message": "Survey feedback recorded successfully. Thank you!",
+        "survey_code": survey.survey_code,
+        "completed_at": survey.completed_at.isoformat(),
+        "average_score": survey.average_score,
+    }
