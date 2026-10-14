@@ -12,6 +12,11 @@ async def lifespan(app: FastAPI):
     from app.db.base import Base
     import app.models  # noqa: F401
     Base.metadata.create_all(bind=engine)
+    try:
+        from scripts.seed import seed
+        seed()
+    except Exception as e:
+        print(f"[WARN] Startup seeding warning: {e}")
     print(f"[INFO] Started {settings.PROJECT_NAME} Backend")
     yield
     # Shutdown
