@@ -1,19 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
-import Badge from "../components/Badge";
 import ClientProjectList from "../components/ClientProjectList";
 import clientsApi from "../api/clientsApi";
 
 export default function DashboardPage() {
-  const [clients, setClients] = useState([]);
-  const [totalClients, setTotalClients] = useState(0);
-  const [totalProjects, setTotalProjects] = useState(0);
+  const initialCached = clientsApi.getCachedClients({ search: "", includeArchived: false });
+  const [clients, setClients] = useState(() => initialCached?.clients || []);
+  const [totalClients, setTotalClients] = useState(() => initialCached?.total_clients || 0);
+  const [totalProjects, setTotalProjects] = useState(() => initialCached?.total_projects || 0);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [viewMode, setViewMode] = useState("grid");
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialCached);
   const [error, setError] = useState("");
 
   // Debounce search query by 300ms
@@ -24,14 +23,28 @@ export default function DashboardPage() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Fetch clients from API
-  const fetchClients = useCallback(async (search = "", includeArchived = false) => {
-    setLoading(true);
+  // Fetch clients from API with stale-while-revalidate pattern
+  const fetchClients = useCallback(async (search = "", includeArchived = false, force = false) => {
+    // If cached data exists for this exact query and not forced, display immediately
+    const cached = clientsApi.getCachedClients({ search, includeArchived });
+    if (cached && !force) {
+      setClients(cached.clients || []);
+      setTotalClients(cached.total_clients || 0);
+      setTotalProjects(cached.total_projects || 0);
+      setLoading(false);
+      return;
+    }
+
+    // Only show full loading spinner if we don't already have clients rendered
+    if (!cached && clients.length === 0) {
+      setLoading(true);
+    }
     setError("");
     try {
       const data = await clientsApi.getClients({
         search,
         includeArchived,
+        forceRefresh: force,
       });
       setClients(data.clients || []);
       setTotalClients(data.total_clients || 0);
@@ -41,7 +54,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clients.length]);
 
   useEffect(() => {
     fetchClients(debouncedSearch, showArchived);
@@ -285,55 +298,8 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Right Controls: View Switcher & Archived Toggle */}
+        {/* Right Controls: Archived Toggle */}
         <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-          {/* View Switcher */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              background: "rgba(255, 255, 255, 0.04)",
-              borderRadius: "var(--radius-sm, 6px)",
-              padding: "2px",
-              border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setViewMode("grid")}
-              style={{
-                padding: "4px 10px",
-                fontSize: "12px",
-                fontWeight: 500,
-                borderRadius: "4px",
-                border: "none",
-                cursor: "pointer",
-                background: viewMode === "grid" ? "var(--primary, #2563eb)" : "transparent",
-                color: viewMode === "grid" ? "#ffffff" : "var(--text-muted, #94a3b8)",
-                transition: "all 0.15s ease",
-              }}
-            >
-              ▦ Cards
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("table")}
-              style={{
-                padding: "4px 10px",
-                fontSize: "12px",
-                fontWeight: 500,
-                borderRadius: "4px",
-                border: "none",
-                cursor: "pointer",
-                background: viewMode === "table" ? "var(--primary, #2563eb)" : "transparent",
-                color: viewMode === "table" ? "#ffffff" : "var(--text-muted, #94a3b8)",
-                transition: "all 0.15s ease",
-              }}
-            >
-              ☰ Directory
-            </button>
-          </div>
-
           {/* Archived Toggle */}
           <label
             style={{
@@ -362,12 +328,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Client & Project Listing ─────────────────────────────────── */}
+      {/* ── Client & Project Directory ─────────────────────────────────── */}
       <ClientProjectList
         clients={clients}
         loading={loading}
         error={error}
-        viewMode={viewMode}
+        searchQuery={debouncedSearch}
         onRetry={() => fetchClients(debouncedSearch, showArchived)}
       />
     </div>

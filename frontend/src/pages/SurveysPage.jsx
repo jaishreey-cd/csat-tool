@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import surveysApi from "../api/surveysApi";
 import clientsApi from "../api/clientsApi";
 import Button from "../components/Button";
@@ -10,13 +10,16 @@ import Spinner from "../components/Spinner";
 import { SURVEY_PHASES } from "../data/questionBank";
 
 export default function SurveysPage() {
-  const [surveys, setSurveys] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const cachedSurveys = surveysApi.getCachedSurveys();
+  const cachedClients = clientsApi.getCachedClients();
+  const [surveys, setSurveys] = useState(() => cachedSurveys?.surveys || []);
+  const [clients, setClients] = useState(() => cachedClients?.clients || []);
+  const [loading, setLoading] = useState(() => !cachedSurveys);
   const [error, setError] = useState("");
 
   // Filters
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedPhase, setSelectedPhase] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [selectedClientFilter, setSelectedClientFilter] = useState("ALL");
@@ -33,20 +36,35 @@ export default function SurveysPage() {
   // Questions Detail Modal State
   const [detailsModalSurvey, setDetailsModalSurvey] = useState(null);
 
-  // Fetch surveys and clients
-  const fetchSurveys = async () => {
-    setLoading(true);
+  // Fetch surveys and clients independently with stale-while-revalidate pattern
+  const fetchSurveys = async (force = false) => {
+    const cached = surveysApi.getCachedSurveys();
+    if (cached && !force) {
+      setSurveys(cached.surveys || []);
+      setLoading(false);
+      return;
+    }
+
+    if (!cached && surveys.length === 0) {
+      setLoading(true);
+    }
     setError("");
+
     try {
-      const [surveysRes, clientsRes] = await Promise.all([
-        surveysApi.getSurveys(),
-        clientsApi.getClients(),
-      ]);
-      setSurveys(surveysRes.surveys || []);
-      setClients(clientsRes.clients || []);
+      const surveysPromise = surveysApi.getSurveys({}, force).then((res) => {
+        setSurveys(res.surveys || []);
+      });
+
+      const clientsPromise = clientsApi.getClients({ forceRefresh: force }).then((res) => {
+        setClients(res.clients || []);
+      }).catch(() => {});
+
+      await surveysPromise;
     } catch (err) {
       console.error("Failed to fetch surveys:", err);
-      setError("Unable to load surveys. Please verify connection and retry.");
+      if (surveys.length === 0) {
+        setError("Unable to load surveys. Please verify connection and retry.");
+      }
     } finally {
       setLoading(false);
     }

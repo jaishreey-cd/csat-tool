@@ -16,6 +16,7 @@ class Project(Base):
         index=True
     )
     team_name = Column(String(255), nullable=True)
+    status = Column(String(50), default="Not Started", nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     archived_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)

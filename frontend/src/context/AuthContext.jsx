@@ -4,16 +4,25 @@ import authApi from "../api/authApi";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(() => localStorage.getItem("csat_token") || null);
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem("csat_user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  // Loading is only true if we have a token but no cached user profile in localStorage
+  const [loading, setLoading] = useState(() => {
+    const storedToken = localStorage.getItem("csat_token");
+    const storedUser = localStorage.getItem("csat_user");
+    return !!storedToken && !storedUser;
+  });
 
-  // Restore session via /auth/me on mount
+  // Verify / refresh session via /auth/me silently in the background on mount
   useEffect(() => {
     const restoreSession = async () => {
-      // NOTE: Storing the JWT in localStorage is implemented here as requested.
-      // In production, httpOnly Secure SameSite cookies are the recommended more secure future option
-      // to guard against XSS token extraction.
       const storedToken = localStorage.getItem("csat_token");
       if (!storedToken) {
         setLoading(false);
@@ -21,16 +30,17 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        setToken(storedToken);
         const me = await authApi.getMe();
         setUser(me);
         localStorage.setItem("csat_user", JSON.stringify(me));
-      } catch {
-        // Token invalid or expired
-        localStorage.removeItem("csat_token");
-        localStorage.removeItem("csat_user");
-        setToken(null);
-        setUser(null);
+      } catch (err) {
+        // If 401 unauthorized, token has expired
+        if (err?.response?.status === 401) {
+          localStorage.removeItem("csat_token");
+          localStorage.removeItem("csat_user");
+          setToken(null);
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }

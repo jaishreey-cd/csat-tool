@@ -31,8 +31,9 @@ export default function CreateSurveyPage() {
   const [currentStep, setCurrentStep] = useState(0);
 
   // Data fetching state
-  const [clients, setClients] = useState([]);
-  const [loadingClients, setLoadingClients] = useState(true);
+  const cachedClients = clientsApi.getCachedClients();
+  const [clients, setClients] = useState(() => cachedClients?.clients || []);
+  const [loadingClients, setLoadingClients] = useState(() => !cachedClients);
 
   // Form selections
   const [selectedClientId, setSelectedClientId] = useState(initialClientId);
@@ -77,8 +78,15 @@ export default function CreateSurveyPage() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Fetch clients on mount
+  // Fetch clients on mount with cache support
   useEffect(() => {
     const fetchClients = async () => {
+      const cached = clientsApi.getCachedClients();
+      if (cached) {
+        setClients(cached.clients || []);
+        setLoadingClients(false);
+        return;
+      }
       setLoadingClients(true);
       try {
         const data = await clientsApi.getClients();
