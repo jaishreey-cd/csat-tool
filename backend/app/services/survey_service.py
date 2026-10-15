@@ -326,3 +326,89 @@ def submit_public_survey_response(db: Session, token: str, answers: List[AnswerI
         "completed_at": survey.completed_at.isoformat(),
         "average_score": survey.average_score,
     }
+
+def send_survey_reminder(db: Session, survey_id: int) -> Survey:
+    """Send follow-up reminder email for an unanswered survey."""
+    survey = db.query(Survey).filter(Survey.id == survey_id).first()
+    if not survey:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
+
+    if survey.status == "Completed":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Survey has already been completed by the client.")
+
+    if not survey.client_contact_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Survey has not been dispatched to a client contact yet.")
+
+    from app.services.email_service import send_survey_reminder_email
+    send_survey_reminder_email(
+        recipient_email=survey.client_contact_email,
+        recipient_name=survey.client_contact_name or "Client Stakeholder",
+        survey_code=survey.survey_code,
+        project_name=survey.project.name if survey.project else "Project",
+        client_name=survey.client.name if survey.client else "Client",
+        phase=survey.phase,
+        survey_token=survey.unique_token,
+    )
+
+    survey.followup_sent_at = datetime.utcnow()
+    db.commit()
+    db.refresh(survey)
+    invalidate_surveys_cache()
+    return survey
+
+def check_and_trigger_automated_followups(db: Session, threshold_days: int = 7) -> dict:
+    """
+    Scans all pending sent surveys. If days since sent_at >= threshold_days and
+    no reminder has been sent in the last 7 days, automatically triggers a reminder.
+    """
+    now = datetime.utcnow()
+    pending_surveys = (
+        db.query(Survey)
+        .filter(
+            Survey.status == "Sent",
+            Survey.client_contact_email.isnot(None),
+            Survey.completed_at.is_(None)
+        )
+        .all()
+    )
+
+    reminded = []
+    from app.services.email_service import send_survey_reminder_email
+
+    for survey in pending_surveys:
+        if not survey.sent_at:
+            continue
+
+        days_since_sent = (now - survey.sent_at).days
+        if days_since_sent >= threshold_days:
+            if survey.followup_sent_at:
+                days_since_last_followup = (now - survey.followup_sent_at).days
+                if days_since_last_followup < 7:
+                    continue
+
+            send_survey_reminder_email(
+                recipient_email=survey.client_contact_email,
+                recipient_name=survey.client_contact_name or "Client Stakeholder",
+                survey_code=survey.survey_code,
+                project_name=survey.project.name if survey.project else "Project",
+                client_name=survey.client.name if survey.client else "Client",
+                phase=survey.phase,
+                survey_token=survey.unique_token,
+            )
+            survey.followup_sent_at = now
+            reminded.append({
+                "survey_id": survey.id,
+                "survey_code": survey.survey_code,
+                "recipient": survey.client_contact_email,
+                "days_pending": days_since_sent
+            })
+
+    if reminded:
+        db.commit()
+        invalidate_surveys_cache()
+
+    return {
+        "status": "success",
+        "reminded_count": len(reminded),
+        "reminded_surveys": reminded
+    }

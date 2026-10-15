@@ -10,7 +10,6 @@ export default function Topbar({ onToggleSidebar }) {
     "/dashboard": "Dashboard",
     "/surveys/new": "Create Survey",
     "/surveys": "Surveys",
-    "/approvals": "Approvals",
   };
 
   // Determine current page title

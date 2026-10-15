@@ -7,6 +7,7 @@ import Badge from "../components/Badge";
 import Input from "../components/Input";
 import Select from "../components/Select";
 import Spinner from "../components/Spinner";
+import Toast from "../components/Toast";
 import { SURVEY_PHASES } from "../data/questionBank";
 
 export default function SurveysPage() {
@@ -32,6 +33,11 @@ export default function SurveysPage() {
   const [dispatchError, setDispatchError] = useState("");
   const [dispatchSuccess, setDispatchSuccess] = useState("");
   const [copiedToken, setCopiedToken] = useState(null);
+
+  // Reminder & Follow-up State
+  const [remindingId, setRemindingId] = useState(null);
+  const [checkingFollowups, setCheckingFollowups] = useState(false);
+  const [toast, setToast] = useState({ message: "", type: "info" });
 
   // Questions Detail Modal State
   const [detailsModalSurvey, setDetailsModalSurvey] = useState(null);
@@ -107,8 +113,53 @@ export default function SurveysPage() {
     const ready = surveys.filter((s) => s.status === "Ready" || s.status === "Draft").length;
     const sent = surveys.filter((s) => s.status === "Sent").length;
     const completed = surveys.filter((s) => s.status === "Completed").length;
-    return { total, ready, sent, completed };
+    const overdue = surveys.filter((s) => {
+      if (s.status !== "Sent" || !s.sent_at) return false;
+      const days = (Date.now() - new Date(s.sent_at).getTime()) / (1000 * 60 * 60 * 24);
+      return days >= 7;
+    }).length;
+    return { total, ready, sent, completed, overdue };
   }, [surveys]);
+
+  // Send single on-demand reminder email
+  const handleSendReminder = async (surveyId) => {
+    setRemindingId(surveyId);
+    try {
+      const updated = await surveysApi.sendReminder(surveyId);
+      setSurveys((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+      setToast({
+        message: `Reminder email successfully dispatched to ${updated.client_contact_email}!`,
+        type: "success",
+      });
+    } catch (err) {
+      setToast({
+        message: err?.response?.data?.detail || "Failed to send reminder email.",
+        type: "error",
+      });
+    } finally {
+      setRemindingId(null);
+    }
+  };
+
+  // Run automated 7-day follow-up check across all pending surveys
+  const handleCheckFollowups = async () => {
+    setCheckingFollowups(true);
+    try {
+      const res = await surveysApi.checkFollowups(7);
+      await fetchSurveys(true);
+      setToast({
+        message: `Follow-up scanner completed: ${res.reminded_count} reminder email(s) dispatched.`,
+        type: "success",
+      });
+    } catch (err) {
+      setToast({
+        message: err?.response?.data?.detail || "Failed to run automated follow-up scanner.",
+        type: "error",
+      });
+    } finally {
+      setCheckingFollowups(false);
+    }
+  };
 
   // Open Dispatch Modal
   const openDispatchModal = (survey) => {
@@ -180,11 +231,23 @@ export default function SurveysPage() {
           </p>
         </div>
 
-        <Link to="/surveys/new">
-          <Button variant="primary" size="md">
-            + Create Survey
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={handleCheckFollowups}
+            disabled={checkingFollowups}
+            title="Scan all surveys pending >= 7 days and send automated reminder emails"
+          >
+            {checkingFollowups ? "Scanning..." : "⚡ Scan 7-Day Follow-ups"}
           </Button>
-        </Link>
+
+          <Link to="/surveys/new">
+            <Button variant="primary" size="md">
+              + Create Survey
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* KPI Stat Cards */}
@@ -268,6 +331,25 @@ export default function SurveysPage() {
           </span>
           <span style={{ fontSize: "28px", fontWeight: 800, color: "var(--success, #22c55e)" }}>
             {kpis.completed}
+          </span>
+        </div>
+
+        <div
+          style={{
+            background: "var(--bg-surface, #0d1b2a)",
+            border: kpis.overdue > 0 ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+            borderRadius: "var(--radius-lg, 12px)",
+            padding: "18px 20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+          }}
+        >
+          <span style={{ fontSize: "12px", color: kpis.overdue > 0 ? "#f87171" : "var(--text-muted, #94a3b8)", fontWeight: 600, textTransform: "uppercase" }}>
+            Overdue (≥ 7 Days)
+          </span>
+          <span style={{ fontSize: "28px", fontWeight: 800, color: kpis.overdue > 0 ? "#ef4444" : "var(--text-white, #ffffff)" }}>
+            {kpis.overdue}
           </span>
         </div>
       </div>
@@ -470,7 +552,29 @@ export default function SurveysPage() {
                       {/* Status */}
                       <td style={{ padding: "14px 18px" }}>
                         {isReady && <Badge variant="active">Ready</Badge>}
-                        {isSent && <Badge variant="info">Dispatched</Badge>}
+                        {isSent && (
+                          <div>
+                            {(() => {
+                              const daysPending = survey.sent_at
+                                ? Math.floor((Date.now() - new Date(survey.sent_at).getTime()) / (1000 * 60 * 60 * 24))
+                                : 0;
+                              const isOverdue = daysPending >= 7;
+
+                              return (
+                                <>
+                                  <Badge variant={isOverdue ? "warning" : "info"}>
+                                    {isOverdue ? `● Overdue (${daysPending}d)` : `Dispatched (${daysPending}d)`}
+                                  </Badge>
+                                  {survey.followup_sent_at && (
+                                    <span style={{ fontSize: "11px", color: "#fbbf24", display: "block", marginTop: "4px", fontWeight: 500 }}>
+                                      🔔 Reminded {new Date(survey.followup_sent_at).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
                         {isCompleted && (
                           <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                             <Badge variant="success">Completed</Badge>
@@ -564,14 +668,26 @@ export default function SurveysPage() {
                           )}
 
                           {isSent && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openDispatchModal(survey)}
-                              title="Update client contact details"
-                            >
-                              Edit Contact
-                            </Button>
+                            <>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleSendReminder(survey.id)}
+                                disabled={remindingId === survey.id}
+                                title="Send reminder email to client contact"
+                              >
+                                {remindingId === survey.id ? "Sending..." : "🔔 Remind"}
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDispatchModal(survey)}
+                                title="Update client contact details"
+                              >
+                                Edit Contact
+                              </Button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -893,6 +1009,13 @@ export default function SurveysPage() {
           </div>
         </div>
       )}
+
+      {/* Toast Notification */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ message: "", type: "info" })}
+      />
     </div>
   );
 }
