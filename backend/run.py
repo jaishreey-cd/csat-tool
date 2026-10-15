@@ -11,8 +11,12 @@ except ModuleNotFoundError:
     # Auto-detect and switch to virtual environment python if invoked from global python
     root_dir = os.path.dirname(backend_dir)
     possible_venv_pythons = [
+        os.path.join(root_dir, ".venv", "Scripts", "python.exe"),
+        os.path.join(backend_dir, ".venv", "Scripts", "python.exe"),
         os.path.join(root_dir, "venv", "Scripts", "python.exe"),
         os.path.join(backend_dir, "venv", "Scripts", "python.exe"),
+        os.path.join(root_dir, ".venv", "bin", "python"),
+        os.path.join(backend_dir, ".venv", "bin", "python"),
         os.path.join(root_dir, "venv", "bin", "python"),
         os.path.join(backend_dir, "venv", "bin", "python"),
     ]

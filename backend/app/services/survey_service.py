@@ -89,7 +89,7 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
         client_id=client.id,
         project_id=project.id,
         phase=survey_in.phase,
-        status="Sent" if is_dispatched else "Ready",
+        status="Sent" if is_dispatched else "Draft",
         client_contact_name=survey_in.client_contact_name if is_dispatched else None,
         client_contact_email=survey_in.client_contact_email if is_dispatched else None,
         sent_at=datetime.utcnow() if is_dispatched else None,
