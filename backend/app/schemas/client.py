@@ -8,10 +8,14 @@ class ProjectResponse(BaseModel):
     name: str
     client_id: int
     team_name: Optional[str] = None
+    status: Optional[str] = "Not Started"
     is_active: bool
     archived_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    survey_status: str = "Survey Not Created"
+    survey_id: Optional[int] = None
+    survey_code: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

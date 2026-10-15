@@ -30,7 +30,7 @@ from app.schemas.data_sync import (
 MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
 REQUIRED_COLUMNS = ["client_code", "client_name", "project_code", "project_name"]
-OPTIONAL_COLUMNS = ["team_name"]
+OPTIONAL_COLUMNS = ["team_name", "status"]
 
 COLUMN_ALIASES = {
     "client_code": ["client_code", "client_id"],
@@ -38,6 +38,7 @@ COLUMN_ALIASES = {
     "project_code": ["project_code", "project_id"],
     "project_name": ["project_name"],
     "team_name": ["team_name", "department_name"],
+    "status": ["status", "project_status"],
 }
 
 def normalize_header(header: str) -> str:
@@ -162,12 +163,14 @@ def parse_file(file_bytes: bytes, filename: str) -> Tuple[List[Dict[str, str]], 
         p_code_key = col_map["project_code"]
         p_name_key = col_map["project_name"]
         team_key = col_map.get("team_name")
+        status_key = col_map.get("status")
 
         raw_c_code = r.get(c_code_key, "").strip()
         raw_c_name = r.get(c_name_key, "").strip()
         raw_p_code = r.get(p_code_key, "").strip()
         raw_p_name = r.get(p_name_key, "").strip()
         raw_team = r.get(team_key, "").strip() if team_key else ""
+        raw_status = r.get(status_key, "").strip() if status_key else ""
 
         # Normalize internal/product projects where client is N/A or empty
         if not raw_c_code or raw_c_code.upper() == "N/A":
@@ -217,6 +220,7 @@ def parse_file(file_bytes: bytes, filename: str) -> Tuple[List[Dict[str, str]], 
             "project_code": p_code,
             "project_name": raw_p_name,
             "team_name": raw_team or None,
+            "status": raw_status or "Not Started",
             "_row_number": idx
         })
 
@@ -564,6 +568,7 @@ def confirm_sync(
         p_name = r["project_name"]
         c_code_upper = r["client_code"].upper()
         team_name = r["team_name"]
+        p_status = r.get("status") or "Not Started"
         processed_projects.add(p_code_upper)
 
         target_client = existing_clients[c_code_upper]
@@ -576,6 +581,7 @@ def confirm_sync(
                 name=p_name,
                 client_id=target_client.id,
                 team_name=team_name,
+                status=p_status,
                 is_active=True,
                 created_at=now,
                 updated_at=now
@@ -598,6 +604,7 @@ def confirm_sync(
                     "client_id": target_client.id,
                     "client_code": target_client.client_code,
                     "team_name": team_name,
+                    "status": p_status,
                     "is_active": True
                 }
             ))
@@ -607,13 +614,15 @@ def confirm_sync(
             old_client_id = proj.client_id
             old_client_code = proj.client.client_code if proj.client else None
             old_team_name = proj.team_name
+            old_status = proj.status
             old_active = proj.is_active
             old_archived_at = proj.archived_at.isoformat() if proj.archived_at else None
 
             changed = (
                 old_name != p_name or
                 old_client_id != target_client.id or
-                (old_team_name or None) != (team_name or None)
+                (old_team_name or None) != (team_name or None) or
+                (old_status or None) != (p_status or None)
             )
 
             if not old_active:
@@ -623,6 +632,7 @@ def confirm_sync(
                 proj.name = p_name
                 proj.client_id = target_client.id
                 proj.team_name = team_name
+                proj.status = p_status
                 proj.updated_at = now
                 projects_reactivated += 1
 
@@ -638,7 +648,8 @@ def confirm_sync(
                         "name": old_name,
                         "client_id": old_client_id,
                         "client_code": old_client_code,
-                        "team_name": old_team_name
+                        "team_name": old_team_name,
+                        "status": old_status
                     },
                     new_values={
                         "is_active": True,
@@ -646,7 +657,8 @@ def confirm_sync(
                         "name": p_name,
                         "client_id": target_client.id,
                         "client_code": target_client.client_code,
-                        "team_name": team_name
+                        "team_name": team_name,
+                        "status": p_status
                     }
                 ))
 
@@ -655,6 +667,7 @@ def confirm_sync(
                 proj.name = p_name
                 proj.client_id = target_client.id
                 proj.team_name = team_name
+                proj.status = p_status
                 proj.updated_at = now
                 projects_updated += 1
 
@@ -712,6 +725,8 @@ def confirm_sync(
 
     try:
         db.commit()
+        from app.services.client_service import invalidate_clients_cache
+        invalidate_clients_cache()
     except Exception as e:
         db.rollback()
         raise HTTPException(
@@ -877,6 +892,8 @@ def rollback_latest_batch(db: Session, batch_id: int) -> RollbackResponse:
 
     latest_applied.status = "rolled_back"
     db.commit()
+    from app.services.client_service import invalidate_clients_cache
+    invalidate_clients_cache()
 
     # Find new latest applied batch for timestamp
     new_latest = (

@@ -4,16 +4,17 @@ import ClientProjectList from "../components/ClientProjectList";
 import clientsApi from "../api/clientsApi";
 
 export default function DashboardPage() {
-  const [clients, setClients] = useState([]);
-  const [totalClients, setTotalClients] = useState(0);
-  const [totalProjects, setTotalProjects] = useState(0);
+  const initialCached = clientsApi.getCachedClients({ search: "", includeArchived: false });
+  const [clients, setClients] = useState(() => initialCached?.clients || []);
+  const [totalClients, setTotalClients] = useState(() => initialCached?.total_clients || 0);
+  const [totalProjects, setTotalProjects] = useState(() => initialCached?.total_projects || 0);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [viewMode, setViewMode] = useState("grid");
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialCached);
   const [error, setError] = useState("");
 
   // Debounce search query by 300ms
@@ -24,14 +25,28 @@ export default function DashboardPage() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Fetch clients from API
-  const fetchClients = useCallback(async (search = "", includeArchived = false) => {
-    setLoading(true);
+  // Fetch clients from API with stale-while-revalidate pattern
+  const fetchClients = useCallback(async (search = "", includeArchived = false, force = false) => {
+    // If cached data exists for this exact query and not forced, display immediately
+    const cached = clientsApi.getCachedClients({ search, includeArchived });
+    if (cached && !force) {
+      setClients(cached.clients || []);
+      setTotalClients(cached.total_clients || 0);
+      setTotalProjects(cached.total_projects || 0);
+      setLoading(false);
+      return;
+    }
+
+    // Only show full loading spinner if we don't already have clients rendered
+    if (!cached && clients.length === 0) {
+      setLoading(true);
+    }
     setError("");
     try {
       const data = await clientsApi.getClients({
         search,
         includeArchived,
+        forceRefresh: force,
       });
       setClients(data.clients || []);
       setTotalClients(data.total_clients || 0);
@@ -41,7 +56,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clients.length]);
 
   useEffect(() => {
     fetchClients(debouncedSearch, showArchived);
@@ -368,6 +383,7 @@ export default function DashboardPage() {
         loading={loading}
         error={error}
         viewMode={viewMode}
+        searchQuery={debouncedSearch}
         onRetry={() => fetchClients(debouncedSearch, showArchived)}
       />
     </div>

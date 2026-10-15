@@ -1,5 +1,6 @@
+import time
 import uuid
-from typing import Optional, List
+from typing import Optional, List, Dict, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -8,6 +9,14 @@ from app.models.survey import Survey, SurveyQuestion
 from app.models.client import Client
 from app.models.project import Project
 from app.schemas.survey import SurveyCreate
+
+# In-memory cache for get_surveys
+_surveys_cache: Dict[Tuple, Tuple[float, List]] = {}
+_SURVEYS_CACHE_TTL = 30.0
+
+def invalidate_surveys_cache():
+    """Clear surveys list cache upon survey creation or state mutation."""
+    _surveys_cache.clear()
 
 def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Survey:
     """
@@ -95,6 +104,9 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
 
     db.commit()
     db.refresh(survey)
+    invalidate_surveys_cache()
+    from app.services.client_service import invalidate_clients_cache
+    invalidate_clients_cache()
     return survey
 
 def submit_survey_for_approval(db: Session, survey_id: int, user_id: int) -> Survey:
@@ -112,6 +124,9 @@ def submit_survey_for_approval(db: Session, survey_id: int, user_id: int) -> Sur
     survey.status = "Pending Approval"
     db.commit()
     db.refresh(survey)
+    invalidate_surveys_cache()
+    from app.services.client_service import invalidate_clients_cache
+    invalidate_clients_cache()
     return survey
 
 def get_surveys(
@@ -120,8 +135,25 @@ def get_surveys(
     client_id: Optional[int] = None,
     project_id: Optional[int] = None,
 ) -> List[Survey]:
-    """List surveys with optional filters."""
-    query = db.query(Survey)
+    """List surveys with optional filters and eager loading to eliminate N+1 queries."""
+    cache_key = (status_filter, client_id, project_id)
+    now = time.time()
+    if cache_key in _surveys_cache:
+        cached_time, cached_data = _surveys_cache[cache_key]
+        if now - cached_time < _SURVEYS_CACHE_TTL:
+            return cached_data
+
+    from sqlalchemy.orm import joinedload, selectinload
+    query = (
+        db.query(Survey)
+        .options(
+            joinedload(Survey.client),
+            joinedload(Survey.project),
+            joinedload(Survey.creator),
+            joinedload(Survey.reviewer),
+            selectinload(Survey.questions),
+        )
+    )
     if status_filter:
         query = query.filter(Survey.status == status_filter)
     if client_id:
@@ -129,7 +161,9 @@ def get_surveys(
     if project_id:
         query = query.filter(Survey.project_id == project_id)
 
-    return query.order_by(desc(Survey.created_at)).all()
+    surveys = query.order_by(desc(Survey.created_at)).all()
+    _surveys_cache[cache_key] = (now, surveys)
+    return surveys
 
 from app.models.survey import Survey, SurveyQuestion, SurveyAnswer
 from app.models.client import Client
@@ -163,6 +197,9 @@ def dispatch_survey(db: Session, survey_id: int, client_contact_name: str, clien
 
     db.commit()
     db.refresh(survey)
+    invalidate_surveys_cache()
+    from app.services.client_service import invalidate_clients_cache
+    invalidate_clients_cache()
     return survey
 
 def get_public_survey_by_token(db: Session, token: str) -> PublicSurveyDetail:
@@ -232,6 +269,9 @@ def submit_public_survey_response(db: Session, token: str, answers: List[AnswerI
 
     db.commit()
     db.refresh(survey)
+    invalidate_surveys_cache()
+    from app.services.client_service import invalidate_clients_cache
+    invalidate_clients_cache()
 
     return {
         "status": "success",
