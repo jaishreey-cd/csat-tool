@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import ClientProjectList from "../components/ClientProjectList";
 import clientsApi from "../api/clientsApi";
+import analyticsApi from "../api/analyticsApi";
 
 export default function DashboardPage() {
   const initialCached = clientsApi.getCachedClients({ search: "", includeArchived: false });
   const [clients, setClients] = useState(() => initialCached?.clients || []);
   const [totalClients, setTotalClients] = useState(() => initialCached?.total_clients || 0);
   const [totalProjects, setTotalProjects] = useState(() => initialCached?.total_projects || 0);
+  const [overview, setOverview] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -14,6 +16,12 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(() => !initialCached);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    analyticsApi.getSystemOverview()
+      .then((res) => setOverview(res))
+      .catch(() => {});
+  }, []);
 
   // Debounce search query by 300ms
   useEffect(() => {
@@ -107,6 +115,91 @@ export default function DashboardPage() {
           gap: "16px",
         }}
       >
+        {/* Overall CSAT Card */}
+        <div
+          style={{
+            background: "var(--bg-surface, #0d1b2a)",
+            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+            borderRadius: "var(--radius-lg, 12px)",
+            padding: "18px 22px",
+            display: "flex",
+            alignItems: "center",
+            gap: "16px",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+          }}
+        >
+          <div
+            style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "var(--radius-md, 9px)",
+              background: "rgba(245, 158, 11, 0.15)",
+              border: "1px solid rgba(245, 158, 11, 0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+              color: "#fbbf24",
+            }}
+          >
+            ★
+          </div>
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Overall CSAT
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-white, #ffffff)", lineHeight: 1.2, marginTop: "2px" }}>
+              {overview?.overall_csat && overview.overall_csat > 0 ? (
+                <>
+                  {overview.overall_csat.toFixed(1)}
+                  <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-dim, #64748b)" }}> / 5.0</span>
+                </>
+              ) : (
+                "—"
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Response Rate Card */}
+        <div
+          style={{
+            background: "var(--bg-surface, #0d1b2a)",
+            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+            borderRadius: "var(--radius-lg, 12px)",
+            padding: "18px 22px",
+            display: "flex",
+            alignItems: "center",
+            gap: "16px",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+          }}
+        >
+          <div
+            style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "var(--radius-md, 9px)",
+              background: "rgba(34, 197, 94, 0.15)",
+              border: "1px solid rgba(34, 197, 94, 0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+              color: "var(--success, #22c55e)",
+            }}
+          >
+            📈
+          </div>
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Response Rate
+            </div>
+            <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-white, #ffffff)", lineHeight: 1.2, marginTop: "2px" }}>
+              {overview?.response_rate !== undefined ? `${overview.response_rate}%` : "0%"}
+            </div>
+          </div>
+        </div>
+
         {/* Total Clients Card */}
         <div
           style={{
@@ -137,7 +230,7 @@ export default function DashboardPage() {
             🏢
           </div>
           <div>
-            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
               Total Clients
             </div>
             <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-white, #ffffff)", lineHeight: 1.2, marginTop: "2px" }}>
@@ -176,50 +269,11 @@ export default function DashboardPage() {
             📁
           </div>
           <div>
-            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
               Active Projects
             </div>
             <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-white, #ffffff)", lineHeight: 1.2, marginTop: "2px" }}>
               {totalProjects}
-            </div>
-          </div>
-        </div>
-
-        {/* Avg Projects per Client Card */}
-        <div
-          style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
-            borderRadius: "var(--radius-lg, 12px)",
-            padding: "18px 22px",
-            display: "flex",
-            alignItems: "center",
-            gap: "16px",
-            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
-          }}
-        >
-          <div
-            style={{
-              width: "44px",
-              height: "44px",
-              borderRadius: "var(--radius-md, 9px)",
-              background: "rgba(34, 197, 94, 0.15)",
-              border: "1px solid rgba(34, 197, 94, 0.25)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "20px",
-              color: "var(--success, #22c55e)",
-            }}
-          >
-            📊
-          </div>
-          <div>
-            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Avg. Projects / Client
-            </div>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-white, #ffffff)", lineHeight: 1.2, marginTop: "2px" }}>
-              {avgProjects}
             </div>
           </div>
         </div>

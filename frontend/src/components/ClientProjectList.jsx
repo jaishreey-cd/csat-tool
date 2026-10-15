@@ -456,21 +456,25 @@ export default function ClientProjectList({
                             >
                               {/* Project Name */}
                               <div style={{ minWidth: 0 }}>
-                                <span
+                                <Link
+                                  to={`/projects/${proj.id}`}
+                                  onClick={(e) => e.stopPropagation()}
                                   style={{
-                                    fontWeight: 500,
+                                    textDecoration: "none",
+                                    fontWeight: 600,
                                     color: isProjArchived
                                       ? "var(--text-dim, #64748b)"
-                                      : "var(--text-main, #e2e8f0)",
+                                      : "var(--text-white, #ffffff)",
                                     display: "block",
                                     whiteSpace: "nowrap",
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
+                                    transition: "color 0.15s ease",
                                   }}
-                                  title={proj.name}
+                                  title={`View Analytics for ${proj.name}`}
                                 >
                                   {proj.name}
-                                </span>
+                                </Link>
                                 {proj.team_name && (
                                   <span
                                     style={{

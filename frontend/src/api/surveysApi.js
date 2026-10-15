@@ -91,6 +91,20 @@ export const surveysApi = {
     return response.data;
   },
 
+  sendReminder: async (id) => {
+    const response = await axiosClient.post(`/surveys/${id}/remind`);
+    invalidateSurveysCache();
+    return response.data;
+  },
+
+  checkFollowups: async (thresholdDays = 7) => {
+    const response = await axiosClient.post("/surveys/check-followups", null, {
+      params: { threshold_days: thresholdDays },
+    });
+    invalidateSurveysCache();
+    return response.data;
+  },
+
   getPublicSurvey: async (token) => {
     const response = await axiosClient.get(`/surveys/public/${token}`);
     return response.data;

@@ -20,6 +20,8 @@ from app.services.survey_service import (
     dispatch_survey,
     get_public_survey_by_token,
     submit_public_survey_response,
+    send_survey_reminder,
+    check_and_trigger_automated_followups,
 )
 
 router = APIRouter(prefix="/surveys", tags=["Surveys"])
@@ -80,6 +82,27 @@ def dispatch_survey_to_client(
         client_contact_name=dispatch_in.client_contact_name,
         client_contact_email=dispatch_in.client_contact_email,
     )
+
+@router.post("/{survey_id}/remind", response_model=SurveyResponse)
+def remind_survey_client(
+    survey_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Send on-demand reminder email to client contact for a pending survey."""
+    return send_survey_reminder(db, survey_id=survey_id)
+
+@router.post("/check-followups")
+def trigger_automated_followups(
+    threshold_days: int = Query(7, description="Minimum days pending before reminder is sent"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Automated job / trigger endpoint to scan all pending sent surveys and
+    dispatch follow-up reminders to client contacts past the threshold days.
+    """
+    return check_and_trigger_automated_followups(db, threshold_days=threshold_days)
 
 @router.get("/public/{token}", response_model=PublicSurveyDetail)
 def fetch_public_survey(

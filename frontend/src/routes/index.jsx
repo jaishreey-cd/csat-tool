@@ -5,6 +5,7 @@ import LoginPage from "../pages/LoginPage";
 import DashboardPage from "../pages/DashboardPage";
 import CreateSurveyPage from "../pages/CreateSurveyPage";
 import SurveysPage from "../pages/SurveysPage";
+import ProjectAnalyticsPage from "../pages/ProjectAnalyticsPage";
 import ComingSoonPage from "../pages/ComingSoonPage";
 import PublicSurveyPage from "../pages/PublicSurveyPage";
 import NotFoundPage from "../pages/NotFoundPage";
@@ -33,8 +34,8 @@ export default function AppRoutes() {
         {/* Main Dashboard / Analytics */}
         <Route path="/dashboard" element={<DashboardPage />} />
 
-        {/* Project Analytics Placeholder */}
-        <Route path="/projects/:projectId" element={<ComingSoonPage />} />
+        {/* Project Analytics Dashboard */}
+        <Route path="/projects/:projectId" element={<ProjectAnalyticsPage />} />
 
         {/* Create Survey Stepper Wizard */}
         <Route path="/surveys/new" element={<CreateSurveyPage />} />

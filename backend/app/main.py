@@ -3,7 +3,29 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.routes import auth_router, clients_router, data_sync_router, surveys_router
+from app.api.routes import auth_router, clients_router, data_sync_router, surveys_router, analytics_router
+
+import asyncio
+
+async def _periodic_followup_checker():
+    """Background task to periodically scan and trigger automated follow-ups every 12 hours."""
+    await asyncio.sleep(15)  # initial delay after startup
+    while True:
+        try:
+            from app.db.session import SessionLocal
+            from app.services.survey_service import check_and_trigger_automated_followups
+            with SessionLocal() as db:
+                result = check_and_trigger_automated_followups(db, threshold_days=7)
+                if result.get("reminded_count", 0) > 0:
+                    print(f"[AUTOMATED FOLLOWUP] Auto-reminded {result['reminded_count']} overdue survey(s)")
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[AUTOMATED FOLLOWUP ERROR] {e}")
+        try:
+            await asyncio.sleep(12 * 3600)  # repeat every 12 hours
+        except asyncio.CancelledError:
+            break
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,8 +40,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[WARN] Startup seeding warning: {e}")
     print(f"[INFO] Started {settings.PROJECT_NAME} Backend")
+
+    # Start automated follow-up periodic background task
+    followup_task = asyncio.create_task(_periodic_followup_checker())
+
     yield
+
     # Shutdown
+    followup_task.cancel()
+    try:
+        await followup_task
+    except asyncio.CancelledError:
+        pass
     print(f"[INFO] Shutting down {settings.PROJECT_NAME} Backend")
 
 app = FastAPI(
@@ -49,6 +81,7 @@ app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(clients_router, prefix=settings.API_V1_STR)
 app.include_router(data_sync_router, prefix=settings.API_V1_STR)
 app.include_router(surveys_router, prefix=settings.API_V1_STR)
+app.include_router(analytics_router, prefix=settings.API_V1_STR)
 
 @app.get("/api/health", tags=["Health"])
 def health_check():
