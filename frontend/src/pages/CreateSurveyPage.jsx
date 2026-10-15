@@ -51,6 +51,7 @@ export default function CreateSurveyPage() {
 
   // State for simulated client preview interactions
   const [previewCategory, setPreviewCategory] = useState(1);
+  const [previewCategoryIndex, setPreviewCategoryIndex] = useState(0);
   const [previewRatings, setPreviewRatings] = useState({});
   const [previewHover, setPreviewHover] = useState({});
   const [previewComments, setPreviewComments] = useState({});
@@ -66,6 +67,14 @@ export default function CreateSurveyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [createdSurvey, setCreatedSurvey] = useState(null);
+
+  // Client Contact Dispatch State
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [dispatching, setDispatching] = useState(false);
+  const [dispatchSuccess, setDispatchSuccess] = useState("");
+  const [dispatchError, setDispatchError] = useState("");
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Fetch clients on mount
   useEffect(() => {
@@ -221,12 +230,17 @@ export default function CreateSurveyPage() {
       project_id: parseInt(selectedProjectId, 10),
       phase: selectedPhase,
       questions: flatQuestions,
+      client_contact_name: contactName.trim() || undefined,
+      client_contact_email: contactEmail.trim() || undefined,
     };
 
     try {
       // Create survey directly - no approval state
       const survey = await surveysApi.createSurvey(payload);
       setCreatedSurvey(survey);
+      if (survey.client_contact_email) {
+        setDispatchSuccess(`Survey link automatically dispatched to ${survey.client_contact_email}!`);
+      }
     } catch (err) {
       setSubmitError(
         err?.response?.data?.detail || "Failed to create survey. Please check requirements and retry."
@@ -236,84 +250,327 @@ export default function CreateSurveyPage() {
     }
   };
 
+  // Copy survey link to clipboard
+  const handleCopyLink = (token) => {
+    const publicUrl = `${window.location.origin}/s/${token}`;
+    navigator.clipboard.writeText(publicUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  // Dispatch survey from success view
+  const handleDispatchFromSuccess = async (e) => {
+    e.preventDefault();
+    if (!contactName.trim() || !contactEmail.trim()) {
+      setDispatchError("Please provide both contact name and a valid email address.");
+      return;
+    }
+
+    setDispatching(true);
+    setDispatchError("");
+    setDispatchSuccess("");
+
+    try {
+      const updated = await surveysApi.dispatchSurvey(createdSurvey.id, {
+        client_contact_name: contactName.trim(),
+        client_contact_email: contactEmail.trim(),
+      });
+      setCreatedSurvey(updated);
+      setDispatchSuccess(`Survey link successfully dispatched to ${contactEmail.trim()}!`);
+    } catch (err) {
+      setDispatchError(err?.response?.data?.detail || "Failed to dispatch survey. Please retry.");
+    } finally {
+      setDispatching(false);
+    }
+  };
+
   // SUCCESS STATE
   if (createdSurvey) {
+    const surveyUrl = `${window.location.origin}/s/${createdSurvey.unique_token || ""}`;
+    const isSent = createdSurvey.status === "Sent" || Boolean(createdSurvey.client_contact_email);
+
     return (
       <div
         style={{
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "60px 20px",
-          maxWidth: "600px",
+          gap: "24px",
+          maxWidth: "680px",
           margin: "0 auto",
-          textAlign: "center",
-          gap: "20px",
+          padding: "20px 0 60px 0",
         }}
       >
+        {/* Success Header Banner */}
         <div
           style={{
-            width: "64px",
-            height: "64px",
-            borderRadius: "50%",
-            background: "rgba(34, 197, 94, 0.15)",
-            border: "2px solid var(--success, #22c55e)",
+            textAlign: "center",
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
-            fontSize: "30px",
+            gap: "10px",
           }}
         >
-          ✓
-        </div>
-
-        <div>
-          <h2 style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: "0 0 8px 0" }}>
+          <div
+            style={{
+              width: "60px",
+              height: "60px",
+              borderRadius: "50%",
+              background: "rgba(34, 197, 94, 0.15)",
+              border: "2px solid var(--success, #22c55e)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "28px",
+              color: "var(--success, #22c55e)",
+              boxShadow: "0 0 24px rgba(34, 197, 94, 0.25)",
+            }}
+          >
+            ✓
+          </div>
+          <h2 style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
             Survey Created Successfully!
           </h2>
-          <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: 0, lineHeight: 1.5 }}>
-            Your survey has been configured and is ready to be dispatched to the client.
+          <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: 0, maxWidth: "500px", lineHeight: 1.5 }}>
+            Your CSAT survey is generated and ready. The public client link and dispatch form are available below.
           </p>
         </div>
 
-        {/* Survey Reference Box */}
+        {/* 1. THE LINK IS SHOWN HERE */}
+        <div
+          style={{
+            background: "linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(13, 27, 42, 0.95) 100%)",
+            border: "1px solid rgba(96, 165, 250, 0.3)",
+            borderRadius: "var(--radius-lg, 12px)",
+            padding: "20px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "14px",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "16px" }}>🔗</span>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--primary-lt, #60a5fa)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Public Survey Link
+              </span>
+            </div>
+            <Badge variant={isSent ? "info" : "active"}>
+              {isSent ? "Dispatched" : "Ready to Dispatch"}
+            </Badge>
+          </div>
+
+          <p style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", margin: 0, lineHeight: 1.4 }}>
+            The client stakeholder can access and complete their evaluation using this secure URL without login.
+          </p>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "rgba(10, 22, 40, 0.8)",
+              border: "1px solid rgba(96, 165, 250, 0.25)",
+              borderRadius: "8px",
+              padding: "6px 8px 6px 14px",
+            }}
+          >
+            <input
+              type="text"
+              readOnly
+              value={surveyUrl}
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "none",
+                color: "#93c5fd",
+                fontSize: "13px",
+                fontFamily: "monospace",
+                outline: "none",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+              onClick={(e) => e.target.select()}
+            />
+            <Button
+              variant="primary"
+              size="sm"
+              type="button"
+              onClick={() => handleCopyLink(createdSurvey.unique_token)}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              {copiedLink ? "✓ Copied!" : "Copy Link"}
+            </Button>
+            <a
+              href={`/s/${createdSurvey.unique_token}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ textDecoration: "none" }}
+            >
+              <Button variant="ghost" size="sm" type="button" style={{ whiteSpace: "nowrap" }}>
+                ↗ Open Form
+              </Button>
+            </a>
+          </div>
+        </div>
+
+        {/* 2. AND THIS WILL BE SHOWN BELOW (Matches User's Screenshot) */}
         <div
           style={{
             background: "var(--bg-surface, #0d1b2a)",
             border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
-            borderRadius: "var(--radius-md, 9px)",
-            padding: "16px 24px",
-            width: "100%",
-            textAlign: "left",
+            borderRadius: "var(--radius-lg, 14px)",
+            padding: "26px",
+            boxShadow: "0 12px 32px rgba(0, 0, 0, 0.5)",
             display: "flex",
             flexDirection: "column",
-            gap: "8px",
+            gap: "18px",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-            <span style={{ color: "var(--text-muted, #94a3b8)" }}>Survey Code:</span>
-            <code style={{ color: "var(--primary-lt, #60a5fa)", fontWeight: 700 }}>{createdSurvey.survey_code}</code>
+          <div>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+              Dispatch Survey Link
+            </h3>
+            <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+              Generate a unique secure link for the client stakeholder to submit their CSAT feedback.
+            </p>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-            <span style={{ color: "var(--text-muted, #94a3b8)" }}>Status:</span>
-            <Badge variant="active">Ready</Badge>
+
+          {/* Survey Reference Box (Matches Screenshot) */}
+          <div
+            style={{
+              background: "rgba(10, 22, 40, 0.7)",
+              border: "1px solid rgba(96, 165, 250, 0.15)",
+              borderRadius: "var(--radius-md, 8px)",
+              padding: "12px 16px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+              fontSize: "12px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--text-dim, #64748b)" }}>Survey Code:</span>
+              <strong style={{ color: "var(--primary-lt, #60a5fa)", fontFamily: "monospace" }}>
+                {createdSurvey.survey_code}
+              </strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--text-dim, #64748b)" }}>Project:</span>
+              <span style={{ color: "var(--text-white, #ffffff)", fontWeight: 600 }}>
+                {currentProject?.name || createdSurvey.project?.name} ({createdSurvey.phase})
+              </span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--text-dim, #64748b)" }}>Client:</span>
+              <span style={{ color: "var(--text-white, #ffffff)" }}>
+                {currentClient?.name || createdSurvey.client?.name}
+              </span>
+            </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-            <span style={{ color: "var(--text-muted, #94a3b8)" }}>Questions:</span>
-            <span style={{ color: "var(--text-white, #ffffff)", fontWeight: 600 }}>
-              {createdSurvey.questions?.length || totalQuestionsCount} questions across 6 sections
-            </span>
-          </div>
+
+          {/* Dispatch Success Alert & Quick Gmail Send */}
+          {dispatchSuccess && (
+            <div
+              style={{
+                background: "rgba(34, 197, 94, 0.12)",
+                border: "1px solid rgba(34, 197, 94, 0.35)",
+                borderRadius: "8px",
+                padding: "12px 16px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--success, #22c55e)", fontSize: "13px", fontWeight: 600 }}>
+                <span>✓</span>
+                <span>{dispatchSuccess}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "12px" }}>
+                <span style={{ color: "var(--text-muted, #94a3b8)" }}>Open directly in your webmail:</span>
+                <a
+                  href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(contactEmail)}&su=${encodeURIComponent(`Invitation: CSAT Evaluation for ${currentProject?.name || createdSurvey.project?.name || "Project"} (${createdSurvey.phase})`)}&body=${encodeURIComponent(`Dear ${contactName || "Client Stakeholder"},\n\nYou are invited to complete our Customer Satisfaction (CSAT) survey.\n\nPlease submit your feedback using your unique secure link below:\n${surveyUrl}\n\nClient: ${currentClient?.name || createdSurvey.client?.name || ""}\nProject: ${currentProject?.name || createdSurvey.project?.name || ""}\nPhase: ${createdSurvey.phase}\nSurvey Code: ${createdSurvey.survey_code}\n\nThank you!`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    color: "#93c5fd",
+                    textDecoration: "underline",
+                    fontWeight: 600,
+                  }}
+                >
+                  ✉ Open in Gmail
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Form (Matches Screenshot) */}
+          <form onSubmit={handleDispatchFromSuccess} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <Input
+              id="contactNameInputSuccess"
+              label="Client Contact Name"
+              placeholder="e.g. Sarah Jenkins"
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              required
+            />
+
+            <Input
+              id="contactEmailInputSuccess"
+              label="Client Contact Email"
+              type="email"
+              placeholder="e.g. sjenkins@acmeglobal.com"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              required
+            />
+
+            {dispatchError && (
+              <div
+                style={{
+                  background: "rgba(239, 68, 68, 0.15)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "6px",
+                  padding: "10px 14px",
+                  color: "#fca5a5",
+                  fontSize: "12px",
+                }}
+              >
+                ⚠ {dispatchError}
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
+              <Link to="/surveys" style={{ textDecoration: "none" }}>
+                <Button variant="secondary" size="md" type="button">
+                  Cancel
+                </Button>
+              </Link>
+              <Button
+                variant="primary"
+                size="md"
+                type="submit"
+                loading={dispatching}
+                disabled={dispatching}
+              >
+                {isSent ? "Update & Re-dispatch Link" : "Generate & Dispatch Link"}
+              </Button>
+            </div>
+          </form>
         </div>
 
-        <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
-          <Link to="/surveys">
+        {/* Bottom Navigation */}
+        <div style={{ display: "flex", justifyContent: "center", gap: "14px", marginTop: "6px" }}>
+          <Link to="/surveys" style={{ textDecoration: "none" }}>
             <Button variant="primary" size="md">
               View All Surveys
             </Button>
           </Link>
-          <Link to="/dashboard">
+          <Link to="/dashboard" style={{ textDecoration: "none" }}>
             <Button variant="secondary" size="md">
               Dashboard
             </Button>
@@ -852,10 +1109,41 @@ export default function CreateSurveyPage() {
           STEP 4: CLIENT FORM PREVIEW (CATEGORY-WISE CLIENT EXPERIENCE)
          ───────────────────────────────────────────────────────────── */}
       {currentStep === 3 && (() => {
-        const activeSectionMeta = QUESTION_BANK.find((s) => s.number === previewCategory) || QUESTION_BANK[0];
-        const activeQuestions = selectedQuestions[previewCategory] || [];
-        const isLastCategory = previewCategory === 6;
-        const isFirstCategory = previewCategory === 1;
+        // Collect category groups with configured questions
+        const categoryGroups = [];
+        let totalStarCount = 0;
+
+        for (let sec = 1; sec <= 6; sec++) {
+          const secMeta = QUESTION_BANK.find((s) => s.number === sec) || QUESTION_BANK[sec - 1];
+          const qList = (selectedQuestions[sec] || []).map((q, qIdx) => {
+            const isStar = (q.response_type || secMeta.responseType) === "star_rating";
+            if (isStar) totalStarCount += 1;
+            return {
+              ...q,
+              uniqueKey: `${sec}_${qIdx}`,
+              response_type: q.response_type || secMeta.responseType,
+            };
+          });
+
+          if (qList.length > 0) {
+            categoryGroups.push({
+              section_number: sec,
+              title: secMeta.title,
+              description: secMeta.description,
+              responseType: secMeta.responseType,
+              questions: qList,
+            });
+          }
+        }
+
+        // Rated questions in simulation
+        const ratedCount = Object.keys(previewRatings).filter(
+          (k) => previewRatings[k] && previewRatings[k] > 0
+        ).length;
+        const completionPercentage =
+          totalStarCount > 0 ? Math.round((ratedCount / totalStarCount) * 100) : 0;
+
+        let questionCounter = 0;
 
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -877,12 +1165,12 @@ export default function CreateSurveyPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ fontSize: "16px" }}>👁</span>
                   <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-                    Step 4: Client Form Preview (Category-Wise)
+                    Step 4: Client Form Interactive Preview
                   </h3>
                   <Badge variant="active">Live Simulation</Badge>
                 </div>
                 <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-                  This simulates how the client will experience the survey section by section. Complete each category and click &quot;Next Section&quot; to proceed.
+                  This simulates the client experience: navigating category-by-category with a clean Next Category → flow without any distracting section tabs.
                 </p>
               </div>
 
@@ -923,7 +1211,7 @@ export default function CreateSurveyPage() {
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <Badge variant="count">{selectedPhase} Evaluation</Badge>
+                  <Badge variant="count">{selectedPhase} Review</Badge>
                   <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)" }}>
                     Client: <strong style={{ color: "var(--text-white, #fff)" }}>{currentClient?.name}</strong>
                   </span>
@@ -954,6 +1242,11 @@ export default function CreateSurveyPage() {
                   <div style={{ fontSize: "13px", color: "var(--primary-lt, #60a5fa)", fontWeight: 600 }}>
                     Project: {currentProject?.name}
                   </div>
+
+                  <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", lineHeight: 1.6, margin: "4px 0 0 0" }}>
+                    Thank you for partnering with Cloud Destinations. Please take a moment to rate your experience below.
+                    Your feedback directly guides our engagement teams and continuous delivery improvements.
+                  </p>
 
                   {/* Rating Scale Legend */}
                   <div
@@ -987,376 +1280,340 @@ export default function CreateSurveyPage() {
                   </div>
                 </div>
 
-                {/* Section Navigation Tabs (Category Stepper) */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted, #94a3b8)", letterSpacing: "0.5px" }}>
-                      Survey Categories ({previewCategory}/6)
-                    </span>
-                    <span style={{ fontSize: "12px", color: "var(--primary-lt, #60a5fa)", fontWeight: 600 }}>
-                      Click any category tab or use Next Section below
-                    </span>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(6, 1fr)",
-                      gap: "8px",
-                      overflowX: "auto",
-                    }}
-                  >
-                    {QUESTION_BANK.map((sec) => {
-                      const isCurrent = previewCategory === sec.number;
-                      const qCount = (selectedQuestions[sec.number] || []).length;
-                      const ratedCount = (selectedQuestions[sec.number] || []).filter((_, qIdx) => {
-                        const qKey = `${sec.number}_${qIdx}`;
-                        return (previewRatings[qKey] || 0) > 0 || (previewComments[qKey] || "").trim().length > 0;
-                      }).length;
-                      const isComplete = qCount > 0 && ratedCount >= qCount;
-
-                      return (
-                        <button
-                          key={sec.number}
-                          type="button"
-                          onClick={() => setPreviewCategory(sec.number)}
-                          style={{
-                            background: isCurrent
-                              ? "rgba(37, 99, 235, 0.25)"
-                              : isComplete
-                              ? "rgba(34, 197, 94, 0.1)"
-                              : "rgba(14, 30, 50, 0.6)",
-                            border: `1.5px solid ${
-                              isCurrent
-                                ? "var(--primary-lt, #60a5fa)"
-                                : isComplete
-                                ? "rgba(34, 197, 94, 0.4)"
-                                : "rgba(96, 165, 250, 0.12)"
-                            }`,
-                            borderRadius: "var(--radius-md, 8px)",
-                            padding: "10px 8px",
-                            cursor: "pointer",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            gap: "4px",
-                            textAlign: "center",
-                            transition: "all 0.15s ease",
-                            boxShadow: isCurrent ? "0 0 10px rgba(37, 99, 235, 0.35)" : "none",
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                            <span
-                              style={{
-                                width: "18px",
-                                height: "18px",
-                                borderRadius: "50%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: "10px",
-                                fontWeight: 800,
-                                background: isCurrent
-                                  ? "var(--primary, #2563eb)"
-                                  : isComplete
-                                  ? "var(--success, #22c55e)"
-                                  : "rgba(96, 165, 250, 0.15)",
-                                color: "#ffffff",
-                              }}
-                            >
-                              {isComplete ? "✓" : sec.number}
-                            </span>
-                            <span
-                              style={{
-                                fontSize: "11px",
-                                fontWeight: 700,
-                                color: isCurrent
-                                  ? "var(--text-white, #fff)"
-                                  : isComplete
-                                  ? "var(--success, #22c55e)"
-                                  : "var(--text-muted, #94a3b8)",
-                              }}
-                            >
-                              Sec {sec.number}
-                            </span>
-                          </div>
-                          <span
-                            style={{
-                              fontSize: "10px",
-                              color: isCurrent ? "var(--primary-lt, #60a5fa)" : "var(--text-dim, #64748b)",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              maxWidth: "100%",
-                            }}
-                          >
-                            {sec.title}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Active Category Question Card */}
+                {/* Overall Survey Evaluation Progress */}
                 <div
                   style={{
                     background: "rgba(11, 23, 42, 0.85)",
-                    border: "1.5px solid rgba(96, 165, 250, 0.25)",
+                    border: "1px solid rgba(96, 165, 250, 0.2)",
                     borderRadius: "var(--radius-md, 12px)",
-                    padding: "26px",
+                    padding: "16px 22px",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "22px",
-                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+                    gap: "10px",
                   }}
                 >
-                  {/* Category Header */}
-                  <div style={{ borderBottom: "1px solid rgba(96, 165, 250, 0.15)", paddingBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span
-                          style={{
-                            background: "var(--primary, #2563eb)",
-                            color: "#ffffff",
-                            fontSize: "12px",
-                            fontWeight: 800,
-                            padding: "2px 8px",
-                            borderRadius: "6px",
-                          }}
-                        >
-                          Section {activeSectionMeta.number} of 6
-                        </span>
-                        <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-                          {activeSectionMeta.title}
-                        </h3>
-                      </div>
-                      <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "6px 0 0 0" }}>
-                        {activeSectionMeta.description}
-                      </p>
-                    </div>
-
-                    <Badge variant={activeSectionMeta.responseType === "star_rating" ? "count" : "info"}>
-                      {activeSectionMeta.responseType === "star_rating" ? "★ 1-5 Star Ratings" : "✎ Free-Text Comments"}
-                    </Badge>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-white, #ffffff)" }}>
+                      Survey Progress
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        color: completionPercentage === 100 ? "var(--success, #22c55e)" : "var(--primary-lt, #60a5fa)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {ratedCount} of {totalStarCount} rated ({completionPercentage}%)
+                    </span>
                   </div>
+                  <div
+                    style={{
+                      height: "6px",
+                      width: "100%",
+                      background: "rgba(96, 165, 250, 0.15)",
+                      borderRadius: "3px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${completionPercentage}%`,
+                        background:
+                          completionPercentage === 100
+                            ? "var(--success, #22c55e)"
+                            : "linear-gradient(90deg, #2563eb, #38bdf8)",
+                        transition: "width 0.3s ease",
+                      }}
+                    />
+                  </div>
+                </div>
 
-                  {/* Questions in Active Category */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-                    {activeQuestions.length === 0 ? (
-                      <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted, #94a3b8)", fontSize: "13px" }}>
-                        No questions selected in this section. Please return to Step 3 to add questions.
-                      </div>
-                    ) : (
-                      activeQuestions.map((q, qIdx) => {
-                        const qKey = `${activeSectionMeta.number}_${qIdx}`;
-                        const isStarRating = activeSectionMeta.responseType === "star_rating";
-                        const currentRating = previewRatings[qKey] || 0;
-                        const hoverRating = previewHover[qKey] || 0;
-                        const activeRating = hoverRating || currentRating;
+                {/* Active Category Page (Page-by-page next/prev navigation simulation) */}
+                {(() => {
+                  if (categoryGroups.length === 0) return null;
+                  const currentGroup = categoryGroups[previewCategoryIndex] || categoryGroups[0];
+                  const isFirstCat = previewCategoryIndex === 0;
+                  const isLastCat = previewCategoryIndex === categoryGroups.length - 1;
 
-                        return (
+                  let qStartIndex = 0;
+                  for (let i = 0; i < previewCategoryIndex; i++) {
+                    qStartIndex += categoryGroups[i]?.questions?.length || 0;
+                  }
+
+                  const currentStarQs = currentGroup.questions.filter((q) => q.response_type === "star_rating");
+                  const currentRated = currentStarQs.filter((q) => previewRatings[q.uniqueKey] > 0).length;
+
+                  return (
+                    <div
+                      style={{
+                        background: "rgba(11, 23, 42, 0.85)",
+                        border: "1.5px solid rgba(96, 165, 250, 0.22)",
+                        borderRadius: "var(--radius-md, 14px)",
+                        padding: "24px 26px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "18px",
+                        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+                      }}
+                    >
+                      {/* Category Header */}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: "10px",
+                          borderBottom: "1px solid rgba(96, 165, 250, 0.15)",
+                          paddingBottom: "14px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                           <div
-                            key={qIdx}
                             style={{
-                              background: "rgba(14, 28, 48, 0.6)",
-                              border: "1px solid rgba(96, 165, 250, 0.12)",
-                              borderRadius: "var(--radius-md, 9px)",
-                              padding: "18px 20px",
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "14px",
+                              width: "4px",
+                              height: "20px",
+                              background: "linear-gradient(180deg, #38bdf8, #2563eb)",
+                              borderRadius: "2px",
                             }}
-                          >
-                            <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-                              <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--primary-lt, #60a5fa)", minWidth: "24px" }}>
-                                {qIdx + 1}.
-                              </span>
-                              <div style={{ flex: 1 }}>
-                                <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-white, #ffffff)", lineHeight: 1.5 }}>
-                                  {q.question_text}
+                          />
+                          <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+                            {currentGroup.title}
+                          </h3>
+                        </div>
+
+                        <Badge variant={currentGroup.responseType === "star_rating" ? "count" : "info"} size="sm">
+                          {currentGroup.responseType === "star_rating" ? "★ 1-5 Star Ratings" : "✎ Feedback & Comments"}
+                        </Badge>
+                      </div>
+
+                      {/* Questions in this Category */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                        {currentGroup.questions.map((q, idx) => {
+                          const qKey = q.uniqueKey;
+                          const isStar = q.response_type === "star_rating";
+                          const currentNum = qStartIndex + idx + 1;
+                          const currentRating = previewRatings[qKey] || 0;
+                          const hoverRating = previewHover[qKey] || 0;
+                          const activeRating = hoverRating || currentRating;
+
+                          return (
+                            <div
+                              key={qKey}
+                              style={{
+                                background: currentRating > 0 ? "rgba(34, 197, 94, 0.05)" : "rgba(14, 28, 48, 0.6)",
+                                border: currentRating > 0 ? "1px solid rgba(34, 197, 94, 0.25)" : "1px solid rgba(96, 165, 250, 0.12)",
+                                borderRadius: "var(--radius-md, 9px)",
+                                padding: "16px 20px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "12px",
+                                transition: "all 0.15s ease",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                                <span
+                                  style={{
+                                    fontSize: "12px",
+                                    fontWeight: 700,
+                                    color: currentRating > 0 ? "var(--success, #22c55e)" : "var(--primary-lt, #60a5fa)",
+                                    background: currentRating > 0 ? "rgba(34, 197, 94, 0.15)" : "rgba(37, 99, 235, 0.15)",
+                                    width: "24px",
+                                    height: "24px",
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {currentRating > 0 ? "✓" : currentNum}
                                 </span>
-                                {q.is_custom && (
-                                  <span style={{ fontSize: "10px", marginLeft: "8px", color: "var(--accent, #06b6d4)", background: "rgba(6, 182, 212, 0.12)", padding: "1px 5px", borderRadius: "3px" }}>
-                                    Custom
+                                <div style={{ flex: 1 }}>
+                                  <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-white, #ffffff)", lineHeight: 1.5 }}>
+                                    {q.question_text}
                                   </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Response Options */}
-                            {isStarRating ? (
-                              <div style={{ display: "flex", alignItems: "center", gap: "16px", marginLeft: "34px", flexWrap: "wrap" }}>
-                                {/* 5 Star Interactive Buttons */}
-                                <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                                  {[1, 2, 3, 4, 5].map((starValue) => {
-                                    const isFilled = starValue <= activeRating;
-                                    return (
-                                      <button
-                                        key={starValue}
-                                        type="button"
-                                        onClick={() =>
-                                          setPreviewRatings((prev) => ({
-                                            ...prev,
-                                            [qKey]: prev[qKey] === starValue ? 0 : starValue,
-                                          }))
-                                        }
-                                        onMouseEnter={() =>
-                                          setPreviewHover((prev) => ({
-                                            ...prev,
-                                            [qKey]: starValue,
-                                          }))
-                                        }
-                                        onMouseLeave={() =>
-                                          setPreviewHover((prev) => ({
-                                            ...prev,
-                                            [qKey]: 0,
-                                          }))
-                                        }
-                                        title={`Rate ${starValue} of 5 - ${RATING_LABELS[starValue]}`}
-                                        style={{
-                                          background: "transparent",
-                                          border: "none",
-                                          padding: "4px",
-                                          cursor: "pointer",
-                                          display: "flex",
-                                          alignItems: "center",
-                                          justifyContent: "center",
-                                          outline: "none",
-                                          transition: "transform 0.15s ease",
-                                          transform: isFilled ? "scale(1.15)" : "scale(1)",
-                                        }}
-                                      >
-                                        <svg
-                                          width="26"
-                                          height="26"
-                                          viewBox="0 0 24 24"
-                                          fill={isFilled ? "#f59e0b" : "none"}
-                                          stroke={isFilled ? "#f59e0b" : "rgba(148, 163, 184, 0.35)"}
-                                          strokeWidth="1.8"
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          style={{
-                                            filter: isFilled ? "drop-shadow(0 0 8px rgba(245, 158, 11, 0.5))" : "none",
-                                            transition: "all 0.15s ease",
-                                          }}
-                                        >
-                                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                        </svg>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-
-                                {/* Active Rating Indicator */}
-                                <div style={{ fontSize: "12px", minWidth: "120px" }}>
-                                  {activeRating > 0 ? (
-                                    <span
-                                      style={{
-                                        fontWeight: 700,
-                                        color: "#fbbf24",
-                                        background: "rgba(245, 158, 11, 0.15)",
-                                        border: "1px solid rgba(245, 158, 11, 0.3)",
-                                        padding: "3px 9px",
-                                        borderRadius: "6px",
-                                      }}
-                                    >
-                                      {activeRating} — {RATING_LABELS[activeRating]}
-                                    </span>
-                                  ) : (
-                                    <span style={{ color: "var(--text-dim, #64748b)" }}>
-                                      Click stars to test rating
+                                  {q.is_custom && (
+                                    <span style={{ fontSize: "10px", marginLeft: "8px", color: "var(--accent, #06b6d4)", background: "rgba(6, 182, 212, 0.12)", padding: "1px 5px", borderRadius: "3px" }}>
+                                      Custom
                                     </span>
                                   )}
                                 </div>
                               </div>
-                            ) : (
-                              /* Free-Text Input Area for Section 6 */
-                              <div style={{ marginLeft: "34px" }}>
-                                <textarea
-                                  rows={3}
-                                  placeholder="Type feedback here (client response simulation)..."
-                                  value={previewComments[qKey] || ""}
-                                  onChange={(e) =>
-                                    setPreviewComments((prev) => ({
-                                      ...prev,
-                                      [qKey]: e.target.value,
-                                    }))
-                                  }
-                                  style={{
-                                    width: "100%",
-                                    background: "rgba(10, 20, 36, 0.6)",
-                                    border: "1px solid rgba(96, 165, 250, 0.2)",
-                                    borderRadius: "var(--radius-md, 8px)",
-                                    padding: "10px 14px",
-                                    color: "var(--text-main, #e2e8f0)",
-                                    fontSize: "13px",
-                                    fontFamily: "inherit",
-                                    resize: "vertical",
-                                    outline: "none",
-                                    transition: "border-color 0.15s ease",
-                                  }}
-                                  onFocus={(e) => (e.target.style.borderColor = "var(--primary-lt, #60a5fa)")}
-                                  onBlur={(e) => (e.target.style.borderColor = "rgba(96, 165, 250, 0.2)")}
-                                />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
 
-                  {/* Category-Wise In-Form Navigation Bar */}
-                  <div
-                    style={{
-                      borderTop: "1px solid rgba(96, 165, 250, 0.15)",
-                      paddingTop: "18px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: "12px",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    {!isFirstCategory ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="md"
-                        onClick={() => setPreviewCategory((prev) => prev - 1)}
-                      >
-                        ← Previous Section ({previewCategory - 1}/6)
-                      </Button>
-                    ) : (
-                      <div />
-                    )}
+                              {isStar ? (
+                                <div style={{ display: "flex", alignItems: "center", gap: "16px", marginLeft: "34px", flexWrap: "wrap" }}>
+                                  <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                                    {[1, 2, 3, 4, 5].map((starValue) => {
+                                      const isFilled = starValue <= activeRating;
+                                      return (
+                                        <button
+                                          key={starValue}
+                                          type="button"
+                                          onClick={() =>
+                                            setPreviewRatings((prev) => ({
+                                              ...prev,
+                                              [qKey]: prev[qKey] === starValue ? 0 : starValue,
+                                            }))
+                                          }
+                                          onMouseEnter={() =>
+                                            setPreviewHover((prev) => ({
+                                              ...prev,
+                                              [qKey]: starValue,
+                                            }))
+                                          }
+                                          onMouseLeave={() =>
+                                            setPreviewHover((prev) => ({
+                                              ...prev,
+                                              [qKey]: 0,
+                                            }))
+                                          }
+                                          title={`Rate ${starValue} of 5 - ${RATING_LABELS[starValue]}`}
+                                          style={{
+                                            background: "transparent",
+                                            border: "none",
+                                            padding: "4px",
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            outline: "none",
+                                            transition: "transform 0.15s ease",
+                                            transform: isFilled ? "scale(1.15)" : "scale(1)",
+                                          }}
+                                        >
+                                          <svg
+                                            width="26"
+                                            height="26"
+                                            viewBox="0 0 24 24"
+                                            fill={isFilled ? "#f59e0b" : "none"}
+                                            stroke={isFilled ? "#f59e0b" : "rgba(148, 163, 184, 0.35)"}
+                                            strokeWidth="1.8"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            style={{
+                                              filter: isFilled ? "drop-shadow(0 0 8px rgba(245, 158, 11, 0.5))" : "none",
+                                              transition: "all 0.15s ease",
+                                            }}
+                                          >
+                                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                          </svg>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
 
-                    <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600 }}>
-                      Section {previewCategory} of 6: {activeSectionMeta.title}
-                    </span>
+                                  <div style={{ fontSize: "12px", minWidth: "120px" }}>
+                                    {activeRating > 0 ? (
+                                      <span
+                                        style={{
+                                          fontWeight: 700,
+                                          color: "#fbbf24",
+                                          background: "rgba(245, 158, 11, 0.15)",
+                                          border: "1px solid rgba(245, 158, 11, 0.3)",
+                                          padding: "3px 9px",
+                                          borderRadius: "6px",
+                                        }}
+                                      >
+                                        {activeRating} — {RATING_LABELS[activeRating]}
+                                      </span>
+                                    ) : (
+                                      <span style={{ color: "var(--text-dim, #64748b)" }}>
+                                        Click stars to test rating
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ marginLeft: "34px" }}>
+                                  <textarea
+                                    rows={3}
+                                    placeholder="Type feedback here (client response simulation)..."
+                                    value={previewComments[qKey] || ""}
+                                    onChange={(e) =>
+                                      setPreviewComments((prev) => ({
+                                        ...prev,
+                                        [qKey]: e.target.value,
+                                      }))
+                                    }
+                                    style={{
+                                      width: "100%",
+                                      background: "rgba(10, 20, 36, 0.6)",
+                                      border: "1px solid rgba(96, 165, 250, 0.2)",
+                                      borderRadius: "var(--radius-md, 8px)",
+                                      padding: "10px 14px",
+                                      color: "var(--text-main, #e2e8f0)",
+                                      fontSize: "13px",
+                                      fontFamily: "inherit",
+                                      resize: "vertical",
+                                      outline: "none",
+                                      transition: "border-color 0.15s ease",
+                                    }}
+                                    onFocus={(e) => (e.target.style.borderColor = "var(--primary-lt, #60a5fa)")}
+                                    onBlur={(e) => (e.target.style.borderColor = "rgba(96, 165, 250, 0.2)")}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
 
-                    {!isLastCategory ? (
-                      <Button
-                        type="button"
-                        variant="primary"
-                        size="md"
-                        onClick={() => setPreviewCategory((prev) => prev + 1)}
+                      {/* In-Card Page Navigation Bar (Previous, Category Status, Next) */}
+                      <div
+                        style={{
+                          borderTop: "1px solid rgba(96, 165, 250, 0.15)",
+                          paddingTop: "18px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: "12px",
+                          flexWrap: "wrap",
+                        }}
                       >
-                        Next Section ({previewCategory + 1}/6) →
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="primary"
-                        size="md"
-                        onClick={() => setCurrentStep(4)}
-                      >
-                        Proceed to Review & Create →
-                      </Button>
-                    )}
-                  </div>
-                </div>
+                        {!isFirstCat ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="md"
+                            onClick={() => setPreviewCategoryIndex((prev) => Math.max(0, prev - 1))}
+                          >
+                            ← Previous
+                          </Button>
+                        ) : (
+                          <div />
+                        )}
+
+                        <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", fontWeight: 500 }}>
+                          {currentStarQs.length > 0
+                            ? `${currentRated} of ${currentStarQs.length} rated in this category`
+                            : "Feedback & Comments"}
+                        </span>
+
+                        {!isLastCat ? (
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="md"
+                            onClick={() => setPreviewCategoryIndex((prev) => Math.min(categoryGroups.length - 1, prev + 1))}
+                          >
+                            Next Category →
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="md"
+                            onClick={() => setCurrentStep(4)}
+                          >
+                            Proceed to Review & Create →
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -1494,6 +1751,46 @@ export default function CreateSurveyPage() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Optional Client Dispatch Stakeholder */}
+          <div
+            style={{
+              background: "var(--bg-card, rgba(14, 30, 50, 0.5))",
+              border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+              borderRadius: "var(--radius-md, 9px)",
+              padding: "16px 20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
+            <div>
+              <h4 style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-white, #ffffff)", margin: 0 }}>
+                Client Contact Stakeholder (Optional)
+              </h4>
+              <p style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+                Optionally specify recipient contact details now, or dispatch the survey link after creation.
+              </p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "14px" }}>
+              <Input
+                id="step5ContactName"
+                label="CLIENT CONTACT NAME"
+                placeholder="e.g. Sarah Jenkins"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+              />
+              <Input
+                id="step5ContactEmail"
+                label="CLIENT CONTACT EMAIL"
+                type="email"
+                placeholder="e.g. sjenkins@acmeglobal.com"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+              />
+            </div>
           </div>
 
           {/* Submission Error Banner */}

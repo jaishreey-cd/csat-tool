@@ -15,6 +15,8 @@ class SurveyCreate(BaseModel):
     project_id: int
     phase: str
     questions: List[QuestionCreate]
+    client_contact_name: Optional[str] = None
+    client_contact_email: Optional[str] = None
 
 class SurveyQuestionResponse(BaseModel):
     id: int

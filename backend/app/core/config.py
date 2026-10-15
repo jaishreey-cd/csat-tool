@@ -29,8 +29,17 @@ class Settings(BaseSettings):
     SEED_REVIEWER_EMAIL: str = os.getenv("SEED_REVIEWER_EMAIL", "reviewer@csat.local")
     SEED_REVIEWER_PASSWORD: str = os.getenv("SEED_REVIEWER_PASSWORD", "ReviewerPassword123!")
 
-    # CORS
+    # CORS & Links
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+    # Email / Gmail SMTP Configuration
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER: str = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM_EMAIL: str = os.getenv("SMTP_FROM_EMAIL", "")
+    SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "PMO CSAT Evaluation Team")
+    SMTP_TLS: bool = os.getenv("SMTP_TLS", "True").lower() in ("true", "1", "yes")
 
     model_config = SettingsConfigDict(
         env_file=".env",

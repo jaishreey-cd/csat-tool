@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Optional, List
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -8,6 +9,7 @@ from app.models.survey import Survey, SurveyQuestion
 from app.models.client import Client
 from app.models.project import Project
 from app.schemas.survey import SurveyCreate
+from app.services.email_service import send_survey_invitation_email
 
 def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Survey:
     """
@@ -64,16 +66,23 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
             detail=f"Total questions ({len(survey_in.questions)}) exceeds the maximum allowed limit of 30."
         )
 
-    # 3. Generate unique survey code
+    # 3. Generate unique survey code and secure link token
     random_suffix = str(uuid.uuid4())[:6].upper()
     survey_code = f"SRV-{project.project_code}-{random_suffix}"
+    unique_token = str(uuid.uuid4()).replace("-", "")
+
+    is_dispatched = bool(survey_in.client_contact_name and survey_in.client_contact_email)
 
     survey = Survey(
         survey_code=survey_code,
+        unique_token=unique_token,
         client_id=client.id,
         project_id=project.id,
         phase=survey_in.phase,
-        status="Ready",
+        status="Sent" if is_dispatched else "Ready",
+        client_contact_name=survey_in.client_contact_name if is_dispatched else None,
+        client_contact_email=survey_in.client_contact_email if is_dispatched else None,
+        sent_at=datetime.utcnow() if is_dispatched else None,
         creator_id=creator_id,
     )
     db.add(survey)
@@ -95,6 +104,18 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
 
     db.commit()
     db.refresh(survey)
+
+    if is_dispatched:
+        send_survey_invitation_email(
+            recipient_email=survey_in.client_contact_email,
+            recipient_name=survey_in.client_contact_name,
+            survey_code=survey.survey_code,
+            project_name=project.name,
+            client_name=client.name,
+            phase=survey.phase,
+            survey_token=survey.unique_token,
+        )
+
     return survey
 
 def submit_survey_for_approval(db: Session, survey_id: int, user_id: int) -> Survey:
@@ -129,19 +150,30 @@ def get_surveys(
     if project_id:
         query = query.filter(Survey.project_id == project_id)
 
-    return query.order_by(desc(Survey.created_at)).all()
+    surveys = query.order_by(desc(Survey.created_at)).all()
+    has_updates = False
+    for s in surveys:
+        if not s.unique_token:
+            s.unique_token = str(uuid.uuid4()).replace("-", "")
+            has_updates = True
+    if has_updates:
+        db.commit()
+    return surveys
 
 from app.models.survey import Survey, SurveyQuestion, SurveyAnswer
 from app.models.client import Client
 from app.models.project import Project
 from app.schemas.survey import SurveyCreate, PublicSurveyDetail, PublicQuestionResponse, AnswerItem
-from datetime import datetime
 
 def get_survey_by_id(db: Session, survey_id: int) -> Survey:
     """Fetch single survey with joined relationships."""
     survey = db.query(Survey).filter(Survey.id == survey_id).first()
     if not survey:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
+    if not survey.unique_token:
+        survey.unique_token = str(uuid.uuid4()).replace("-", "")
+        db.commit()
+        db.refresh(survey)
     return survey
 
 def dispatch_survey(db: Session, survey_id: int, client_contact_name: str, client_contact_email: str) -> Survey:
@@ -163,6 +195,20 @@ def dispatch_survey(db: Session, survey_id: int, client_contact_name: str, clien
 
     db.commit()
     db.refresh(survey)
+
+    # Dispatch email invitation with unique survey link to the client contact email
+    client_name = survey.client.name if survey.client else "Client"
+    project_name = survey.project.name if survey.project else "Project"
+    send_survey_invitation_email(
+        recipient_email=client_contact_email,
+        recipient_name=client_contact_name,
+        survey_code=survey.survey_code,
+        project_name=project_name,
+        client_name=client_name,
+        phase=survey.phase,
+        survey_token=survey.unique_token,
+    )
+
     return survey
 
 def get_public_survey_by_token(db: Session, token: str) -> PublicSurveyDetail:

@@ -27,6 +27,7 @@ export default function SurveysPage() {
   const [contactEmail, setContactEmail] = useState("");
   const [dispatching, setDispatching] = useState(false);
   const [dispatchError, setDispatchError] = useState("");
+  const [dispatchSuccess, setDispatchSuccess] = useState("");
   const [copiedToken, setCopiedToken] = useState(null);
 
   // Questions Detail Modal State
@@ -97,6 +98,7 @@ export default function SurveysPage() {
     setContactName(survey.client_contact_name || "");
     setContactEmail(survey.client_contact_email || "");
     setDispatchError("");
+    setDispatchSuccess("");
   };
 
   // Close Dispatch Modal
@@ -105,6 +107,7 @@ export default function SurveysPage() {
     setContactName("");
     setContactEmail("");
     setDispatchError("");
+    setDispatchSuccess("");
   };
 
   // Submit Dispatch
@@ -117,6 +120,7 @@ export default function SurveysPage() {
 
     setDispatching(true);
     setDispatchError("");
+    setDispatchSuccess("");
 
     try {
       const updated = await surveysApi.dispatchSurvey(dispatchModalSurvey.id, {
@@ -128,7 +132,8 @@ export default function SurveysPage() {
       setSurveys((prev) =>
         prev.map((s) => (s.id === updated.id ? updated : s))
       );
-      closeDispatchModal();
+      setDispatchModalSurvey(updated);
+      setDispatchSuccess(`Survey link successfully dispatched to ${contactEmail.trim()}!`);
     } catch (err) {
       setDispatchError(err?.response?.data?.detail || "Failed to dispatch survey. Please retry.");
     } finally {
@@ -632,6 +637,107 @@ export default function SurveysPage() {
               </div>
             </div>
 
+            {/* Public Survey Link Box (Shown Here) */}
+            {dispatchModalSurvey.unique_token && (
+              <div
+                style={{
+                  background: "linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(13, 27, 42, 0.95) 100%)",
+                  border: "1px solid rgba(96, 165, 250, 0.28)",
+                  borderRadius: "var(--radius-md, 8px)",
+                  padding: "12px 14px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--primary-lt, #60a5fa)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    🔗 Public Survey Link
+                  </span>
+                  <Badge variant={dispatchModalSurvey.status === "Sent" ? "info" : "active"}>
+                    {dispatchModalSurvey.status === "Sent" ? "Dispatched" : "Ready"}
+                  </Badge>
+                </div>
+
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${window.location.origin}/s/${dispatchModalSurvey.unique_token}`}
+                    style={{
+                      flex: 1,
+                      background: "rgba(10, 22, 40, 0.8)",
+                      border: "1px solid rgba(96, 165, 250, 0.25)",
+                      borderRadius: "6px",
+                      padding: "7px 10px",
+                      color: "#93c5fd",
+                      fontSize: "12px",
+                      fontFamily: "monospace",
+                      outline: "none",
+                    }}
+                    onClick={(e) => e.target.select()}
+                  />
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleCopyLink(dispatchModalSurvey.unique_token)}
+                    style={{ whiteSpace: "nowrap" }}
+                  >
+                    {copiedToken === dispatchModalSurvey.unique_token ? "✓ Copied!" : "Copy Link"}
+                  </Button>
+                  <a
+                    href={`/s/${dispatchModalSurvey.unique_token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ textDecoration: "none" }}
+                  >
+                    <Button type="button" variant="ghost" size="sm" style={{ whiteSpace: "nowrap" }}>
+                      ↗ Open
+                    </Button>
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* Dispatch Success Alert & Quick Gmail Send */}
+            {dispatchSuccess && (
+              <div
+                style={{
+                  background: "rgba(34, 197, 94, 0.12)",
+                  border: "1px solid rgba(34, 197, 94, 0.35)",
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--success, #22c55e)", fontSize: "13px", fontWeight: 600 }}>
+                  <span>✓</span>
+                  <span>{dispatchSuccess}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "12px" }}>
+                  <span style={{ color: "var(--text-muted, #94a3b8)" }}>Open directly in your webmail:</span>
+                  <a
+                    href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(contactEmail)}&su=${encodeURIComponent(`Invitation: CSAT Evaluation for ${dispatchModalSurvey.project?.name || "Project"} (${dispatchModalSurvey.phase})`)}&body=${encodeURIComponent(`Dear ${contactName || "Client Stakeholder"},\n\nYou are invited to complete our Customer Satisfaction (CSAT) survey.\n\nPlease submit your feedback using your unique secure link below:\n${window.location.origin}/s/${dispatchModalSurvey.unique_token}\n\nClient: ${dispatchModalSurvey.client?.name || ""}\nProject: ${dispatchModalSurvey.project?.name || ""}\nPhase: ${dispatchModalSurvey.phase}\nSurvey Code: ${dispatchModalSurvey.survey_code}\n\nThank you!`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      color: "#93c5fd",
+                      textDecoration: "underline",
+                      fontWeight: 600,
+                    }}
+                  >
+                    ✉ Open in Gmail
+                  </a>
+                </div>
+              </div>
+            )}
+
             {/* Form */}
             <form onSubmit={handleDispatchSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <Input
@@ -661,10 +767,10 @@ export default function SurveysPage() {
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
                 <Button variant="secondary" size="md" type="button" disabled={dispatching} onClick={closeDispatchModal}>
-                  Cancel
+                  {dispatchSuccess ? "Done" : "Cancel"}
                 </Button>
                 <Button variant="primary" size="md" type="submit" loading={dispatching} disabled={dispatching}>
-                  Generate & Dispatch Link
+                  {dispatchModalSurvey.status === "Sent" ? "Update & Re-dispatch" : "Generate & Dispatch Link"}
                 </Button>
               </div>
             </form>

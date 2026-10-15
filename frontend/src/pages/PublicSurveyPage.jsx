@@ -21,17 +21,16 @@ export default function PublicSurveyPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  // Active Category (1 to 6)
-  const [activeCategory, setActiveCategory] = useState(1);
-
   // Client responses state: { [questionId]: { rating_score?: number, text_answer?: string } }
   const [responses, setResponses] = useState({});
   const [hoveredRatings, setHoveredRatings] = useState({});
 
-  // Submission state
+  // Submission & Validation state
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submittedData, setSubmittedData] = useState(null);
+  const [missingQuestionIds, setMissingQuestionIds] = useState(new Set());
+  const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
 
   // Load public survey by token
   useEffect(() => {
@@ -56,33 +55,44 @@ export default function PublicSurveyPage() {
     }
   }, [token]);
 
-  // Group questions by section
-  const sectionQuestionsMap = useMemo(() => {
-    if (!survey || !survey.questions) return {};
-    const map = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+  // Group questions category-wise (sections 1 through 6)
+  const categoryGroups = useMemo(() => {
+    if (!survey || !survey.questions) return [];
+    const groupsMap = {};
     survey.questions.forEach((q) => {
-      if (map[q.section_number]) {
-        map[q.section_number].push(q);
-      }
-    });
-    return map;
-  }, [survey]);
-
-  // Section titles and descriptions
-  const sectionMetaMap = useMemo(() => {
-    if (!survey || !survey.questions) return {};
-    const meta = {};
-    survey.questions.forEach((q) => {
-      if (!meta[q.section_number]) {
-        meta[q.section_number] = {
-          number: q.section_number,
+      if (!groupsMap[q.section_number]) {
+        groupsMap[q.section_number] = {
+          section_number: q.section_number,
           title: q.section_title,
           responseType: q.response_type,
+          questions: [],
         };
       }
+      groupsMap[q.section_number].questions.push(q);
     });
-    return meta;
+
+    const sorted = Object.values(groupsMap).sort((a, b) => a.section_number - b.section_number);
+    sorted.forEach((grp) => {
+      grp.questions.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    });
+    return sorted;
   }, [survey]);
+
+  // All star rating questions across all categories
+  const allStarQuestions = useMemo(() => {
+    if (!survey || !survey.questions) return [];
+    return survey.questions.filter((q) => q.response_type === "star_rating");
+  }, [survey]);
+
+  // Total rated count & overall progress percentage
+  const ratedCount = useMemo(() => {
+    return allStarQuestions.filter((q) => responses[q.id]?.rating_score > 0).length;
+  }, [allStarQuestions, responses]);
+
+  const completionPercentage =
+    allStarQuestions.length > 0
+      ? Math.round((ratedCount / allStarQuestions.length) * 100)
+      : 0;
 
   // Handle star rating click
   const handleRatingSelect = (questionId, score) => {
@@ -94,6 +104,14 @@ export default function PublicSurveyPage() {
         rating_score: prev[questionId]?.rating_score === score ? null : score,
       },
     }));
+    setMissingQuestionIds((prev) => {
+      if (prev.has(questionId)) {
+        const next = new Set(prev);
+        next.delete(questionId);
+        return next;
+      }
+      return prev;
+    });
   };
 
   // Handle text comment change
@@ -108,44 +126,74 @@ export default function PublicSurveyPage() {
     }));
   };
 
-  // Validate responses before submission
-  const validateResponses = () => {
-    if (!survey || !survey.questions) return { valid: false };
+  // Move to next category page
+  const handleNextCategory = () => {
+    setSubmitError("");
+    const currentGroup = categoryGroups[currentCategoryIndex];
+    if (!currentGroup) return;
 
-    // Check all questions in sections 1 to 5
-    for (let sec = 1; sec <= 5; sec++) {
-      const qList = sectionQuestionsMap[sec] || [];
-      for (const q of qList) {
-        const score = responses[q.id]?.rating_score;
-        if (!score || score < 1 || score > 5) {
-          return {
-            valid: false,
-            missingSection: sec,
-            missingQuestion: q.question_text,
-          };
-        }
+    const missingInCurrent = currentGroup.questions.filter(
+      (q) => q.response_type === "star_rating" && (!responses[q.id]?.rating_score || responses[q.id].rating_score < 1)
+    );
+
+    if (missingInCurrent.length > 0) {
+      setMissingQuestionIds(new Set(missingInCurrent.map((q) => q.id)));
+      setSubmitError(
+        `Please rate all questions in this category to proceed (${missingInCurrent.length} remaining).`
+      );
+      const firstEl = document.getElementById(`question-${missingInCurrent[0].id}`);
+      if (firstEl) {
+        firstEl.scrollIntoView({ behavior: "smooth", block: "center" });
       }
+      return;
     }
-    return { valid: true };
+
+    setMissingQuestionIds(new Set());
+    setCurrentCategoryIndex((prev) => Math.min(categoryGroups.length - 1, prev + 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Submit survey responses
+  // Move to previous category page
+  const handlePrevCategory = () => {
+    setSubmitError("");
+    setMissingQuestionIds(new Set());
+    setCurrentCategoryIndex((prev) => Math.max(0, prev - 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Submit survey responses with smooth scroll to any unrated question
   const handleSubmit = async () => {
     setSubmitError("");
-    const validation = validateResponses();
+    const missing = allStarQuestions.filter(
+      (q) => !responses[q.id]?.rating_score || responses[q.id].rating_score < 1
+    );
 
-    if (!validation.valid) {
-      setActiveCategory(validation.missingSection);
-      setSubmitError(
-        `Please provide a star rating for all questions in Section ${validation.missingSection} before submitting.`
+    if (missing.length > 0) {
+      const firstMissingQ = missing[0];
+      const targetGroupIdx = categoryGroups.findIndex((grp) =>
+        grp.questions.some((q) => q.id === firstMissingQ.id)
       );
+      if (targetGroupIdx !== -1) {
+        setCurrentCategoryIndex(targetGroupIdx);
+      }
+      setMissingQuestionIds(new Set(missing.map((q) => q.id)));
+      setSubmitError(
+        `Please provide a star rating for all questions (${missing.length} question${
+          missing.length > 1 ? "s" : ""
+        } remaining).`
+      );
+      setTimeout(() => {
+        const firstEl = document.getElementById(`question-${firstMissingQ.id}`);
+        if (firstEl) {
+          firstEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 100);
       return;
     }
 
     setSubmitting(true);
 
     try {
-      // Build answers array
       const answersList = [];
       survey.questions.forEach((q) => {
         const resp = responses[q.id] || {};
@@ -342,16 +390,6 @@ export default function PublicSurveyPage() {
     );
   }
 
-  // 4. ACTIVE CLIENT SURVEY EVALUATION FORM
-  const activeQuestions = sectionQuestionsMap[activeCategory] || [];
-  const activeMeta = sectionMetaMap[activeCategory] || {
-    number: activeCategory,
-    title: `Section ${activeCategory}`,
-    responseType: activeCategory === 6 ? "free_text" : "star_rating",
-  };
-  const isFirstCategory = activeCategory === 1;
-  const isLastCategory = activeCategory === 6;
-
   return (
     <div
       style={{
@@ -454,118 +492,6 @@ export default function PublicSurveyPage() {
           </div>
         </div>
 
-        {/* Category Stepper Tabs (1 to 6) */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted, #94a3b8)", letterSpacing: "0.5px" }}>
-              Categories Progress ({activeCategory}/6)
-            </span>
-            <span style={{ fontSize: "12px", color: "var(--primary-lt, #60a5fa)", fontWeight: 600 }}>
-              Complete each section and click Next Section
-            </span>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(6, 1fr)",
-              gap: "8px",
-              overflowX: "auto",
-            }}
-          >
-            {[1, 2, 3, 4, 5, 6].map((secNum) => {
-              const isCurrent = activeCategory === secNum;
-              const qList = sectionQuestionsMap[secNum] || [];
-              const ratedCount = qList.filter((q) => {
-                const resp = responses[q.id];
-                return (resp?.rating_score && resp.rating_score > 0) || (resp?.text_answer && resp.text_answer.trim().length > 0);
-              }).length;
-              const isComplete = qList.length > 0 && ratedCount >= qList.length;
-              const meta = sectionMetaMap[secNum] || { title: `Section ${secNum}` };
-
-              return (
-                <button
-                  key={secNum}
-                  type="button"
-                  onClick={() => setActiveCategory(secNum)}
-                  style={{
-                    background: isCurrent
-                      ? "rgba(37, 99, 235, 0.25)"
-                      : isComplete
-                      ? "rgba(34, 197, 94, 0.1)"
-                      : "rgba(14, 30, 50, 0.6)",
-                    border: `1.5px solid ${
-                      isCurrent
-                        ? "var(--primary-lt, #60a5fa)"
-                        : isComplete
-                        ? "rgba(34, 197, 94, 0.4)"
-                        : "rgba(96, 165, 250, 0.12)"
-                    }`,
-                    borderRadius: "var(--radius-md, 8px)",
-                    padding: "10px 6px",
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "4px",
-                    textAlign: "center",
-                    transition: "all 0.15s ease",
-                    boxShadow: isCurrent ? "0 0 10px rgba(37, 99, 235, 0.35)" : "none",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                    <span
-                      style={{
-                        width: "18px",
-                        height: "18px",
-                        borderRadius: "50%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "10px",
-                        fontWeight: 800,
-                        background: isCurrent
-                          ? "var(--primary, #2563eb)"
-                          : isComplete
-                          ? "var(--success, #22c55e)"
-                          : "rgba(96, 165, 250, 0.15)",
-                        color: "#ffffff",
-                      }}
-                    >
-                      {isComplete ? "✓" : secNum}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: isCurrent
-                          ? "var(--text-white, #ffffff)"
-                          : isComplete
-                          ? "var(--success, #22c55e)"
-                          : "var(--text-muted, #94a3b8)",
-                      }}
-                    >
-                      Sec {secNum}
-                    </span>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      color: isCurrent ? "var(--primary-lt, #60a5fa)" : "var(--text-dim, #64748b)",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      maxWidth: "100%",
-                    }}
-                  >
-                    {meta.title}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Error Banner */}
         {submitError && (
           <div
@@ -586,240 +512,326 @@ export default function PublicSurveyPage() {
           </div>
         )}
 
-        {/* Active Category Questions Card */}
+        {/* Overall Survey Evaluation Progress */}
         <div
           style={{
-            background: "rgba(11, 23, 42, 0.9)",
-            border: "1.5px solid rgba(96, 165, 250, 0.25)",
-            borderRadius: "var(--radius-md, 14px)",
-            padding: "28px",
+            background: "rgba(11, 23, 42, 0.85)",
+            border: "1px solid rgba(96, 165, 250, 0.2)",
+            borderRadius: "var(--radius-md, 12px)",
+            padding: "18px 24px",
             display: "flex",
             flexDirection: "column",
-            gap: "24px",
-            boxShadow: "0 8px 30px rgba(0, 0, 0, 0.4)",
+            gap: "10px",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.3)",
           }}
         >
-          {/* Section Header */}
-          <div style={{ borderBottom: "1px solid rgba(96, 165, 250, 0.15)", paddingBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span
-                  style={{
-                    background: "var(--primary, #2563eb)",
-                    color: "#ffffff",
-                    fontSize: "12px",
-                    fontWeight: 800,
-                    padding: "2px 8px",
-                    borderRadius: "6px",
-                  }}
-                >
-                  Section {activeMeta.number} of 6
-                </span>
-                <h2 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-                  {activeMeta.title}
-                </h2>
-              </div>
-            </div>
-
-            <Badge variant={activeMeta.responseType === "star_rating" ? "count" : "info"}>
-              {activeMeta.responseType === "star_rating" ? "★ 1-5 Star Ratings" : "✎ Free-Text Comments"}
-            </Badge>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-white, #ffffff)" }}>
+              Survey Progress
+            </span>
+            <span
+              style={{
+                fontSize: "13px",
+                color: completionPercentage === 100 ? "var(--success, #22c55e)" : "var(--primary-lt, #60a5fa)",
+                fontWeight: 600,
+              }}
+            >
+              {ratedCount} of {allStarQuestions.length} rated ({completionPercentage}%)
+            </span>
           </div>
-
-          {/* Question Items */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-            {activeQuestions.length === 0 ? (
-              <div style={{ padding: "20px", textAlign: "center", color: "var(--text-muted, #94a3b8)", fontSize: "13px" }}>
-                No questions configured in this section.
-              </div>
-            ) : (
-              activeQuestions.map((q, idx) => {
-                const isStarRating = q.response_type === "star_rating";
-                const currentRating = responses[q.id]?.rating_score || 0;
-                const hoverRating = hoveredRatings[q.id] || 0;
-                const activeScore = hoverRating || currentRating;
-
-                return (
-                  <div
-                    key={q.id}
-                    style={{
-                      background: "rgba(14, 28, 48, 0.6)",
-                      border: "1px solid rgba(96, 165, 250, 0.12)",
-                      borderRadius: "var(--radius-md, 10px)",
-                      padding: "18px 22px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "14px",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-                      <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--primary-lt, #60a5fa)", minWidth: "24px" }}>
-                        {idx + 1}.
-                      </span>
-                      <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-white, #ffffff)", lineHeight: 1.5 }}>
-                        {q.question_text}
-                      </span>
-                    </div>
-
-                    {isStarRating ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginLeft: "34px", flexWrap: "wrap" }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                          {[1, 2, 3, 4, 5].map((starValue) => {
-                            const isFilled = starValue <= activeScore;
-                            return (
-                              <button
-                                key={starValue}
-                                type="button"
-                                onClick={() => handleRatingSelect(q.id, starValue)}
-                                onMouseEnter={() => setHoveredRatings((prev) => ({ ...prev, [q.id]: starValue }))}
-                                onMouseLeave={() => setHoveredRatings((prev) => ({ ...prev, [q.id]: 0 }))}
-                                title={`Rate ${starValue} of 5 - ${RATING_LABELS[starValue]}`}
-                                style={{
-                                  background: "transparent",
-                                  border: "none",
-                                  padding: "4px",
-                                  cursor: "pointer",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  outline: "none",
-                                  transition: "transform 0.15s ease",
-                                  transform: isFilled ? "scale(1.15)" : "scale(1)",
-                                }}
-                              >
-                                <svg
-                                  width="28"
-                                  height="28"
-                                  viewBox="0 0 24 24"
-                                  fill={isFilled ? "#f59e0b" : "none"}
-                                  stroke={isFilled ? "#f59e0b" : "rgba(148, 163, 184, 0.35)"}
-                                  strokeWidth="1.8"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  style={{
-                                    filter: isFilled ? "drop-shadow(0 0 8px rgba(245, 158, 11, 0.5))" : "none",
-                                    transition: "all 0.15s ease",
-                                  }}
-                                >
-                                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                </svg>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Rating text descriptor pill */}
-                        <div style={{ fontSize: "12px", minWidth: "120px" }}>
-                          {activeScore > 0 ? (
-                            <span
-                              style={{
-                                fontWeight: 700,
-                                color: "#fbbf24",
-                                background: "rgba(245, 158, 11, 0.15)",
-                                border: "1px solid rgba(245, 158, 11, 0.3)",
-                                padding: "3px 9px",
-                                borderRadius: "6px",
-                              }}
-                            >
-                              {activeScore} — {RATING_LABELS[activeScore]}
-                            </span>
-                          ) : (
-                            <span style={{ color: "var(--text-dim, #64748b)" }}>
-                              Click stars to rate (1 to 5)
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      /* Free-Text Input Area for Section 6 */
-                      <div style={{ marginLeft: "34px" }}>
-                        <textarea
-                          rows={4}
-                          placeholder="Please share any specific highlights, feedback, or strategic improvement recommendations..."
-                          value={responses[q.id]?.text_answer || ""}
-                          onChange={(e) => handleTextChange(q.id, e.target.value)}
-                          style={{
-                            width: "100%",
-                            background: "rgba(10, 20, 36, 0.6)",
-                            border: "1px solid rgba(96, 165, 250, 0.2)",
-                            borderRadius: "var(--radius-md, 8px)",
-                            padding: "12px 14px",
-                            color: "var(--text-main, #e2e8f0)",
-                            fontSize: "13px",
-                            fontFamily: "inherit",
-                            resize: "vertical",
-                            outline: "none",
-                            transition: "border-color 0.15s ease",
-                          }}
-                          onFocus={(e) => (e.target.style.borderColor = "var(--primary-lt, #60a5fa)")}
-                          onBlur={(e) => (e.target.style.borderColor = "rgba(96, 165, 250, 0.2)")}
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Section Navigation Footer */}
           <div
             style={{
-              borderTop: "1px solid rgba(96, 165, 250, 0.15)",
-              paddingTop: "20px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "12px",
-              flexWrap: "wrap",
+              height: "7px",
+              width: "100%",
+              background: "rgba(96, 165, 250, 0.15)",
+              borderRadius: "4px",
+              overflow: "hidden",
             }}
           >
-            {!isFirstCategory ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                onClick={() => {
-                  setSubmitError("");
-                  setActiveCategory((prev) => prev - 1);
-                }}
-              >
-                ← Previous Section ({activeCategory - 1}/6)
-              </Button>
-            ) : (
-              <div />
-            )}
-
-            <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600 }}>
-              Section {activeCategory} of 6: {activeMeta.title}
-            </span>
-
-            {!isLastCategory ? (
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                onClick={() => {
-                  setSubmitError("");
-                  setActiveCategory((prev) => prev + 1);
-                }}
-              >
-                Next Section ({activeCategory + 1}/6) →
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="primary"
-                size="lg"
-                loading={submitting}
-                disabled={submitting}
-                onClick={handleSubmit}
-              >
-                Submit Survey Feedback ✓
-              </Button>
-            )}
+            <div
+              style={{
+                height: "100%",
+                width: `${completionPercentage}%`,
+                background:
+                  completionPercentage === 100
+                    ? "var(--success, #22c55e)"
+                    : "linear-gradient(90deg, #2563eb, #38bdf8)",
+                transition: "width 0.3s ease",
+              }}
+            />
           </div>
         </div>
+
+        {/* Active Category Page (Page-by-page next/prev navigation) */}
+        {(() => {
+          if (categoryGroups.length === 0) return null;
+          const currentGroup = categoryGroups[currentCategoryIndex] || categoryGroups[0];
+          const isFirstCategory = currentCategoryIndex === 0;
+          const isLastCategory = currentCategoryIndex === categoryGroups.length - 1;
+
+          // Calculate continuous question start number for the active category
+          let questionStartIndex = 0;
+          for (let i = 0; i < currentCategoryIndex; i++) {
+            questionStartIndex += categoryGroups[i]?.questions?.length || 0;
+          }
+
+          const currentGroupStarQuestions = currentGroup.questions.filter((q) => q.response_type === "star_rating");
+          const currentGroupRatedCount = currentGroupStarQuestions.filter((q) => responses[q.id]?.rating_score > 0).length;
+
+          return (
+            <div
+              style={{
+                background: "rgba(11, 23, 42, 0.85)",
+                border: "1.5px solid rgba(96, 165, 250, 0.22)",
+                borderRadius: "var(--radius-md, 14px)",
+                padding: "26px 28px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "22px",
+                boxShadow: "0 6px 24px rgba(0, 0, 0, 0.35)",
+              }}
+            >
+              {/* Category Header (NO category tabs, NO 'Section 1 of 6' text, just clean category title & type badge) */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "10px",
+                  borderBottom: "1px solid rgba(96, 165, 250, 0.15)",
+                  paddingBottom: "16px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div
+                    style={{
+                      width: "4px",
+                      height: "22px",
+                      background: "linear-gradient(180deg, #38bdf8, #2563eb)",
+                      borderRadius: "2px",
+                    }}
+                  />
+                  <h2 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+                    {currentGroup.title}
+                  </h2>
+                </div>
+
+                <Badge variant={currentGroup.responseType === "star_rating" ? "count" : "info"} size="sm">
+                  {currentGroup.responseType === "star_rating" ? "★ 1-5 Star Ratings" : "✎ Feedback & Comments"}
+                </Badge>
+              </div>
+
+              {/* Questions in Current Category */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {currentGroup.questions.map((q, idx) => {
+                  const isStarRating = q.response_type === "star_rating";
+                  const currentNum = questionStartIndex + idx + 1;
+                  const currentRating = responses[q.id]?.rating_score || 0;
+                  const hoverRating = hoveredRatings[q.id] || 0;
+                  const activeScore = hoverRating || currentRating;
+                  const isMissing = missingQuestionIds.has(q.id);
+
+                  return (
+                    <div
+                      key={q.id}
+                      id={`question-${q.id}`}
+                      style={{
+                        background: isMissing
+                          ? "rgba(239, 68, 68, 0.08)"
+                          : currentRating > 0
+                          ? "rgba(34, 197, 94, 0.05)"
+                          : "rgba(14, 28, 48, 0.6)",
+                        border: isMissing
+                          ? "1.5px solid rgba(239, 68, 68, 0.55)"
+                          : currentRating > 0
+                          ? "1px solid rgba(34, 197, 94, 0.25)"
+                          : "1px solid rgba(96, 165, 250, 0.12)",
+                        borderRadius: "var(--radius-md, 10px)",
+                        padding: "18px 22px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "14px",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            color: currentRating > 0 ? "var(--success, #22c55e)" : "var(--primary-lt, #60a5fa)",
+                            background: currentRating > 0 ? "rgba(34, 197, 94, 0.15)" : "rgba(37, 99, 235, 0.15)",
+                            width: "26px",
+                            height: "26px",
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {currentRating > 0 ? "✓" : currentNum}
+                        </span>
+                        <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-white, #ffffff)", lineHeight: 1.5, marginTop: "2px" }}>
+                          {q.question_text}
+                        </span>
+                      </div>
+
+                      {isStarRating ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginLeft: "38px", flexWrap: "wrap" }}>
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            {[1, 2, 3, 4, 5].map((starValue) => {
+                              const isFilled = starValue <= activeScore;
+                              return (
+                                <button
+                                  key={starValue}
+                                  type="button"
+                                  onClick={() => handleRatingSelect(q.id, starValue)}
+                                  onMouseEnter={() => setHoveredRatings((prev) => ({ ...prev, [q.id]: starValue }))}
+                                  onMouseLeave={() => setHoveredRatings((prev) => ({ ...prev, [q.id]: 0 }))}
+                                  title={`Rate ${starValue} of 5 - ${RATING_LABELS[starValue]}`}
+                                  style={{
+                                    background: "transparent",
+                                    border: "none",
+                                    padding: "4px",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    outline: "none",
+                                    transition: "transform 0.15s ease",
+                                    transform: isFilled ? "scale(1.15)" : "scale(1)",
+                                  }}
+                                >
+                                  <svg
+                                    width="28"
+                                    height="28"
+                                    viewBox="0 0 24 24"
+                                    fill={isFilled ? "#f59e0b" : "none"}
+                                    stroke={isFilled ? "#f59e0b" : "rgba(148, 163, 184, 0.35)"}
+                                    strokeWidth="1.8"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    style={{
+                                      filter: isFilled ? "drop-shadow(0 0 8px rgba(245, 158, 11, 0.5))" : "none",
+                                      transition: "all 0.15s ease",
+                                    }}
+                                  >
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                  </svg>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <div style={{ fontSize: "12px", minWidth: "120px" }}>
+                            {activeScore > 0 ? (
+                              <span
+                                style={{
+                                  fontWeight: 700,
+                                  color: "#fbbf24",
+                                  background: "rgba(245, 158, 11, 0.15)",
+                                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                                  padding: "3px 9px",
+                                  borderRadius: "6px",
+                                }}
+                              >
+                                {activeScore} — {RATING_LABELS[activeScore]}
+                              </span>
+                            ) : (
+                              <span style={{ color: isMissing ? "#fca5a5" : "var(--text-dim, #64748b)" }}>
+                                {isMissing ? "Please select a rating" : "Click stars to rate (1 to 5)"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ marginLeft: "38px" }}>
+                          <textarea
+                            rows={4}
+                            placeholder="Please share any specific highlights, feedback, or strategic improvement recommendations..."
+                            value={responses[q.id]?.text_answer || ""}
+                            onChange={(e) => handleTextChange(q.id, e.target.value)}
+                            style={{
+                              width: "100%",
+                              background: "rgba(10, 20, 36, 0.6)",
+                              border: "1px solid rgba(96, 165, 250, 0.2)",
+                              borderRadius: "var(--radius-md, 8px)",
+                              padding: "12px 14px",
+                              color: "var(--text-main, #e2e8f0)",
+                              fontSize: "13px",
+                              fontFamily: "inherit",
+                              resize: "vertical",
+                              outline: "none",
+                              transition: "border-color 0.15s ease",
+                            }}
+                            onFocus={(e) => (e.target.style.borderColor = "var(--primary-lt, #60a5fa)")}
+                            onBlur={(e) => (e.target.style.borderColor = "rgba(96, 165, 250, 0.2)")}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* In-Form Navigation Bar: Previous, Status, Next / Submit */}
+              <div
+                style={{
+                  borderTop: "1px solid rgba(96, 165, 250, 0.15)",
+                  paddingTop: "20px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
+                {!isFirstCategory ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="md"
+                    onClick={handlePrevCategory}
+                  >
+                    ← Previous
+                  </Button>
+                ) : (
+                  <div />
+                )}
+
+                <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", fontWeight: 500 }}>
+                  {currentGroupStarQuestions.length > 0
+                    ? `${currentGroupRatedCount} of ${currentGroupStarQuestions.length} rated in this category`
+                    : "Feedback & Comments"}
+                </span>
+
+                {!isLastCategory ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="md"
+                    onClick={handleNextCategory}
+                  >
+                    Next Category →
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="lg"
+                    loading={submitting}
+                    disabled={submitting}
+                    onClick={handleSubmit}
+                  >
+                    Submit Survey Feedback ✓
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
