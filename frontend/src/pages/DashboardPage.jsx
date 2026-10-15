@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import Badge from "../components/Badge";
 import ClientProjectList from "../components/ClientProjectList";
 import clientsApi from "../api/clientsApi";
 
@@ -12,7 +11,6 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [viewMode, setViewMode] = useState("grid");
 
   const [loading, setLoading] = useState(() => !initialCached);
   const [error, setError] = useState("");
@@ -300,55 +298,8 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Right Controls: View Switcher & Archived Toggle */}
+        {/* Right Controls: Archived Toggle */}
         <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-          {/* View Switcher */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              background: "rgba(255, 255, 255, 0.04)",
-              borderRadius: "var(--radius-sm, 6px)",
-              padding: "2px",
-              border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setViewMode("grid")}
-              style={{
-                padding: "4px 10px",
-                fontSize: "12px",
-                fontWeight: 500,
-                borderRadius: "4px",
-                border: "none",
-                cursor: "pointer",
-                background: viewMode === "grid" ? "var(--primary, #2563eb)" : "transparent",
-                color: viewMode === "grid" ? "#ffffff" : "var(--text-muted, #94a3b8)",
-                transition: "all 0.15s ease",
-              }}
-            >
-              ▦ Cards
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("table")}
-              style={{
-                padding: "4px 10px",
-                fontSize: "12px",
-                fontWeight: 500,
-                borderRadius: "4px",
-                border: "none",
-                cursor: "pointer",
-                background: viewMode === "table" ? "var(--primary, #2563eb)" : "transparent",
-                color: viewMode === "table" ? "#ffffff" : "var(--text-muted, #94a3b8)",
-                transition: "all 0.15s ease",
-              }}
-            >
-              ☰ Directory
-            </button>
-          </div>
-
           {/* Archived Toggle */}
           <label
             style={{
@@ -377,12 +328,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Client & Project Listing ─────────────────────────────────── */}
+      {/* ── Client & Project Directory ─────────────────────────────────── */}
       <ClientProjectList
         clients={clients}
         loading={loading}
         error={error}
-        viewMode={viewMode}
         searchQuery={debouncedSearch}
         onRetry={() => fetchClients(debouncedSearch, showArchived)}
       />
