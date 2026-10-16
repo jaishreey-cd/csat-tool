@@ -21,6 +21,7 @@ from app.services.survey_service import (
     get_public_survey_by_token,
     submit_public_survey_response,
     send_survey_reminder,
+    send_survey_response_followup,
     check_and_trigger_automated_followups,
 )
 
@@ -49,6 +50,27 @@ def list_all_surveys(
     """List all surveys with optional filters."""
     surveys = get_surveys(db, status_filter=status, client_id=client_id, project_id=project_id)
     return SurveyListResponse(surveys=surveys, total=len(surveys))
+
+@router.get("/email-status")
+def get_email_service_status(
+    current_user: User = Depends(get_current_user),
+):
+    """Check connectivity and configuration status of the SMTP email dispatch service."""
+    from app.services.email_service import verify_smtp_status
+    return verify_smtp_status()
+
+from pydantic import BaseModel, EmailStr
+class TestEmailRequest(BaseModel):
+    recipient_email: EmailStr
+
+@router.post("/test-email")
+def trigger_diagnostic_test_email(
+    payload: TestEmailRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Send a test email to verify live delivery to recipient."""
+    from app.services.email_service import send_test_email
+    return send_test_email(recipient_email=payload.recipient_email)
 
 @router.get("/{survey_id}", response_model=SurveyResponse)
 def get_survey_details(
@@ -91,6 +113,21 @@ def remind_survey_client(
 ):
     """Send on-demand reminder email to client contact for a pending survey."""
     return send_survey_reminder(db, survey_id=survey_id)
+
+class FollowupRequest(BaseModel):
+    message: Optional[str] = None
+
+@router.post("/{survey_id}/response-followup")
+def follow_up_survey_response(
+    survey_id: int,
+    payload: FollowupRequest = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Send a dedicated follow-up email acknowledging and discussing client survey responses."""
+    msg = payload.message if payload else None
+    return send_survey_response_followup(db, survey_id=survey_id, custom_message=msg)
+
 
 @router.post("/check-followups")
 def trigger_automated_followups(

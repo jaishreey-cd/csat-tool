@@ -1,5 +1,27 @@
 import axiosClient from "./axiosClient";
 
+const triggerDownload = (response, defaultFilename) => {
+  const contentDisposition = response.headers["content-disposition"];
+  let filename = defaultFilename;
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename=["']?([^"']+)["']?/);
+    if (match && match[1]) {
+      filename = match[1];
+    }
+  }
+  const blob = new Blob([response.data], {
+    type: response.headers["content-type"] || "application/octet-stream",
+  });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 const analyticsApi = {
   getSystemOverview: async () => {
     const response = await axiosClient.get("/analytics/overview");
@@ -9,6 +31,30 @@ const analyticsApi = {
   getProjectAnalytics: async (projectId) => {
     const response = await axiosClient.get(`/analytics/projects/${projectId}`);
     return response.data;
+  },
+
+  exportProjectAnalytics: async (projectId, format = "xlsx") => {
+    const response = await axiosClient.get(`/analytics/projects/${projectId}/export`, {
+      params: { format },
+      responseType: "blob",
+    });
+    triggerDownload(response, `Project_${projectId}_CSAT_Report.${format}`);
+  },
+
+  exportSurveysRegistry: async (params = {}, format = "xlsx") => {
+    const response = await axiosClient.get("/analytics/surveys/export", {
+      params: { ...params, format },
+      responseType: "blob",
+    });
+    triggerDownload(response, `CSAT_Surveys_Registry.${format}`);
+  },
+
+  exportOverview: async (format = "xlsx") => {
+    const response = await axiosClient.get("/analytics/overview/export", {
+      params: { format },
+      responseType: "blob",
+    });
+    triggerDownload(response, `CSAT_Portfolio_Overview.${format}`);
   },
 };
 

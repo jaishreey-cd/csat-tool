@@ -14,6 +14,7 @@ from app.schemas.analytics import (
     SurveyTimelineItem,
     SystemOverviewResponse,
     MonthlyTrend,
+    PhaseScore,
 )
 
 SECTION_TITLES = {
@@ -121,6 +122,51 @@ def get_project_analytics(db: Session, project_id: int) -> ProjectAnalyticsRespo
         for s in surveys
     ]
 
+    # ── Phase-wise CSAT Analytics as Percentages ────────────────────────────
+    STANDARD_PHASES = ["Weekly", "Monthly", "Mid-Project", "Project Completion", "Post-Launch"]
+    phase_metrics = []
+    completed_phases_count = 0
+    current_phase_name = None
+
+    for idx, ph in enumerate(STANDARD_PHASES, start=1):
+        ph_surveys = [s for s in surveys if s.phase == ph]
+        ph_completed = [s for s in ph_surveys if s.status == "Completed"]
+        ph_scores = [s.average_score for s in ph_completed if s.average_score is not None]
+        avg_ph = round(sum(ph_scores) / len(ph_scores), 2) if ph_scores else None
+        pct_ph = round((avg_ph / 5.0) * 100, 1) if avg_ph is not None else None
+
+        if len(ph_completed) > 0:
+            ph_status = "Completed"
+            completed_phases_count += 1
+        elif len(ph_surveys) > 0:
+            ph_status = "In Progress"
+            if not current_phase_name:
+                current_phase_name = ph
+        else:
+            ph_status = "Upcoming"
+
+        phase_metrics.append(
+            PhaseScore(
+                phase=ph,
+                phase_order=idx,
+                csat_score=avg_ph,
+                csat_percentage=pct_ph,
+                completed_count=len(ph_completed),
+                total_count=len(ph_surveys),
+                status=ph_status,
+            )
+        )
+
+    # Determine current and next phase
+    if not current_phase_name:
+        # If no phase is currently in progress, find first upcoming phase, or last completed
+        upcoming = [p.phase for p in phase_metrics if p.status == "Upcoming"]
+        current_phase_name = upcoming[0] if upcoming else STANDARD_PHASES[-1]
+
+    curr_idx = STANDARD_PHASES.index(current_phase_name) if current_phase_name in STANDARD_PHASES else 0
+    next_phase_name = STANDARD_PHASES[curr_idx + 1] if curr_idx + 1 < len(STANDARD_PHASES) else "All 5 Phases Complete"
+    overall_csat_percentage = round((overall_csat / 5.0) * 100, 1) if overall_csat is not None else None
+
     return ProjectAnalyticsResponse(
         project_id=project.id,
         project_code=project.project_code,
@@ -130,11 +176,17 @@ def get_project_analytics(db: Session, project_id: int) -> ProjectAnalyticsRespo
         team_name=project.team_name,
         status=project.status,
         overall_csat=overall_csat,
+        overall_csat_percentage=overall_csat_percentage,
         total_surveys=total_surveys,
         completed_surveys=completed_count,
         sent_surveys=sent_count,
         response_rate=response_rate,
         latest_response_date=latest_response_date,
+        current_phase=current_phase_name,
+        next_phase=next_phase_name,
+        total_phases=5,
+        completed_phases_count=completed_phases_count,
+        phases=phase_metrics,
         sections=section_scores,
         qualitative_comments=qualitative_comments,
         timeline=timeline,

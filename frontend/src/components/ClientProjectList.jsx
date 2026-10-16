@@ -334,6 +334,10 @@ export default function ClientProjectList({
                     {projectCount} {projectCount === 1 ? "Project" : "Projects"}
                   </Badge>
 
+                  <Badge variant="info" size="sm">
+                    5 Survey Phases
+                  </Badge>
+
                   {isArchived && (
                     <Badge variant="archived" size="sm">
                       Archived
@@ -393,13 +397,13 @@ export default function ClientProjectList({
                         boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
                       }}
                     >
-                      <div style={{ minWidth: "600px" }}>
+                      <div style={{ minWidth: "660px" }}>
                         {/* Nested Projects Table Header */}
                         <div
                           style={{
                             display: "grid",
-                            gridTemplateColumns: "minmax(240px, 2fr) 140px 170px 120px",
-                            gap: "16px",
+                            gridTemplateColumns: "minmax(200px, 2fr) 120px 140px 130px 110px",
+                            gap: "14px",
                             padding: "12px 20px",
                             background: "rgba(15, 23, 42, 0.85)",
                             borderBottom: "1px solid rgba(96, 165, 250, 0.12)",
@@ -413,6 +417,7 @@ export default function ClientProjectList({
                           <span>Project</span>
                           <span>Project Code</span>
                           <span>Status</span>
+                          <span>Phases</span>
                           <span style={{ textAlign: "right" }}>Action</span>
                         </div>
 
@@ -439,8 +444,8 @@ export default function ClientProjectList({
                               className="project-directory-row"
                               style={{
                                 display: "grid",
-                                gridTemplateColumns: "minmax(240px, 2fr) 140px 170px 120px",
-                                gap: "16px",
+                                gridTemplateColumns: "minmax(200px, 2fr) 120px 140px 130px 110px",
+                                gap: "14px",
                                 alignItems: "center",
                                 padding: "13px 20px",
                                 borderBottom: "1px solid rgba(96, 165, 250, 0.06)",
@@ -508,6 +513,25 @@ export default function ClientProjectList({
 
                               {/* Accurate Status Badge */}
                               <div>{renderStatusBadge(projectStatus)}</div>
+
+                              {/* Phases Column */}
+                              <div>
+                                <span
+                                  style={{
+                                    fontSize: "11px",
+                                    fontWeight: 600,
+                                    color: hasSurvey ? "#60a5fa" : "#94a3b8",
+                                    background: hasSurvey ? "rgba(37, 99, 235, 0.14)" : "rgba(255, 255, 255, 0.04)",
+                                    border: `1px solid ${hasSurvey ? "rgba(96, 165, 250, 0.3)" : "rgba(255, 255, 255, 0.08)"}`,
+                                    padding: "3px 8px",
+                                    borderRadius: "12px",
+                                    display: "inline-block",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {hasSurvey ? "1/5 Complete" : "0/5 Phases"}
+                                </span>
+                              </div>
 
                               {/* Contextual Action */}
                               <div style={{ textAlign: "right" }}>

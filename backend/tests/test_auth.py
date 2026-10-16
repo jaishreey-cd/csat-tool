@@ -14,7 +14,8 @@ def test_login_success(client, test_user):
     assert data["token_type"] == "bearer"
     assert data["user"]["email"] == "testadmin@example.com"
     assert "hashed_password" not in data["user"]
-    assert "role" not in data["user"]  # ONE role rule: no role column
+    assert "role" in data["user"]
+    assert data["user"]["role"] in ["Admin", "PMO", "Viewer"]
 
 def test_login_wrong_password_401(client, test_user):
     """Test login failure with wrong password returns 401 with generic message."""

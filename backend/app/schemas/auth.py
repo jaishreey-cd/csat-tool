@@ -18,10 +18,15 @@ class UserResponse(BaseModel):
     id: int
     email: str
     full_name: Optional[str] = None
+    role: str = "Admin"
     is_active: bool
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class UpdateUserRoleRequest(BaseModel):
+    role: str
+    is_active: Optional[bool] = None
 
 class TokenResponse(BaseModel):
     access_token: str

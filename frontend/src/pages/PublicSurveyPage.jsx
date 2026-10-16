@@ -357,7 +357,7 @@ export default function PublicSurveyPage() {
             </p>
           </div>
 
-          {/* Reference pill */}
+          {/* Engagement Details */}
           <div
             style={{
               background: "rgba(10, 22, 40, 0.7)",
@@ -367,18 +367,14 @@ export default function PublicSurveyPage() {
               width: "100%",
               display: "flex",
               flexDirection: "column",
-              gap: "6px",
-              fontSize: "12px",
+              gap: "8px",
+              fontSize: "13px",
               textAlign: "left",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--text-dim, #64748b)" }}>Survey Reference:</span>
-              <strong style={{ color: "var(--primary-lt, #60a5fa)" }}>{survey?.survey_code}</strong>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--text-dim, #64748b)" }}>Organization:</span>
-              <span style={{ color: "var(--text-white, #ffffff)" }}>{survey?.client_name}</span>
+              <span style={{ color: "var(--text-dim, #64748b)" }}>Project:</span>
+              <strong style={{ color: "var(--text-white, #ffffff)" }}>{survey?.project_name}</strong>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "var(--text-dim, #64748b)" }}>Phase:</span>
@@ -679,8 +675,22 @@ export default function PublicSurveyPage() {
                       </div>
 
                       {isStarRating ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginLeft: "38px", flexWrap: "wrap" }}>
-                          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "8px",
+                            marginLeft: "38px",
+                            marginTop: "4px",
+                            padding: "10px 14px",
+                            background: "rgba(10, 22, 40, 0.5)",
+                            borderRadius: "8px",
+                            border: "1px solid rgba(96, 165, 250, 0.1)",
+                            width: "fit-content",
+                          }}
+                        >
+                          {/* Rating Stars Positioned Below Question */}
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                             {[1, 2, 3, 4, 5].map((starValue) => {
                               const isFilled = starValue <= activeScore;
                               return (
@@ -705,8 +715,8 @@ export default function PublicSurveyPage() {
                                   }}
                                 >
                                   <svg
-                                    width="28"
-                                    height="28"
+                                    width="30"
+                                    height="30"
                                     viewBox="0 0 24 24"
                                     fill={isFilled ? "#f59e0b" : "none"}
                                     stroke={isFilled ? "#f59e0b" : "rgba(148, 163, 184, 0.35)"}
@@ -725,7 +735,8 @@ export default function PublicSurveyPage() {
                             })}
                           </div>
 
-                          <div style={{ fontSize: "12px", minWidth: "120px" }}>
+                          {/* Rating Label Below the Stars */}
+                          <div style={{ fontSize: "12px", marginTop: "2px" }}>
                             {activeScore > 0 ? (
                               <span
                                 style={{
@@ -733,24 +744,28 @@ export default function PublicSurveyPage() {
                                   color: "#fbbf24",
                                   background: "rgba(245, 158, 11, 0.15)",
                                   border: "1px solid rgba(245, 158, 11, 0.3)",
-                                  padding: "3px 9px",
+                                  padding: "3px 10px",
                                   borderRadius: "6px",
+                                  display: "inline-block",
                                 }}
                               >
-                                {activeScore} — {RATING_LABELS[activeScore]}
+                                {activeScore} / 5 — {RATING_LABELS[activeScore]}
                               </span>
                             ) : (
                               <span style={{ color: isMissing ? "#fca5a5" : "var(--text-dim, #64748b)" }}>
-                                {isMissing ? "Please select a rating" : "Click stars to rate (1 to 5)"}
+                                {isMissing ? "⚠️ Please select a rating (1 to 5)" : "Click stars above to rate"}
                               </span>
                             )}
                           </div>
                         </div>
                       ) : (
                         <div style={{ marginLeft: "38px" }}>
+                          <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", display: "block", marginBottom: "6px" }}>
+                            Comments / Actionable Feedback <em style={{ color: "#94a3b8" }}>(Optional)</em>
+                          </span>
                           <textarea
                             rows={4}
-                            placeholder="Please share any specific highlights, feedback, or strategic improvement recommendations..."
+                            placeholder="Optional: share any specific feedback, appreciation, or strategic improvement recommendations..."
                             value={responses[q.id]?.text_answer || ""}
                             onChange={(e) => handleTextChange(q.id, e.target.value)}
                             style={{

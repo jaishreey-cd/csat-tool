@@ -3,7 +3,8 @@ from app.models.client import Client
 from app.models.project import Project
 from app.models.import_batch import ImportBatch
 from app.models.import_change import ImportChange
-from app.models.survey import Survey, SurveyQuestion
+from app.models.survey import Survey, SurveyQuestion, SurveyAnswer
+from app.models.question_template import QuestionTemplate
 
 __all__ = [
     "User",
@@ -13,4 +14,6 @@ __all__ = [
     "ImportChange",
     "Survey",
     "SurveyQuestion",
+    "SurveyAnswer",
+    "QuestionTemplate",
 ]

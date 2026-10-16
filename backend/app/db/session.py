@@ -20,10 +20,18 @@ else:
             "pool_timeout": 30,
         })
 
-engine = create_engine(
-    db_url,
-    connect_args=connect_args,
-    **engine_kwargs
-)
+try:
+    engine = create_engine(
+        db_url,
+        connect_args=connect_args,
+        **engine_kwargs
+    )
+except (ImportError, Exception) as e:
+    print(f"[WARN] Could not load database driver for {db_url.split('@')[-1] if '@' in db_url else db_url}: {e}")
+    print("[INFO] Falling back to SQLite: sqlite:///./csat_pmo.db")
+    engine = create_engine(
+        "sqlite:///./csat_pmo.db",
+        connect_args={"check_same_thread": False}
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -29,6 +29,15 @@ class SurveyTimelineItem(BaseModel):
     sent_at: Optional[str] = None
     completed_at: Optional[str] = None
 
+class PhaseScore(BaseModel):
+    phase: str
+    phase_order: int
+    csat_score: Optional[float] = None
+    csat_percentage: Optional[float] = None
+    completed_count: int
+    total_count: int
+    status: str  # 'Completed', 'In Progress', 'Upcoming'
+
 class ProjectAnalyticsResponse(BaseModel):
     project_id: int
     project_code: str
@@ -38,11 +47,17 @@ class ProjectAnalyticsResponse(BaseModel):
     team_name: Optional[str] = None
     status: Optional[str] = None
     overall_csat: Optional[float] = None
+    overall_csat_percentage: Optional[float] = None
     total_surveys: int
     completed_surveys: int
     sent_surveys: int
     response_rate: float
     latest_response_date: Optional[str] = None
+    current_phase: Optional[str] = None
+    next_phase: Optional[str] = None
+    total_phases: int = 5
+    completed_phases_count: int = 0
+    phases: List[PhaseScore] = []
     sections: List[SectionScore]
     qualitative_comments: List[QualitativeComment]
     timeline: List[SurveyTimelineItem]

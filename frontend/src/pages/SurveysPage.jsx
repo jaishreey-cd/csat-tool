@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import surveysApi from "../api/surveysApi";
 import clientsApi from "../api/clientsApi";
+import analyticsApi from "../api/analyticsApi";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
 import Input from "../components/Input";
@@ -38,6 +39,16 @@ export default function SurveysPage() {
   const [remindingId, setRemindingId] = useState(null);
   const [checkingFollowups, setCheckingFollowups] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "info" });
+
+  // Response Follow-up Modal State
+  const [followupModalSurvey, setFollowupModalSurvey] = useState(null);
+  const [followupMessage, setFollowupMessage] = useState("");
+  const [sendingFollowup, setSendingFollowup] = useState(false);
+
+  // Email Service Status & Export
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [exportingFormat, setExportingFormat] = useState(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // Questions Detail Modal State
   const [detailsModalSurvey, setDetailsModalSurvey] = useState(null);
@@ -78,7 +89,33 @@ export default function SurveysPage() {
 
   useEffect(() => {
     fetchSurveys();
+    surveysApi.getEmailStatus().then((res) => {
+      setEmailStatus(res);
+    }).catch(() => {});
   }, []);
+
+  const handleExportSurveys = async (format) => {
+    setExportingFormat(format);
+    setShowExportMenu(false);
+    try {
+      const params = {};
+      if (selectedStatus !== "ALL") params.status = selectedStatus;
+      if (selectedClientFilter !== "ALL") params.client_id = selectedClientFilter;
+      await analyticsApi.exportSurveysRegistry(params, format);
+      setToast({
+        message: `Surveys registry successfully exported as ${format.toUpperCase()}!`,
+        type: "success",
+      });
+    } catch (err) {
+      console.error("Export error:", err);
+      setToast({
+        message: "Failed to export surveys registry.",
+        type: "error",
+      });
+    } finally {
+      setExportingFormat(null);
+    }
+  };
 
   // Filtered surveys
   const filteredSurveys = useMemo(() => {
@@ -218,6 +255,34 @@ export default function SurveysPage() {
     setTimeout(() => setCopiedToken(null), 2500);
   };
 
+  const openFollowupModal = (survey) => {
+    setFollowupModalSurvey(survey);
+    setFollowupMessage("");
+  };
+
+  const handleSendResponseFollowup = async (e) => {
+    e.preventDefault();
+    if (!followupModalSurvey) return;
+    setSendingFollowup(true);
+    try {
+      await surveysApi.sendResponseFollowup(followupModalSurvey.id, followupMessage);
+      setToast({
+        message: `Response follow-up successfully emailed to ${followupModalSurvey.client_contact_email}!`,
+        type: "success",
+      });
+      setFollowupModalSurvey(null);
+      setFollowupMessage("");
+    } catch (err) {
+      console.error("Follow-up error:", err);
+      setToast({
+        message: err?.response?.data?.detail || "Failed to dispatch response follow-up email.",
+        type: "error",
+      });
+    } finally {
+      setSendingFollowup(false);
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Page Header */}
@@ -232,6 +297,110 @@ export default function SurveysPage() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          {emailStatus && (
+            <div
+              title={emailStatus.message || ""}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                borderRadius: "20px",
+                fontSize: "12px",
+                fontWeight: 600,
+                background: emailStatus.connected ? "rgba(34, 197, 94, 0.12)" : "rgba(234, 179, 8, 0.12)",
+                border: emailStatus.connected ? "1px solid rgba(34, 197, 94, 0.3)" : "1px solid rgba(234, 179, 8, 0.3)",
+                color: emailStatus.connected ? "#4ade80" : "#fde047",
+              }}
+            >
+              <span style={{ fontSize: "8px" }}>●</span>
+              <span>{emailStatus.connected ? `Email: Live (${emailStatus.host})` : "Email: Simulation"}</span>
+            </div>
+          )}
+
+          {/* Export Dropdown */}
+          <div style={{ position: "relative" }}>
+            <Button
+              variant="secondary"
+              size="md"
+              disabled={!!exportingFormat}
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+            >
+              <span>{exportingFormat ? "⏳" : "📥"}</span>
+              <span>{exportingFormat ? `Exporting...` : "Export Surveys ▾"}</span>
+            </Button>
+
+            {showExportMenu && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "calc(100% + 6px)",
+                  background: "var(--bg-surface, #0d1b2a)",
+                  border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.3))",
+                  borderRadius: "8px",
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                  padding: "6px",
+                  zIndex: 50,
+                  minWidth: "170px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "4px",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleExportSurveys("xlsx")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "8px 12px",
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: "6px",
+                    color: "var(--text-white, #ffffff)",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "background 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(96, 165, 250, 0.15)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span style={{ color: "#22c55e", fontWeight: 700 }}>📊</span>
+                  <span>Excel (.xlsx)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportSurveys("csv")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "8px 12px",
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: "6px",
+                    color: "var(--text-white, #ffffff)",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "background 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(96, 165, 250, 0.15)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span style={{ color: "#38bdf8", fontWeight: 700 }}>📄</span>
+                  <span>CSV (.csv)</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           <Button
             variant="secondary"
             size="md"
@@ -689,6 +858,17 @@ export default function SurveysPage() {
                               </Button>
                             </>
                           )}
+
+                          {survey.status === "Completed" && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => openFollowupModal(survey)}
+                              title="Send response follow-up email to client stakeholder"
+                            >
+                              ✉ Follow-up
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -755,10 +935,6 @@ export default function SurveysPage() {
                 fontSize: "12px",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-dim, #64748b)" }}>Survey Code:</span>
-                <strong style={{ color: "var(--primary-lt, #60a5fa)" }}>{dispatchModalSurvey.survey_code}</strong>
-              </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-dim, #64748b)" }}>Project:</span>
                 <span style={{ color: "var(--text-white, #ffffff)", fontWeight: 600 }}>
@@ -1006,6 +1182,122 @@ export default function SurveysPage() {
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL 3: RESPONSE FOLLOW-UP EMAIL
+         ───────────────────────────────────────────────────────────── */}
+      {followupModalSurvey && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+            padding: "20px",
+          }}
+          onClick={() => setFollowupModalSurvey(null)}
+        >
+          <div
+            style={{
+              background: "var(--bg-surface, #0d1b2a)",
+              border: "1px solid rgba(16, 185, 129, 0.35)",
+              borderRadius: "var(--radius-lg, 14px)",
+              padding: "28px",
+              maxWidth: "540px",
+              width: "100%",
+              boxShadow: "0 16px 40px rgba(0, 0, 0, 0.6)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "18px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "20px" }}>✉️</span>
+                <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+                  Follow-up on Client CSAT Response
+                </h3>
+              </div>
+              <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "6px 0 0 0" }}>
+                Send a formal follow-up email acknowledging the submitted evaluation and offering further discussion.
+              </p>
+            </div>
+
+            {/* Recipient & Score info */}
+            <div
+              style={{
+                background: "rgba(10, 22, 40, 0.6)",
+                border: "1px solid rgba(16, 185, 129, 0.2)",
+                borderRadius: "8px",
+                padding: "14px 16px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+                fontSize: "13px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-dim, #64748b)" }}>Recipient:</span>
+                <strong style={{ color: "#ffffff" }}>
+                  {followupModalSurvey.client_contact_name} ({followupModalSurvey.client_contact_email})
+                </strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--text-dim, #64748b)" }}>Project / Phase:</span>
+                <span style={{ color: "var(--text-white, #ffffff)" }}>
+                  {followupModalSurvey.project?.name} ({followupModalSurvey.phase})
+                </span>
+              </div>
+              {followupModalSurvey.average_score && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
+                  <span style={{ color: "var(--text-dim, #64748b)" }}>Recorded Rating:</span>
+                  <span style={{ color: "#34d399", fontWeight: 700 }}>
+                    ★ {followupModalSurvey.average_score.toFixed(1)} / 5.0
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleSendResponseFollowup} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-main, #e2e8f0)", marginBottom: "6px" }}>
+                  Custom PMO Follow-up Message <em style={{ color: "#94a3b8", fontWeight: 400 }}>(Optional)</em>
+                </label>
+                <textarea
+                  rows={4}
+                  value={followupMessage}
+                  onChange={(e) => setFollowupMessage(e.target.value)}
+                  placeholder="e.g. Thank you for your feedback regarding the technical delivery pace. We would like to schedule a 15-minute sync with our delivery lead..."
+                  style={{
+                    width: "100%",
+                    background: "rgba(10, 20, 36, 0.7)",
+                    border: "1px solid rgba(96, 165, 250, 0.25)",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    color: "#ffffff",
+                    fontSize: "13px",
+                    resize: "vertical",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" }}>
+                <Button variant="secondary" size="md" onClick={() => setFollowupModalSurvey(null)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" size="md" type="submit" disabled={sendingFollowup}>
+                  {sendingFollowup ? "Sending Email..." : "Send Follow-up Email →"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

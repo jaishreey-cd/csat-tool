@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.routes import auth_router, clients_router, data_sync_router, surveys_router, analytics_router
+from app.api.routes import auth_router, clients_router, data_sync_router, surveys_router, analytics_router, questions_router
 
 import asyncio
 
@@ -39,6 +39,15 @@ async def lifespan(app: FastAPI):
         seed()
     except Exception as e:
         print(f"[WARN] Startup seeding warning: {e}")
+
+    try:
+        from app.db.session import SessionLocal
+        from app.services.question_service import seed_default_questions_if_empty
+        with SessionLocal() as db:
+            seed_default_questions_if_empty(db)
+    except Exception as e:
+        print(f"[WARN] Question template seeding warning: {e}")
+
     print(f"[INFO] Started {settings.PROJECT_NAME} Backend")
 
     # Start automated follow-up periodic background task
@@ -82,6 +91,7 @@ app.include_router(clients_router, prefix=settings.API_V1_STR)
 app.include_router(data_sync_router, prefix=settings.API_V1_STR)
 app.include_router(surveys_router, prefix=settings.API_V1_STR)
 app.include_router(analytics_router, prefix=settings.API_V1_STR)
+app.include_router(questions_router, prefix=settings.API_V1_STR)
 
 @app.get("/api/health", tags=["Health"])
 def health_check():

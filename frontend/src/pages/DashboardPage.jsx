@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import ClientProjectList from "../components/ClientProjectList";
+import Button from "../components/Button";
 import clientsApi from "../api/clientsApi";
 import analyticsApi from "../api/analyticsApi";
 
@@ -16,12 +17,27 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(() => !initialCached);
   const [error, setError] = useState("");
+  const [exportingFormat, setExportingFormat] = useState(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     analyticsApi.getSystemOverview()
       .then((res) => setOverview(res))
       .catch(() => {});
   }, []);
+
+  const handleExportPortfolio = async (format) => {
+    setExportingFormat(format);
+    setShowExportMenu(false);
+    try {
+      await analyticsApi.exportOverview(format);
+    } catch (err) {
+      console.error("Failed to export portfolio overview:", err);
+      alert("Failed to export portfolio overview.");
+    } finally {
+      setExportingFormat(null);
+    }
+  };
 
   // Debounce search query by 300ms
   useEffect(() => {
@@ -104,6 +120,89 @@ export default function DashboardPage() {
           >
             Directory of active client accounts and associated project engagements
           </p>
+        </div>
+
+        {/* Export Portfolio Dropdown */}
+        <div style={{ position: "relative" }}>
+          <Button
+            variant="secondary"
+            size="md"
+            disabled={!!exportingFormat}
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
+            <span>{exportingFormat ? "⏳" : "📥"}</span>
+            <span>{exportingFormat ? `Exporting...` : "Export Portfolio ▾"}</span>
+          </Button>
+
+          {showExportMenu && (
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                top: "calc(100% + 6px)",
+                background: "var(--bg-surface, #0d1b2a)",
+                border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.3))",
+                borderRadius: "8px",
+                boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                padding: "6px",
+                zIndex: 50,
+                minWidth: "170px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => handleExportPortfolio("xlsx")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 12px",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: "6px",
+                  color: "var(--text-white, #ffffff)",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "background 0.15s ease",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(96, 165, 250, 0.15)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <span style={{ color: "#22c55e", fontWeight: 700 }}>📊</span>
+                <span>Excel (.xlsx)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExportPortfolio("csv")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 12px",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: "6px",
+                  color: "var(--text-white, #ffffff)",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "background 0.15s ease",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(96, 165, 250, 0.15)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <span style={{ color: "#38bdf8", fontWeight: 700 }}>📄</span>
+                <span>CSV (.csv)</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

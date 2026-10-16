@@ -5,6 +5,7 @@ import LoginPage from "../pages/LoginPage";
 import DashboardPage from "../pages/DashboardPage";
 import CreateSurveyPage from "../pages/CreateSurveyPage";
 import SurveysPage from "../pages/SurveysPage";
+import QuestionsPage from "../pages/QuestionsPage";
 import ProjectAnalyticsPage from "../pages/ProjectAnalyticsPage";
 import ComingSoonPage from "../pages/ComingSoonPage";
 import PublicSurveyPage from "../pages/PublicSurveyPage";
@@ -42,6 +43,9 @@ export default function AppRoutes() {
 
         {/* Surveys List & Management */}
         <Route path="/surveys" element={<SurveysPage />} />
+
+        {/* Independent Question Bank Management */}
+        <Route path="/questions" element={<QuestionsPage />} />
       </Route>
 
       {/* Fallback 404 Route */}

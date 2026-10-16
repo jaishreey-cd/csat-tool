@@ -97,6 +97,12 @@ export const surveysApi = {
     return response.data;
   },
 
+  sendResponseFollowup: async (id, message = "") => {
+    const response = await axiosClient.post(`/surveys/${id}/response-followup`, { message });
+    invalidateSurveysCache();
+    return response.data;
+  },
+
   checkFollowups: async (thresholdDays = 7) => {
     const response = await axiosClient.post("/surveys/check-followups", null, {
       params: { threshold_days: thresholdDays },
@@ -113,6 +119,18 @@ export const surveysApi = {
   submitPublicSurvey: async (token, submissionData) => {
     const response = await axiosClient.post(`/surveys/public/${token}/submit`, submissionData);
     invalidateSurveysCache();
+    return response.data;
+  },
+
+  getEmailStatus: async () => {
+    const response = await axiosClient.get("/surveys/email-status");
+    return response.data;
+  },
+
+  sendTestEmail: async (recipientEmail) => {
+    const response = await axiosClient.post("/surveys/test-email", {
+      recipient_email: recipientEmail,
+    });
     return response.data;
   },
 };

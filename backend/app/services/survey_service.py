@@ -57,12 +57,12 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
             )
         section_counts[q.section_number] += 1
 
-    # Ensure no section was skipped
+    # Ensure sections 1-5 have 1 to 5 questions; Section 6 is optional (0 to 5 questions)
     for sec_num, count in section_counts.items():
-        if count < 1:
+        if sec_num <= 5 and count < 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Section {sec_num} has no questions. Every section must have between 1 and 5 questions."
+                detail=f"Section {sec_num} has no questions. Sections 1 to 5 must each have between 1 and 5 questions."
             )
         if count > 5:
             raise HTTPException(
@@ -319,6 +319,21 @@ def submit_public_survey_response(db: Session, token: str, answers: List[AnswerI
     from app.services.client_service import invalidate_clients_cache
     invalidate_clients_cache()
 
+    # Automatically dispatch acknowledgement follow-up email if client email is available
+    if survey.client_contact_email:
+        try:
+            from app.services.email_service import send_response_followup_email
+            send_response_followup_email(
+                recipient_email=survey.client_contact_email,
+                recipient_name=survey.client_contact_name or "Client Stakeholder",
+                project_name=survey.project.name if survey.project else "Project",
+                client_name=survey.client.name if survey.client else "Client",
+                phase=survey.phase,
+                average_score=survey.average_score,
+            )
+        except Exception:
+            pass
+
     return {
         "status": "success",
         "message": "Survey feedback recorded successfully. Thank you!",
@@ -326,6 +341,27 @@ def submit_public_survey_response(db: Session, token: str, answers: List[AnswerI
         "completed_at": survey.completed_at.isoformat(),
         "average_score": survey.average_score,
     }
+
+def send_survey_response_followup(db: Session, survey_id: int, custom_message: Optional[str] = None) -> dict:
+    """Manually send a follow-up email to a client regarding their completed survey response."""
+    survey = db.query(Survey).filter(Survey.id == survey_id).first()
+    if not survey:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
+
+    if not survey.client_contact_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No client contact email recorded for this survey.")
+
+    from app.services.email_service import send_response_followup_email
+    result = send_response_followup_email(
+        recipient_email=survey.client_contact_email,
+        recipient_name=survey.client_contact_name or "Client Stakeholder",
+        project_name=survey.project.name if survey.project else "Project",
+        client_name=survey.client.name if survey.client else "Client",
+        phase=survey.phase,
+        average_score=survey.average_score,
+        custom_message=custom_message,
+    )
+    return result
 
 def send_survey_reminder(db: Session, survey_id: int) -> Survey:
     """Send follow-up reminder email for an unanswered survey."""

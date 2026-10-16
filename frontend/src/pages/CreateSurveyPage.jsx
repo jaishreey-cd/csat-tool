@@ -10,6 +10,15 @@ import Logo from "../components/Logo";
 import { QUESTION_BANK, SURVEY_PHASES } from "../data/questionBank";
 import clientsApi from "../api/clientsApi";
 import surveysApi from "../api/surveysApi";
+import questionsApi from "../api/questionsApi";
+
+const PHASE_WORKFLOW = [
+  { value: "Weekly", label: "Weekly Review", order: 1, next: "Monthly Milestone", desc: "Short cadence progress evaluation." },
+  { value: "Monthly", label: "Monthly Milestone", order: 2, next: "Mid-Project Assessment", desc: "Sprint cadence and deliverable review." },
+  { value: "Mid-Project", label: "Mid-Project Assessment", order: 3, next: "Project Completion", desc: "Midway engagement review." },
+  { value: "Project Completion", label: "Project Completion", order: 4, next: "Post-Launch & Warranty", desc: "Final deliverable sign-off." },
+  { value: "Post-Launch", label: "Post-Launch & Warranty", order: 5, next: "Project Close / Maintenance", desc: "Production stability review." },
+];
 
 const RATING_LABELS = {
   1: "Poor",
@@ -196,12 +205,12 @@ export default function CreateSurveyPage() {
     }));
   };
 
-  // Validation checkers across all 6 sections
+  // Validation checkers across sections: Sections 1-5 require 1-5 questions; Section 6 is optional (0-5)
   const totalQuestionsCount = Object.values(selectedQuestions).reduce((acc, list) => acc + list.length, 0);
-  const allSectionsHaveQuestions = [1, 2, 3, 4, 5, 6].every(
+  const allSectionsHaveQuestions = [1, 2, 3, 4, 5].every(
     (sec) => (selectedQuestions[sec]?.length || 0) >= 1 && (selectedQuestions[sec]?.length || 0) <= 5
-  );
-  const emptySections = [1, 2, 3, 4, 5, 6].filter((sec) => (selectedQuestions[sec]?.length || 0) === 0);
+  ) && (selectedQuestions[6]?.length || 0) <= 5;
+  const emptySections = [1, 2, 3, 4, 5].filter((sec) => (selectedQuestions[sec]?.length || 0) === 0);
 
   // Stepper definition (5 steps)
   const steps = [
@@ -459,12 +468,6 @@ export default function CreateSurveyPage() {
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--text-dim, #64748b)" }}>Survey Code:</span>
-              <strong style={{ color: "var(--primary-lt, #60a5fa)", fontFamily: "monospace" }}>
-                {createdSurvey.survey_code}
-              </strong>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "var(--text-dim, #64748b)" }}>Project:</span>
               <span style={{ color: "var(--text-white, #ffffff)", fontWeight: 600 }}>
                 {currentProject?.name || createdSurvey.project?.name} ({createdSurvey.phase})
@@ -700,6 +703,27 @@ export default function CreateSurveyPage() {
                   <Badge variant="active">Active</Badge>
                 </div>
               )}
+
+              {/* Mandatory Client Contact Name and Email fields */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px", marginTop: "4px" }}>
+                <Input
+                  id="clientContactNameStep1"
+                  label="Client Stakeholder Contact Name *"
+                  placeholder="e.g. Sarah Jenkins"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  required
+                />
+                <Input
+                  id="clientContactEmailStep1"
+                  label="Client Stakeholder Contact Email *"
+                  type="email"
+                  placeholder="e.g. sjenkins@acmeglobal.com"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  required
+                />
+              </div>
             </div>
           )}
 
@@ -708,7 +732,7 @@ export default function CreateSurveyPage() {
             <Button
               variant="primary"
               size="md"
-              disabled={!selectedClientId || !selectedProjectId}
+              disabled={!selectedClientId || !selectedProjectId || !contactName.trim() || !contactEmail.trim()}
               onClick={() => setCurrentStep(1)}
             >
               Continue to Phase Selection →
@@ -732,18 +756,21 @@ export default function CreateSurveyPage() {
             gap: "20px",
           }}
         >
-          <div>
-            <h3 style={{ fontSize: "18px", fontWeight: 600, color: "var(--text-white, #ffffff)", margin: 0 }}>
-              Step 2: Select Project Phase
-            </h3>
-            <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-              Indicate the current project milestone or phase being evaluated.
-            </p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
+            <div>
+              <h3 style={{ fontSize: "18px", fontWeight: 600, color: "var(--text-white, #ffffff)", margin: 0 }}>
+                Step 2: Select Project Phase
+              </h3>
+              <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+                Select the project milestone being evaluated. Surveys follow a standardized 5-phase lifecycle.
+              </p>
+            </div>
+            <Badge variant="count">Total 5 Survey Phases</Badge>
           </div>
 
           {/* Phase Cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
-            {SURVEY_PHASES.map((phase) => {
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "14px" }}>
+            {PHASE_WORKFLOW.map((phase) => {
               const isSelected = selectedPhase === phase.value;
               return (
                 <div
@@ -763,9 +790,14 @@ export default function CreateSurveyPage() {
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)" }}>
-                      {phase.label}
-                    </span>
+                    <div>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: isSelected ? "#93c5fd" : "#64748b", textTransform: "uppercase" }}>
+                        Phase {phase.order} of 5
+                      </span>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)" }}>
+                        {phase.label}
+                      </div>
+                    </div>
                     <span
                       style={{
                         width: "16px",
@@ -780,10 +812,46 @@ export default function CreateSurveyPage() {
                   <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", lineHeight: 1.4 }}>
                     {phase.desc}
                   </span>
+                  <div style={{ fontSize: "11px", color: "#34d399", fontWeight: 600, borderTop: "1px solid rgba(96, 165, 250, 0.1)", paddingTop: "6px" }}>
+                    Next Phase: {phase.next}
+                  </div>
                 </div>
               );
             })}
           </div>
+
+          {/* Workflow Sequence Summary */}
+          {(() => {
+            const currentPhaseObj = PHASE_WORKFLOW.find((p) => p.value === selectedPhase) || PHASE_WORKFLOW[0];
+            return (
+              <div
+                style={{
+                  background: "rgba(37, 99, 235, 0.12)",
+                  border: "1px solid rgba(96, 165, 250, 0.25)",
+                  borderRadius: "8px",
+                  padding: "14px 18px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "12px",
+                }}
+              >
+                <div>
+                  <span style={{ fontSize: "12px", color: "#94a3b8" }}>Current Phase Selected:</span>
+                  <div style={{ fontSize: "15px", fontWeight: 700, color: "#60a5fa" }}>
+                    Phase {currentPhaseObj.order} of 5 — {currentPhaseObj.label}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ fontSize: "12px", color: "#94a3b8" }}>Next Survey Phase in Lifecycle:</span>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "#34d399" }}>
+                    ➔ {currentPhaseObj.next}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Step 2 Actions */}
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px" }}>
@@ -821,14 +889,14 @@ export default function CreateSurveyPage() {
                 Step 3: Question Configuration
               </h3>
               <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-                Each of the 6 sections must have between <strong>1 and 5 questions</strong> (max 30 total). No section can be skipped.
+                Sections 1 to 5 require 1 to 5 questions. Section 6 (Feedback & Comments) is optional (0 to 5 questions).
               </p>
             </div>
 
             {/* Total Questions Count Badge */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <Badge variant={allSectionsHaveQuestions ? "active" : "warning"}>
-                {totalQuestionsCount} / 30 Total Questions
+                {totalQuestionsCount} / 30 Questions Selected
               </Badge>
             </div>
           </div>
@@ -845,7 +913,7 @@ export default function CreateSurveyPage() {
             {QUESTION_BANK.map((sec) => {
               const count = selectedQuestions[sec.number]?.length || 0;
               const isTabActive = activeSectionTab === sec.number;
-              const isValid = count >= 1 && count <= 5;
+              const isValid = sec.number === 6 ? count <= 5 : count >= 1 && count <= 5;
 
               return (
                 <button
@@ -881,7 +949,7 @@ export default function CreateSurveyPage() {
                         color: isValid ? "var(--success, #22c55e)" : "var(--danger, #ef4444)",
                       }}
                     >
-                      {count}/5
+                      {sec.number === 6 ? (count > 0 ? `${count}/5` : "Optional") : `${count}/5`}
                     </span>
                   </div>
 

@@ -53,10 +53,9 @@ def test_create_survey_missing_section_fails(client, test_user, test_client_and_
     token = login_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Only sections 1 to 5 (Section 6 missing)
+    # Only sections 1, 3, 4, 5 (Section 2 missing, which is mandatory)
     questions = [
         {"section_number": 1, "section_title": "Project Management", "question_text": "Clarity of milestones?", "response_type": "star_rating"},
-        {"section_number": 2, "section_title": "Technical Competence", "question_text": "Code quality standard?", "response_type": "star_rating"},
         {"section_number": 3, "section_title": "Team Responsiveness", "question_text": "Speed of communication?", "response_type": "star_rating"},
         {"section_number": 4, "section_title": "Delivery & Execution", "question_text": "Defect rate in UAT?", "response_type": "star_rating"},
         {"section_number": 5, "section_title": "Value & Impact", "question_text": "Business ROI achieved?", "response_type": "star_rating"},
@@ -71,7 +70,7 @@ def test_create_survey_missing_section_fails(client, test_user, test_client_and_
 
     resp = client.post("/api/surveys", json=payload, headers=headers)
     assert resp.status_code == 400
-    assert "Section 6 has no questions" in resp.json()["detail"]
+    assert "Section 2 has no questions" in resp.json()["detail"]
 
 def test_dispatch_and_submit_public_survey(client, test_user, test_client_and_project):
     """Test full dispatch and client public survey submission."""
