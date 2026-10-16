@@ -13,12 +13,39 @@ export default function PermissionsPage() {
   const [role, setRole] = useState("PMO");
   const [granting, setGranting] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "info" });
+  const [adminCountInfo, setAdminCountInfo] = useState({
+    active_admin_count: 0,
+    max_admins: 3,
+    is_limit_reached: false,
+  });
+
+  const calculateActiveAdmins = (userList) => {
+    return (userList || []).filter(
+      (u) => (u.role || "").trim().toLowerCase() === "admin" && Boolean(u.is_active)
+    ).length;
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const data = await authApi.getUsers();
-      setUsers(data || []);
+      const [usersResult, countResult] = await Promise.allSettled([
+        authApi.getUsers(),
+        authApi.getAdminCount(),
+      ]);
+
+      const resolvedUsers = usersResult.status === "fulfilled" ? usersResult.value || [] : [];
+      setUsers(resolvedUsers);
+
+      if (countResult.status === "fulfilled" && countResult.value) {
+        setAdminCountInfo(countResult.value);
+      } else {
+        const count = calculateActiveAdmins(resolvedUsers);
+        setAdminCountInfo({
+          active_admin_count: count,
+          max_admins: 3,
+          is_limit_reached: count >= 3,
+        });
+      }
     } catch (err) {
       console.error("Failed to fetch users:", err);
       setToast({ message: "Failed to load users list.", type: "danger" });
@@ -39,13 +66,30 @@ export default function PermissionsPage() {
       return;
     }
 
+    const currentAdmins = calculateActiveAdmins(users);
+    const existingUser = users.find((u) => u.email?.trim().toLowerCase() === trimmedEmail);
+    const isAlreadyActiveAdmin =
+      existingUser &&
+      (existingUser.role || "").trim().toLowerCase() === "admin" &&
+      Boolean(existingUser.is_active);
+
+    // Enforce 3-Admin limit on granting access
+    if (role.trim().toLowerCase() === "admin" && !isAlreadyActiveAdmin && currentAdmins >= 3) {
+      setToast({
+        message:
+          "Maximum of 3 Admins reached. Revoke access from an existing Admin before granting Admin access to another user.",
+        type: "danger",
+      });
+      return;
+    }
+
     setGranting(true);
     try {
       await authApi.grantUserAccess({ email: trimmedEmail, role });
       setToast({ message: `Access successfully granted to ${trimmedEmail} (${role})!`, type: "success" });
       setEmail("");
       setRole("PMO");
-      fetchUsers();
+      await fetchUsers();
     } catch (err) {
       console.error("Failed to grant access:", err);
       setToast({
@@ -57,28 +101,34 @@ export default function PermissionsPage() {
     }
   };
 
-  const handleRoleChange = async (userId, newRole) => {
-    try {
-      await authApi.updateUserRole(userId, newRole);
-      setToast({ message: "User role updated successfully!", type: "success" });
-      fetchUsers();
-    } catch (err) {
-      console.error("Failed to update role:", err);
-      setToast({ message: "Failed to update role.", type: "danger" });
-    }
-  };
 
   const handleToggleStatus = async (userId, currentActive, userRole) => {
+    const isActivatingAdmin =
+      !currentActive && (userRole || "").trim().toLowerCase() === "admin";
+    const currentAdmins = calculateActiveAdmins(users);
+
+    if (isActivatingAdmin && currentAdmins >= 3) {
+      setToast({
+        message:
+          "Maximum of 3 Admins reached. Revoke access from an existing Admin before granting Admin access to another user.",
+        type: "danger",
+      });
+      return;
+    }
+
     try {
       await authApi.updateUserRole(userId, userRole, !currentActive);
       setToast({
-        message: !currentActive ? "User access activated." : "User access suspended.",
+        message: !currentActive ? "User access activated." : "User access suspended/revoked.",
         type: "success",
       });
-      fetchUsers();
+      await fetchUsers();
     } catch (err) {
       console.error("Failed to toggle status:", err);
-      setToast({ message: "Failed to update access status.", type: "danger" });
+      setToast({
+        message: err.response?.data?.detail || "Failed to update access status.",
+        type: "danger",
+      });
     }
   };
 
@@ -92,14 +142,73 @@ export default function PermissionsPage() {
         />
       )}
 
-      {/* Header */}
-      <div>
-        <h2 style={{ fontSize: "26px", fontWeight: 800, color: "var(--text-white, #ffffff)", margin: 0, letterSpacing: "-0.4px" }}>
-          User Permissions & Access Control
-        </h2>
-        <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-          Administrators can allow users by entering their email address and assigning their permission role.
-        </p>
+      {/* Header with Active Admin count badge */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
+        <div>
+          <h2 style={{ fontSize: "26px", fontWeight: 800, color: "var(--text-white, #ffffff)", margin: 0, letterSpacing: "-0.4px" }}>
+            User Permissions & Access Control
+          </h2>
+          <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+            Administrators can allow users by entering their email address and assigning their permission role.
+          </p>
+        </div>
+
+        {/* Live Admin Slot Counter Badge */}
+        <div
+          id="adminSlotCounter"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "10px",
+            background: adminCountInfo.active_admin_count >= 3 ? "rgba(239, 68, 68, 0.12)" : "rgba(37, 99, 235, 0.12)",
+            border: `1px solid ${adminCountInfo.active_admin_count >= 3 ? "rgba(239, 68, 68, 0.35)" : "rgba(59, 130, 246, 0.35)"}`,
+            borderRadius: "24px",
+            padding: "8px 16px",
+            boxShadow: "0 4px 14px rgba(0, 0, 0, 0.25)",
+          }}
+        >
+          <span
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              background: adminCountInfo.active_admin_count >= 3 ? "#ef4444" : "#22c55e",
+              boxShadow: `0 0 8px ${adminCountInfo.active_admin_count >= 3 ? "#ef4444" : "#22c55e"}`,
+            }}
+          />
+          <span style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.2px" }}>
+            Active Admins: <span style={{ color: adminCountInfo.active_admin_count >= 3 ? "#f87171" : "#60a5fa" }}>{adminCountInfo.active_admin_count}</span> / 3
+          </span>
+          {adminCountInfo.active_admin_count >= 3 ? (
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: "12px",
+                background: "rgba(239, 68, 68, 0.25)",
+                color: "#fca5a5",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
+              Limit Reached
+            </span>
+          ) : (
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 600,
+                padding: "2px 8px",
+                borderRadius: "12px",
+                background: "rgba(34, 197, 94, 0.15)",
+                color: "#86efac",
+              }}
+            >
+              {3 - adminCountInfo.active_admin_count} slot{3 - adminCountInfo.active_admin_count !== 1 ? "s" : ""} open
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Grant Access Card (Email + Role + Grant Access) */}
@@ -151,6 +260,30 @@ export default function PermissionsPage() {
             </Button>
           </div>
         </form>
+
+        {/* Warning banner if Admin role selected while limit is reached */}
+        {role === "Admin" && adminCountInfo.active_admin_count >= 3 && (
+          <div
+            id="adminLimitAlert"
+            style={{
+              marginTop: "16px",
+              padding: "12px 16px",
+              borderRadius: "8px",
+              background: "rgba(239, 68, 68, 0.12)",
+              border: "1px solid rgba(239, 68, 68, 0.35)",
+              color: "#fca5a5",
+              fontSize: "13px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <span style={{ fontSize: "16px" }}>⚠️</span>
+            <span>
+              <strong>Maximum of 3 Admins reached.</strong> Revoke access from an existing Admin before granting Admin access to another user.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Authorized Users List Table */}
@@ -162,10 +295,13 @@ export default function PermissionsPage() {
           overflow: "hidden",
         }}
       >
-        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
           <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
             Authorized Users ({users.length})
           </h4>
+          <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>
+            Active Admins: <strong style={{ color: adminCountInfo.active_admin_count >= 3 ? "#f87171" : "#60a5fa" }}>{adminCountInfo.active_admin_count}/3</strong> • PMO: <strong style={{ color: "#ffffff" }}>{users.filter(u => (u.role || "").toLowerCase() === "pmo" && u.is_active).length}</strong>
+          </span>
         </div>
 
         {loading ? (
@@ -218,23 +354,21 @@ export default function PermissionsPage() {
                     </td>
 
                     <td style={{ padding: "14px 20px" }}>
-                      <select
-                        value={u.role || "PMO"}
-                        onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                      <span
                         style={{
-                          background: "#0b1329",
-                          border: "1px solid rgba(96, 165, 250, 0.3)",
-                          color: "#60a5fa",
-                          borderRadius: "4px",
-                          padding: "4px 8px",
+                          display: "inline-block",
                           fontSize: "12px",
-                          fontWeight: 600,
-                          cursor: "pointer",
+                          fontWeight: 700,
+                          padding: "3px 10px",
+                          borderRadius: "4px",
+                          background: (u.role || "").toLowerCase() === "admin" ? "rgba(245, 158, 11, 0.15)" : "rgba(59, 130, 246, 0.15)",
+                          color: (u.role || "").toLowerCase() === "admin" ? "#f59e0b" : "#60a5fa",
+                          border: `1px solid ${(u.role || "").toLowerCase() === "admin" ? "rgba(245, 158, 11, 0.35)" : "rgba(59, 130, 246, 0.3)"}`,
+                          letterSpacing: "0.3px",
                         }}
                       >
-                        <option value="PMO">PMO</option>
-                        <option value="Admin">Admin</option>
-                      </select>
+                        {u.role || "PMO"}
+                      </span>
                     </td>
 
                     <td style={{ padding: "14px 20px" }}>

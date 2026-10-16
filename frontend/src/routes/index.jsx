@@ -7,6 +7,7 @@ import SurveysPage from "../pages/SurveysPage";
 import DraftsPage from "../pages/DraftsPage";
 import PermissionsPage from "../pages/PermissionsPage";
 import ProjectAnalyticsPage from "../pages/ProjectAnalyticsPage";
+import ClientResponsePage from "../pages/ClientResponsePage";
 import PublicSurveyPage from "../pages/PublicSurveyPage";
 import NotFoundPage from "../pages/NotFoundPage";
 
@@ -46,6 +47,10 @@ export default function AppRoutes() {
 
         {/* Inside Project Analytics Dashboard */}
         <Route path="/projects/:projectId" element={<ProjectAnalyticsPage />} />
+
+        {/* Client Submitted Response Evaluation */}
+        <Route path="/responses/:responseId" element={<ClientResponsePage />} />
+        <Route path="/surveys/:surveyId/response" element={<ClientResponsePage />} />
       </Route>
 
       {/* Fallback 404 Route */}

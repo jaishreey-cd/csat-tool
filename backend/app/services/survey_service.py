@@ -174,6 +174,7 @@ def get_surveys(
             joinedload(Survey.creator),
             joinedload(Survey.reviewer),
             selectinload(Survey.questions),
+            selectinload(Survey.answers),
         )
     )
     if status_filter:
@@ -340,6 +341,100 @@ def submit_public_survey_response(db: Session, token: str, answers: List[AnswerI
         "survey_code": survey.survey_code,
         "completed_at": survey.completed_at.isoformat(),
         "average_score": survey.average_score,
+    }
+
+def get_client_response_detail(db: Session, survey_id: int) -> dict:
+    """
+    Fetch comprehensive client response details for a submitted survey.
+    Returns 404 if the survey does not exist or has not been submitted yet.
+    """
+    from sqlalchemy.orm import joinedload, selectinload
+    survey = (
+        db.query(Survey)
+        .options(
+            joinedload(Survey.client),
+            joinedload(Survey.project),
+            selectinload(Survey.questions),
+            selectinload(Survey.answers).joinedload(SurveyAnswer.question),
+        )
+        .filter(Survey.id == survey_id)
+        .first()
+    )
+    if not survey:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
+
+    if survey.status != "Completed" or not survey.completed_at or not survey.answers:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No submitted client response found for this survey. Survey is awaiting response."
+        )
+
+    answers_map = {a.question_id: a for a in survey.answers}
+
+    sections_dict = {}
+    additional_comments = []
+
+    for q in sorted(survey.questions, key=lambda x: (x.section_number, x.display_order)):
+        sec_num = q.section_number
+        if sec_num not in sections_dict:
+            sections_dict[sec_num] = {
+                "section_number": sec_num,
+                "section_title": q.section_title,
+                "star_scores": [],
+                "questions": [],
+            }
+
+        answer = answers_map.get(q.id)
+        rating_score = answer.rating_score if answer else None
+        text_answer = answer.text_answer if answer else None
+
+        if rating_score is not None and rating_score >= 1:
+            sections_dict[sec_num]["star_scores"].append(rating_score)
+
+        if text_answer and text_answer.strip():
+            additional_comments.append(text_answer.strip())
+
+        sections_dict[sec_num]["questions"].append({
+            "question_id": q.id,
+            "question_text": q.question_text,
+            "response_type": q.response_type,
+            "rating_score": rating_score,
+            "text_answer": text_answer,
+            "display_order": q.display_order,
+        })
+
+    sections_list = []
+    for sec_num in sorted(sections_dict.keys()):
+        sec_data = sections_dict[sec_num]
+        sec_scores = sec_data["star_scores"]
+        avg_sec_score = round(sum(sec_scores) / len(sec_scores), 2) if sec_scores else None
+        sections_list.append({
+            "section_number": sec_num,
+            "section_title": sec_data["section_title"],
+            "average_score": avg_sec_score,
+            "questions": sec_data["questions"],
+        })
+
+    overall_percentage = (
+        round((survey.average_score / 5.0) * 100) if survey.average_score is not None else None
+    )
+
+    return {
+        "response_id": survey.id,
+        "survey_id": survey.id,
+        "survey_code": survey.survey_code,
+        "client_name": survey.client.name if survey.client else "Client",
+        "client_contact_name": survey.client_contact_name,
+        "client_contact_email": survey.client_contact_email,
+        "project_name": survey.project.name if survey.project else "Project",
+        "project_code": survey.project.project_code if survey.project else "",
+        "phase": survey.phase,
+        "status": survey.status,
+        "submission_date": survey.completed_at,
+        "overall_score": survey.average_score,
+        "overall_percentage": overall_percentage,
+        "sections": sections_list,
+        "additional_comments": additional_comments,
     }
 
 def send_survey_response_followup(db: Session, survey_id: int, custom_message: Optional[str] = None) -> dict:

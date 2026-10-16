@@ -35,6 +35,9 @@ export default function SurveysPage() {
   // Export state per survey
   const [exportingSurveyId, setExportingSurveyId] = useState(null);
 
+  // Hover state for Responded popover
+  const [hoveredSurveyId, setHoveredSurveyId] = useState(null);
+
   // Fetch surveys and clients independently
   const fetchSurveys = async (force = false) => {
     const cached = surveysApi.getCachedSurveys();
@@ -410,7 +413,7 @@ export default function SurveysPage() {
                   <th style={{ padding: "14px 18px", fontWeight: 700 }}>Status</th>
                   <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client Contact</th>
                   <th style={{ padding: "14px 18px", fontWeight: 700 }}>Sent Date</th>
-                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>CSAT Rating</th>
+                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>RESPONSE STATUS</th>
                   <th style={{ padding: "14px 18px", fontWeight: 700, textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
@@ -418,6 +421,7 @@ export default function SurveysPage() {
                 {filteredSurveys.map((survey) => {
                   const isSent = survey.status === "Sent";
                   const isCompleted = survey.status === "Completed";
+                  const isResponded = survey.response_status === "responded" || (isCompleted && Boolean(survey.completed_at));
                   const isExportingThis = exportingSurveyId === survey.id;
 
                   return (
@@ -498,20 +502,87 @@ export default function SurveysPage() {
                         {survey.sent_at ? new Date(survey.sent_at).toLocaleDateString() : new Date(survey.created_at).toLocaleDateString()}
                       </td>
 
-                      {/* CSAT Rating */}
+                      {/* Response Status (Replaced CSAT Rating) */}
                       <td style={{ padding: "14px 18px" }}>
-                        {isCompleted && survey.average_score != null ? (
-                          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                            <span style={{ fontSize: "13px", fontWeight: 700, color: "#fbbf24" }}>
-                              ★ {survey.average_score.toFixed(1)}
+                        {isResponded ? (
+                          <div
+                            style={{ position: "relative", display: "inline-block" }}
+                            onMouseEnter={() => setHoveredSurveyId(survey.id)}
+                            onMouseLeave={() => setHoveredSurveyId(null)}
+                          >
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                fontSize: "12px",
+                                fontWeight: 700,
+                                padding: "4px 10px",
+                                borderRadius: "6px",
+                                background: "rgba(34, 197, 94, 0.15)",
+                                color: "#22c55e",
+                                border: "1px solid rgba(34, 197, 94, 0.35)",
+                                cursor: "pointer",
+                                transition: "all 0.15s ease",
+                              }}
+                            >
+                              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22c55e" }} />
+                              Responded
                             </span>
-                            <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
-                              ({Math.round((survey.average_score / 5.0) * 100)}%)
-                            </span>
+
+                            {/* Hover Tooltip / Popover with accessible navigation link */}
+                            {hoveredSurveyId === survey.id && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "calc(100% + 6px)",
+                                  left: "0",
+                                  background: "#0f172a",
+                                  border: "1px solid rgba(96, 165, 250, 0.35)",
+                                  borderRadius: "8px",
+                                  padding: "8px 12px",
+                                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.7), 0 0 15px rgba(59, 130, 246, 0.2)",
+                                  zIndex: 100,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                <Link
+                                  to={`/responses/${survey.response_id || survey.id}`}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                    color: "#60a5fa",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    textDecoration: "none",
+                                  }}
+                                  title="Open client feedback evaluation response"
+                                  aria-label="View Client Response"
+                                >
+                                  <span>👁 View Client Response</span>
+                                  <span style={{ fontSize: "11px" }}>↗</span>
+                                </Link>
+                              </div>
+                            )}
                           </div>
                         ) : (
-                          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
-                            Awaiting response
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              padding: "4px 10px",
+                              borderRadius: "6px",
+                              background: "rgba(148, 163, 184, 0.1)",
+                              color: "var(--text-dim, #64748b)",
+                              border: "1px solid rgba(148, 163, 184, 0.2)",
+                            }}
+                          >
+                            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#64748b" }} />
+                            Awaiting Response
                           </span>
                         )}
                       </td>

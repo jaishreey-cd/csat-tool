@@ -19,6 +19,12 @@ export const authApi = {
     return res.data;
   },
 
+  /** Get active admin count and limit status (Admin) */
+  getAdminCount: async () => {
+    const res = await axiosClient.get("/auth/admin-count");
+    return res.data;
+  },
+
   /** Update user permissions/role and active status */
   updateUserRole: async (userId, role, isActive = null) => {
     const payload = { role };

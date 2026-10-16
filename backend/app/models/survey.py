@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Float
 from sqlalchemy.orm import relationship
 
@@ -43,6 +44,22 @@ class Survey(Base):
     reviewer = relationship("User", foreign_keys=[reviewer_id], lazy="joined")
     questions = relationship("SurveyQuestion", back_populates="survey", cascade="all, delete-orphan", order_by="SurveyQuestion.section_number, SurveyQuestion.display_order")
     answers = relationship("SurveyAnswer", back_populates="survey", cascade="all, delete-orphan")
+
+    @property
+    def response_status(self) -> str:
+        """Determines client response status based on completed_at and presence of answers."""
+        if self.status == "Completed" and self.completed_at is not None:
+            if self.answers:
+                return "responded"
+        return "awaiting_response"
+
+    @property
+    def response_id(self) -> Optional[int]:
+        """Returns the response/survey ID when a completed response exists, else None."""
+        if self.status == "Completed" and self.completed_at is not None:
+            if self.answers:
+                return self.id
+        return None
 
 
 class SurveyQuestion(Base):

@@ -53,6 +53,7 @@ def seed():
                 email=reviewer_email,
                 full_name="Reviewer User",
                 hashed_password=hash_password(reviewer_password),
+                role="PMO",
                 is_active=True
             )
             db.add(reviewer_user)
@@ -61,6 +62,7 @@ def seed():
             print(f"[SEED] Created reviewer user: {reviewer_email}")
         else:
             reviewer_user.hashed_password = hash_password(reviewer_password)
+            reviewer_user.role = "PMO"
             db.commit()
             print(f"[SEED] Reviewer user verified: {reviewer_email}")
 

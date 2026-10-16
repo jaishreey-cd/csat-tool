@@ -11,6 +11,7 @@ from app.schemas.survey import (
     SurveyDispatch,
     PublicSurveyDetail,
     PublicSurveySubmission,
+    ClientResponseDetail,
 )
 from app.services.survey_service import (
     create_survey,
@@ -23,6 +24,7 @@ from app.services.survey_service import (
     send_survey_reminder,
     send_survey_response_followup,
     check_and_trigger_automated_followups,
+    get_client_response_detail,
 )
 
 router = APIRouter(prefix="/surveys", tags=["Surveys"])
@@ -71,6 +73,24 @@ def trigger_diagnostic_test_email(
     """Send a test email to verify live delivery to recipient."""
     from app.services.email_service import send_test_email
     return send_test_email(recipient_email=payload.recipient_email)
+
+@router.get("/responses/{response_id}", response_model=ClientResponseDetail)
+def get_survey_client_response_by_response_id(
+    response_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Protected endpoint to fetch submitted client feedback details by response ID."""
+    return get_client_response_detail(db, survey_id=response_id)
+
+@router.get("/{survey_id}/response", response_model=ClientResponseDetail)
+def get_survey_client_response_by_survey_id(
+    survey_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Protected endpoint to fetch submitted client feedback details by survey ID."""
+    return get_client_response_detail(db, survey_id=survey_id)
 
 @router.get("/{survey_id}", response_model=SurveyResponse)
 def get_survey_details(

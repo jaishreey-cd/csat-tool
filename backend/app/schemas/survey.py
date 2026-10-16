@@ -76,6 +76,9 @@ class SurveyResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    response_status: str = "awaiting_response"
+    response_id: Optional[int] = None
+
     client: Optional[ClientSimple] = None
     project: Optional[ProjectSimple] = None
     creator: Optional[UserSimple] = None
@@ -118,3 +121,40 @@ class AnswerItem(BaseModel):
 
 class PublicSurveySubmission(BaseModel):
     answers: List[AnswerItem]
+
+class QuestionAnswerDetail(BaseModel):
+    question_id: int
+    question_text: str
+    response_type: str
+    rating_score: Optional[int] = None
+    text_answer: Optional[str] = None
+    display_order: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+class SectionResponseDetail(BaseModel):
+    section_number: int
+    section_title: str
+    average_score: Optional[float] = None
+    questions: List[QuestionAnswerDetail] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ClientResponseDetail(BaseModel):
+    response_id: int
+    survey_id: int
+    survey_code: str
+    client_name: str
+    client_contact_name: Optional[str] = None
+    client_contact_email: Optional[str] = None
+    project_name: str
+    project_code: str
+    phase: str
+    status: str
+    submission_date: datetime
+    overall_score: Optional[float] = None
+    overall_percentage: Optional[int] = None
+    sections: List[SectionResponseDetail] = []
+    additional_comments: List[str] = []
+
+    model_config = ConfigDict(from_attributes=True)
