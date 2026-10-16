@@ -10,11 +10,11 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Target destination after successful authentication
-  const redirectTarget = searchParams.get("from") || "/dashboard";
+  // Target destination after successful authentication: direct to Create Survey
+  const redirectTarget = searchParams.get("from") || "/surveys/new";
 
-  // Feature flag: SSO with Entra ID
-  const isSsoEnabled = import.meta.env.VITE_SSO_ENABLED === "true";
+  // Feature flag: SSO with Entra ID (In development)
+  const isSsoEnabled = false;
 
   // Form states
   const [email, setEmail] = useState("");
@@ -92,11 +92,14 @@ export default function LoginPage() {
       await login(email.trim(), password);
       navigate(redirectTarget, { replace: true });
     } catch (err) {
-      if (err?.response?.status === 401) {
-        // Generic 401 invalid credentials banner
+      if (err?.response?.status === 403) {
+        setAuthError(
+          err.response.data?.detail ||
+          "Access denied. Only users authorized by the administrator can access the CSAT tool."
+        );
+      } else if (err?.response?.status === 401) {
         setAuthError("Invalid email or password");
       } else {
-        // Network or internal server error banner
         setNetworkError(
           err?.response?.data?.detail ||
           "Unable to connect to the server. Please check your network connection and try again."
@@ -135,35 +138,24 @@ export default function LoginPage() {
           </div>
 
           <h1 className={styles.title}>Sign In</h1>
-          <p className={styles.subtitle}>Sign in with your organization account</p>
+          <p className={styles.subtitle}>
+            Authorized Access Only — Enter your approved credentials
+          </p>
 
-          {/* Microsoft SSO Section */}
-          <div className={styles.ssoSection}>
-            <button
-              type="button"
-              className={styles.microsoftSsoBtn}
-              onClick={handleMicrosoftSso}
-              disabled={!isSsoEnabled}
-              aria-label="Sign in with Microsoft"
-            >
-              <div className={styles.msLogoIcon} aria-hidden="true">
-                <span className={`${styles.msTile} ${styles.msRed}`} />
-                <span className={`${styles.msTile} ${styles.msGreen}`} />
-                <span className={`${styles.msTile} ${styles.msBlue}`} />
-                <span className={`${styles.msTile} ${styles.msYellow}`} />
-              </div>
-              <span>Sign in with Microsoft</span>
-            </button>
-
-            {!isSsoEnabled && (
-              <span className={styles.ssoNote}>
-                🔒 SSO pending organization approval
-              </span>
-            )}
+          {/* Microsoft SSO Notice (In development with dev team) */}
+          <div style={{
+            margin: "12px 0 16px 0",
+            padding: "10px 14px",
+            borderRadius: "8px",
+            background: "rgba(30, 41, 59, 0.6)",
+            border: "1px solid rgba(148, 163, 184, 0.2)",
+            fontSize: "12px",
+            color: "#94a3b8",
+            textAlign: "center",
+            lineHeight: 1.4,
+          }}>
+            🔒 <strong>Enterprise SSO:</strong> Currently in progress with the dev team. Please sign in with your administrator-approved account credentials below.
           </div>
-
-          {/* Divider */}
-          <div className={styles.divider}>or</div>
 
           {/* Temporary Email + Password Form */}
           <form className={styles.loginForm} onSubmit={handleSubmit} noValidate>

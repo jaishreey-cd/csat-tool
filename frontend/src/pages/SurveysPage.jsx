@@ -26,34 +26,16 @@ export default function SurveysPage() {
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [selectedClientFilter, setSelectedClientFilter] = useState("ALL");
 
-  // Dispatch Modal State
-  const [dispatchModalSurvey, setDispatchModalSurvey] = useState(null);
-  const [contactName, setContactName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [dispatching, setDispatching] = useState(false);
-  const [dispatchError, setDispatchError] = useState("");
-  const [dispatchSuccess, setDispatchSuccess] = useState("");
-  const [copiedToken, setCopiedToken] = useState(null);
-
-  // Reminder & Follow-up State
-  const [remindingId, setRemindingId] = useState(null);
-  const [checkingFollowups, setCheckingFollowups] = useState(false);
-  const [toast, setToast] = useState({ message: "", type: "info" });
-
   // Response Follow-up Modal State
   const [followupModalSurvey, setFollowupModalSurvey] = useState(null);
   const [followupMessage, setFollowupMessage] = useState("");
   const [sendingFollowup, setSendingFollowup] = useState(false);
+  const [toast, setToast] = useState({ message: "", type: "info" });
 
-  // Email Service Status & Export
-  const [emailStatus, setEmailStatus] = useState(null);
-  const [exportingFormat, setExportingFormat] = useState(null);
-  const [showExportMenu, setShowExportMenu] = useState(false);
+  // Export state per survey
+  const [exportingSurveyId, setExportingSurveyId] = useState(null);
 
-  // Questions Detail Modal State
-  const [detailsModalSurvey, setDetailsModalSurvey] = useState(null);
-
-  // Fetch surveys and clients independently with stale-while-revalidate pattern
+  // Fetch surveys and clients independently
   const fetchSurveys = async (force = false) => {
     const cached = surveysApi.getCachedSurveys();
     if (cached && !force) {
@@ -89,436 +71,207 @@ export default function SurveysPage() {
 
   useEffect(() => {
     fetchSurveys();
-    surveysApi.getEmailStatus().then((res) => {
-      setEmailStatus(res);
-    }).catch(() => {});
   }, []);
 
-  const handleExportSurveys = async (format) => {
-    setExportingFormat(format);
-    setShowExportMenu(false);
+  // Handle Export per individual survey
+  const handleExportSingleSurvey = async (survey, format = "xlsx") => {
+    setExportingSurveyId(survey.id);
     try {
-      const params = {};
-      if (selectedStatus !== "ALL") params.status = selectedStatus;
-      if (selectedClientFilter !== "ALL") params.client_id = selectedClientFilter;
-      await analyticsApi.exportSurveysRegistry(params, format);
+      await analyticsApi.exportSurveysRegistry({ survey_id: survey.id }, format);
       setToast({
-        message: `Surveys registry successfully exported as ${format.toUpperCase()}!`,
+        message: `Successfully exported survey for ${survey.project?.name || "Project"} (${format.toUpperCase()})`,
         type: "success",
       });
     } catch (err) {
-      console.error("Export error:", err);
-      setToast({
-        message: "Failed to export surveys registry.",
-        type: "error",
-      });
+      console.error("Export failed:", err);
+      setToast({ message: "Failed to export survey. Please try again.", type: "danger" });
     } finally {
-      setExportingFormat(null);
+      setExportingSurveyId(null);
     }
   };
 
-  // Filtered surveys
-  const filteredSurveys = useMemo(() => {
-    return surveys.filter((s) => {
-      // Search
-      const searchLower = searchQuery.toLowerCase().trim();
-      const codeMatch = s.survey_code?.toLowerCase().includes(searchLower);
-      const clientMatch = s.client?.name?.toLowerCase().includes(searchLower);
-      const projectMatch = s.project?.name?.toLowerCase().includes(searchLower) || s.project?.project_code?.toLowerCase().includes(searchLower);
-      const contactMatch = s.client_contact_name?.toLowerCase().includes(searchLower) || s.client_contact_email?.toLowerCase().includes(searchLower);
-      const matchesSearch = !searchLower || codeMatch || clientMatch || projectMatch || contactMatch;
-
-      // Phase
-      const matchesPhase = selectedPhase === "ALL" || s.phase === selectedPhase;
-
-      // Status
-      const matchesStatus =
-        selectedStatus === "ALL" ||
-        (selectedStatus === "Ready" && (s.status === "Ready" || s.status === "Draft")) ||
-        s.status === selectedStatus;
-
-      // Client
-      const matchesClient = selectedClientFilter === "ALL" || String(s.client_id) === String(selectedClientFilter);
-
-      return matchesSearch && matchesPhase && matchesStatus && matchesClient;
-    });
-  }, [surveys, searchQuery, selectedPhase, selectedStatus, selectedClientFilter]);
-
-  // KPI counts
-  const kpis = useMemo(() => {
-    const total = surveys.length;
-    const ready = surveys.filter((s) => s.status === "Ready" || s.status === "Draft").length;
-    const sent = surveys.filter((s) => s.status === "Sent").length;
-    const completed = surveys.filter((s) => s.status === "Completed").length;
-    const overdue = surveys.filter((s) => {
-      if (s.status !== "Sent" || !s.sent_at) return false;
-      const days = (Date.now() - new Date(s.sent_at).getTime()) / (1000 * 60 * 60 * 24);
-      return days >= 7;
-    }).length;
-    return { total, ready, sent, completed, overdue };
-  }, [surveys]);
-
-  // Send single on-demand reminder email
-  const handleSendReminder = async (surveyId) => {
-    setRemindingId(surveyId);
-    try {
-      const updated = await surveysApi.sendReminder(surveyId);
-      setSurveys((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-      setToast({
-        message: `Reminder email successfully dispatched to ${updated.client_contact_email}!`,
-        type: "success",
-      });
-    } catch (err) {
-      setToast({
-        message: err?.response?.data?.detail || "Failed to send reminder email.",
-        type: "error",
-      });
-    } finally {
-      setRemindingId(null);
-    }
-  };
-
-  // Run automated 7-day follow-up check across all pending surveys
-  const handleCheckFollowups = async () => {
-    setCheckingFollowups(true);
-    try {
-      const res = await surveysApi.checkFollowups(7);
-      await fetchSurveys(true);
-      setToast({
-        message: `Follow-up scanner completed: ${res.reminded_count} reminder email(s) dispatched.`,
-        type: "success",
-      });
-    } catch (err) {
-      setToast({
-        message: err?.response?.data?.detail || "Failed to run automated follow-up scanner.",
-        type: "error",
-      });
-    } finally {
-      setCheckingFollowups(false);
-    }
-  };
-
-  // Open Dispatch Modal
-  const openDispatchModal = (survey) => {
-    setDispatchModalSurvey(survey);
-    setContactName(survey.client_contact_name || "");
-    setContactEmail(survey.client_contact_email || "");
-    setDispatchError("");
-    setDispatchSuccess("");
-  };
-
-  // Close Dispatch Modal
-  const closeDispatchModal = () => {
-    setDispatchModalSurvey(null);
-    setContactName("");
-    setContactEmail("");
-    setDispatchError("");
-    setDispatchSuccess("");
-  };
-
-  // Submit Dispatch
-  const handleDispatchSubmit = async (e) => {
-    e.preventDefault();
-    if (!contactName.trim() || !contactEmail.trim()) {
-      setDispatchError("Please provide both contact name and a valid email address.");
-      return;
-    }
-
-    setDispatching(true);
-    setDispatchError("");
-    setDispatchSuccess("");
-
-    try {
-      const updated = await surveysApi.dispatchSurvey(dispatchModalSurvey.id, {
-        client_contact_name: contactName.trim(),
-        client_contact_email: contactEmail.trim(),
-      });
-
-      // Update surveys in place
-      setSurveys((prev) =>
-        prev.map((s) => (s.id === updated.id ? updated : s))
-      );
-      setDispatchModalSurvey(updated);
-      setDispatchSuccess(`Survey link successfully dispatched to ${contactEmail.trim()}!`);
-    } catch (err) {
-      setDispatchError(err?.response?.data?.detail || "Failed to dispatch survey. Please retry.");
-    } finally {
-      setDispatching(false);
-    }
-  };
-
-  // Copy survey link to clipboard
-  const handleCopyLink = (token) => {
-    const publicUrl = `${window.location.origin}/s/${token}`;
-    navigator.clipboard.writeText(publicUrl);
-    setCopiedToken(token);
-    setTimeout(() => setCopiedToken(null), 2500);
-  };
-
+  // Follow-up modal
   const openFollowupModal = (survey) => {
     setFollowupModalSurvey(survey);
-    setFollowupMessage("");
+    setFollowupMessage(
+      `Dear ${survey.client_contact_name || "Client"},\n\nThank you for submitting your evaluation for ${survey.project?.name || "our engagement"} (${survey.phase}).\n\nOur delivery team has reviewed your feedback and is taking action on the insights provided.\n\nWarm regards,\nPMO Team`
+    );
   };
 
-  const handleSendResponseFollowup = async (e) => {
-    e.preventDefault();
+  const handleSendFollowup = async () => {
     if (!followupModalSurvey) return;
     setSendingFollowup(true);
     try {
       await surveysApi.sendResponseFollowup(followupModalSurvey.id, followupMessage);
-      setToast({
-        message: `Response follow-up successfully emailed to ${followupModalSurvey.client_contact_email}!`,
-        type: "success",
-      });
+      setToast({ message: "Response follow-up email sent successfully!", type: "success" });
       setFollowupModalSurvey(null);
-      setFollowupMessage("");
+      fetchSurveys(true);
     } catch (err) {
-      console.error("Follow-up error:", err);
-      setToast({
-        message: err?.response?.data?.detail || "Failed to dispatch response follow-up email.",
-        type: "error",
-      });
+      console.error("Failed to send follow-up:", err);
+      setToast({ message: "Failed to send follow-up email. Please check network.", type: "danger" });
     } finally {
       setSendingFollowup(false);
     }
   };
 
+  // Filter dispatched and completed surveys (Drafts belong to /drafts)
+  const activeSurveys = useMemo(() => {
+    return surveys.filter((s) => s.status !== "Draft");
+  }, [surveys]);
+
+  // KPIs across active surveys
+  const kpis = useMemo(() => {
+    const total = activeSurveys.length;
+    const completedSurveys = activeSurveys.filter((s) => s.status === "Completed");
+    const completed = completedSurveys.length;
+    const sent = activeSurveys.filter((s) => s.status === "Sent").length;
+    const responseRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    const completedWithScores = completedSurveys.filter((s) => s.average_score != null);
+    const avgScore = completedWithScores.length > 0
+      ? completedWithScores.reduce((acc, curr) => acc + curr.average_score, 0) / completedWithScores.length
+      : null;
+    const percentageScore = avgScore != null ? Math.round((avgScore / 5.0) * 100) : null;
+
+    return { total, sent, completed, responseRate, avgScore, percentageScore };
+  }, [activeSurveys]);
+
+  // Filtered surveys
+  const filteredSurveys = useMemo(() => {
+    return activeSurveys.filter((s) => {
+      if (selectedStatus !== "ALL" && s.status !== selectedStatus) {
+        return false;
+      }
+      if (selectedPhase !== "ALL" && s.phase !== selectedPhase) {
+        return false;
+      }
+      if (selectedClientFilter !== "ALL" && String(s.client_id) !== selectedClientFilter) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const clientMatch = s.client?.name?.toLowerCase().includes(q);
+        const projectMatch = s.project?.name?.toLowerCase().includes(q);
+        const contactMatch = s.client_contact_name?.toLowerCase().includes(q) || s.client_contact_email?.toLowerCase().includes(q);
+        if (!clientMatch && !projectMatch && !contactMatch) return false;
+      }
+      return true;
+    });
+  }, [activeSurveys, selectedStatus, selectedPhase, selectedClientFilter, searchQuery]);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Page Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
-        <div>
-          <h2 style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-            Surveys
-          </h2>
-          <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-            Manage satisfaction surveys, dispatch client evaluation links, and track live response completion.
-          </p>
-        </div>
+    <div style={{ padding: "28px", maxWidth: "1400px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
+      {/* Toast Notification */}
+      {toast.message && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ message: "", type: "info" })}
+        />
+      )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-          {emailStatus && (
-            <div
-              title={emailStatus.message || ""}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "6px 12px",
-                borderRadius: "20px",
-                fontSize: "12px",
-                fontWeight: 600,
-                background: emailStatus.connected ? "rgba(34, 197, 94, 0.12)" : "rgba(234, 179, 8, 0.12)",
-                border: emailStatus.connected ? "1px solid rgba(34, 197, 94, 0.3)" : "1px solid rgba(234, 179, 8, 0.3)",
-                color: emailStatus.connected ? "#4ade80" : "#fde047",
-              }}
-            >
-              <span style={{ fontSize: "8px" }}>●</span>
-              <span>{emailStatus.connected ? `Email: Live (${emailStatus.host})` : "Email: Simulation"}</span>
-            </div>
-          )}
-
-          {/* Export Dropdown */}
-          <div style={{ position: "relative" }}>
-            <Button
-              variant="secondary"
-              size="md"
-              disabled={!!exportingFormat}
-              onClick={() => setShowExportMenu(!showExportMenu)}
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-            >
-              <span>{exportingFormat ? "⏳" : "📥"}</span>
-              <span>{exportingFormat ? `Exporting...` : "Export Surveys ▾"}</span>
-            </Button>
-
-            {showExportMenu && (
-              <div
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  top: "calc(100% + 6px)",
-                  background: "var(--bg-surface, #0d1b2a)",
-                  border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.3))",
-                  borderRadius: "8px",
-                  boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-                  padding: "6px",
-                  zIndex: 50,
-                  minWidth: "170px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "4px",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => handleExportSurveys("xlsx")}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "8px 12px",
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: "6px",
-                    color: "var(--text-white, #ffffff)",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    textAlign: "left",
-                    transition: "background 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(96, 165, 250, 0.15)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <span style={{ color: "#22c55e", fontWeight: 700 }}>📊</span>
-                  <span>Excel (.xlsx)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleExportSurveys("csv")}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "8px 12px",
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: "6px",
-                    color: "var(--text-white, #ffffff)",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    textAlign: "left",
-                    transition: "background 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(96, 165, 250, 0.15)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <span style={{ color: "#38bdf8", fontWeight: 700 }}>📄</span>
-                  <span>CSV (.csv)</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={handleCheckFollowups}
-            disabled={checkingFollowups}
-            title="Scan all surveys pending >= 7 days and send automated reminder emails"
-          >
-            {checkingFollowups ? "Scanning..." : "⚡ Scan 7-Day Follow-ups"}
-          </Button>
-
-          <Link to="/surveys/new">
-            <Button variant="primary" size="md">
-              + Create Survey
-            </Button>
-          </Link>
-        </div>
+      {/* Main Header */}
+      <div>
+        <h2 style={{ fontSize: "26px", fontWeight: 800, color: "var(--text-white, #ffffff)", margin: 0, letterSpacing: "-0.4px" }}>
+          CSAT Dashboard & Analytics
+        </h2>
+        <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+          Team-wide customer satisfaction evaluations, performance tracking, and responses.
+        </p>
       </div>
 
-      {/* KPI Stat Cards */}
+      {/* Team-wide Analytics Cards */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
           gap: "16px",
         }}
       >
+        {/* Overall CSAT Score */}
+        <div
+          style={{
+            background: "var(--bg-surface, #0d1b2a)",
+            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+            borderRadius: "var(--radius-lg, 12px)",
+            padding: "20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600, textTransform: "uppercase" }}>
+            Overall CSAT Score
+          </span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
+            <span style={{ fontSize: "32px", fontWeight: 800, color: "#60a5fa" }}>
+              {kpis.percentageScore != null ? `${kpis.percentageScore}%` : "—"}
+            </span>
+            {kpis.avgScore != null && (
+              <span style={{ fontSize: "14px", fontWeight: 700, color: "#fbbf24" }}>
+                ★ {kpis.avgScore.toFixed(2)} / 5.0
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Total Dispatched */}
         <div
           style={{
             background: "var(--bg-surface, #0d1b2a)",
             border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
             borderRadius: "var(--radius-lg, 12px)",
-            padding: "18px 20px",
+            padding: "20px",
             display: "flex",
             flexDirection: "column",
-            gap: "6px",
+            gap: "8px",
           }}
         >
           <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600, textTransform: "uppercase" }}>
-            Total Surveys
+            Dispatched Surveys
           </span>
-          <span style={{ fontSize: "28px", fontWeight: 800, color: "var(--text-white, #ffffff)" }}>
+          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--text-white, #ffffff)" }}>
             {kpis.total}
           </span>
         </div>
 
+        {/* Responses Completed */}
         <div
           style={{
             background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid rgba(245, 158, 11, 0.3)",
+            border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
             borderRadius: "var(--radius-lg, 12px)",
-            padding: "18px 20px",
+            padding: "20px",
             display: "flex",
             flexDirection: "column",
-            gap: "6px",
+            gap: "8px",
           }}
         >
-          <span style={{ fontSize: "12px", color: "#fbbf24", fontWeight: 600, textTransform: "uppercase" }}>
-            Ready to Dispatch
+          <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600, textTransform: "uppercase" }}>
+            Completed Responses
           </span>
-          <span style={{ fontSize: "28px", fontWeight: 800, color: "#f59e0b" }}>
-            {kpis.ready}
-          </span>
-        </div>
-
-        <div
-          style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid rgba(96, 165, 250, 0.3)",
-            borderRadius: "var(--radius-lg, 12px)",
-            padding: "18px 20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "6px",
-          }}
-        >
-          <span style={{ fontSize: "12px", color: "var(--primary-lt, #60a5fa)", fontWeight: 600, textTransform: "uppercase" }}>
-            Dispatched (Pending Client)
-          </span>
-          <span style={{ fontSize: "28px", fontWeight: 800, color: "var(--primary-lt, #60a5fa)" }}>
-            {kpis.sent}
-          </span>
-        </div>
-
-        <div
-          style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid rgba(34, 197, 94, 0.3)",
-            borderRadius: "var(--radius-lg, 12px)",
-            padding: "18px 20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "6px",
-          }}
-        >
-          <span style={{ fontSize: "12px", color: "var(--success, #22c55e)", fontWeight: 600, textTransform: "uppercase" }}>
-            Completed Evaluations
-          </span>
-          <span style={{ fontSize: "28px", fontWeight: 800, color: "var(--success, #22c55e)" }}>
+          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--success, #22c55e)" }}>
             {kpis.completed}
           </span>
         </div>
 
+        {/* Response Rate */}
         <div
           style={{
             background: "var(--bg-surface, #0d1b2a)",
-            border: kpis.overdue > 0 ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+            border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
             borderRadius: "var(--radius-lg, 12px)",
-            padding: "18px 20px",
+            padding: "20px",
             display: "flex",
             flexDirection: "column",
-            gap: "6px",
+            gap: "8px",
           }}
         >
-          <span style={{ fontSize: "12px", color: kpis.overdue > 0 ? "#f87171" : "var(--text-muted, #94a3b8)", fontWeight: 600, textTransform: "uppercase" }}>
-            Overdue (≥ 7 Days)
+          <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600, textTransform: "uppercase" }}>
+            Response Rate
           </span>
-          <span style={{ fontSize: "28px", fontWeight: 800, color: kpis.overdue > 0 ? "#ef4444" : "var(--text-white, #ffffff)" }}>
-            {kpis.overdue}
+          <span style={{ fontSize: "32px", fontWeight: 800, color: "#38bdf8" }}>
+            {kpis.responseRate}%
           </span>
         </div>
       </div>
@@ -539,7 +292,7 @@ export default function SurveysPage() {
         <div style={{ flex: 1, minWidth: "220px" }}>
           <Input
             id="surveySearch"
-            placeholder="Search by code, client, project, or contact..."
+            placeholder="Search by client, project, or contact..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -552,8 +305,7 @@ export default function SurveysPage() {
             onChange={(e) => setSelectedStatus(e.target.value)}
             options={[
               { value: "ALL", label: "All Statuses" },
-              { value: "Ready", label: "Ready" },
-              { value: "Sent", label: "Sent" },
+              { value: "Sent", label: "Dispatched" },
               { value: "Completed", label: "Completed" },
             ]}
           />
@@ -616,7 +368,7 @@ export default function SurveysPage() {
         ) : error ? (
           <div style={{ padding: "40px", textAlign: "center", color: "#fca5a5" }}>
             <p>{error}</p>
-            <Button variant="secondary" size="sm" onClick={fetchSurveys} style={{ marginTop: "12px" }}>
+            <Button variant="secondary" size="sm" onClick={() => fetchSurveys(true)} style={{ marginTop: "12px" }}>
               Retry
             </Button>
           </div>
@@ -628,16 +380,9 @@ export default function SurveysPage() {
             </h3>
             <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", maxWidth: "400px", margin: 0 }}>
               {surveys.length === 0
-                ? "No satisfaction surveys have been created yet. Click '+ Create Survey' to configure your first survey."
+                ? "No satisfaction surveys have been dispatched yet. Go to Create Survey to launch your first survey."
                 : "No surveys match your current search and filter criteria."}
             </p>
-            {surveys.length === 0 && (
-              <Link to="/surveys/new">
-                <Button variant="primary" size="md">
-                  + Create First Survey
-                </Button>
-              </Link>
-            )}
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
@@ -660,21 +405,20 @@ export default function SurveysPage() {
                     letterSpacing: "0.6px",
                   }}
                 >
-                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Survey Code</th>
                   <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client & Project</th>
                   <th style={{ padding: "14px 18px", fontWeight: 700 }}>Phase</th>
                   <th style={{ padding: "14px 18px", fontWeight: 700 }}>Status</th>
-                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Questions</th>
                   <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client Contact</th>
-                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Created</th>
+                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Sent Date</th>
+                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>CSAT Rating</th>
                   <th style={{ padding: "14px 18px", fontWeight: 700, textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredSurveys.map((survey) => {
-                  const isReady = survey.status === "Ready" || survey.status === "Draft";
                   const isSent = survey.status === "Sent";
                   const isCompleted = survey.status === "Completed";
+                  const isExportingThis = exportingSurveyId === survey.id;
 
                   return (
                     <tr
@@ -686,31 +430,32 @@ export default function SurveysPage() {
                       onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(14, 30, 50, 0.45)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
-                      {/* Survey Code */}
-                      <td style={{ padding: "14px 18px" }}>
-                        <code
-                          style={{
-                            color: "var(--primary-lt, #60a5fa)",
-                            fontWeight: 700,
-                            fontSize: "12px",
-                            background: "rgba(37, 99, 235, 0.12)",
-                            padding: "3px 7px",
-                            borderRadius: "5px",
-                            border: "1px solid rgba(96, 165, 250, 0.2)",
-                          }}
-                        >
-                          {survey.survey_code}
-                        </code>
-                      </td>
-
-                      {/* Client & Project */}
+                      {/* Client & Project with link to inside project analytics */}
                       <td style={{ padding: "14px 18px" }}>
                         <div style={{ fontWeight: 600, color: "var(--text-white, #ffffff)" }}>
                           {survey.client?.name || "Client"}
                         </div>
-                        <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", marginTop: "2px" }}>
-                          {survey.project?.name} ({survey.project?.project_code})
-                        </div>
+                        {survey.project ? (
+                          <Link
+                            to={`/projects/${survey.project.id}`}
+                            style={{
+                              fontSize: "12px",
+                              color: "var(--primary-lt, #60a5fa)",
+                              marginTop: "2px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              textDecoration: "none",
+                              fontWeight: 500,
+                            }}
+                            title="View project analytics dashboard"
+                          >
+                            <span>{survey.project.name}</span>
+                            <span style={{ fontSize: "10px" }}>↗</span>
+                          </Link>
+                        ) : (
+                          <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)" }}>—</div>
+                        )}
                       </td>
 
                       {/* Phase */}
@@ -720,60 +465,14 @@ export default function SurveysPage() {
 
                       {/* Status */}
                       <td style={{ padding: "14px 18px" }}>
-                        {isReady && <Badge variant="active">Ready</Badge>}
                         {isSent && (
-                          <div>
-                            {(() => {
-                              const daysPending = survey.sent_at
-                                ? Math.floor((Date.now() - new Date(survey.sent_at).getTime()) / (1000 * 60 * 60 * 24))
-                                : 0;
-                              const isOverdue = daysPending >= 7;
-
-                              return (
-                                <>
-                                  <Badge variant={isOverdue ? "warning" : "info"}>
-                                    {isOverdue ? `● Overdue (${daysPending}d)` : `Dispatched (${daysPending}d)`}
-                                  </Badge>
-                                  {survey.followup_sent_at && (
-                                    <span style={{ fontSize: "11px", color: "#fbbf24", display: "block", marginTop: "4px", fontWeight: 500 }}>
-                                      🔔 Reminded {new Date(survey.followup_sent_at).toLocaleDateString()}
-                                    </span>
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </div>
+                          <Badge variant="info">
+                            Dispatched
+                          </Badge>
                         )}
                         {isCompleted && (
-                          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                            <Badge variant="success">Completed</Badge>
-                            {survey.average_score && (
-                              <span style={{ fontSize: "11px", fontWeight: 700, color: "#fbbf24" }}>
-                                ★ {survey.average_score}
-                              </span>
-                            )}
-                          </div>
+                          <Badge variant="success">Completed</Badge>
                         )}
-                      </td>
-
-                      {/* Questions Count */}
-                      <td style={{ padding: "14px 18px" }}>
-                        <button
-                          type="button"
-                          onClick={() => setDetailsModalSurvey(survey)}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: "var(--primary-lt, #60a5fa)",
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            fontSize: "12px",
-                            padding: 0,
-                            textDecoration: "underline",
-                          }}
-                        >
-                          {survey.questions?.length || 0} Questions
-                        </button>
                       </td>
 
                       {/* Client Contact */}
@@ -789,82 +488,55 @@ export default function SurveysPage() {
                           </div>
                         ) : (
                           <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
-                            Not dispatched
+                            —
                           </span>
                         )}
                       </td>
 
-                      {/* Created At */}
+                      {/* Sent Date */}
                       <td style={{ padding: "14px 18px", color: "var(--text-muted, #94a3b8)", fontSize: "12px", whiteSpace: "nowrap" }}>
-                        {new Date(survey.created_at).toLocaleDateString()}
+                        {survey.sent_at ? new Date(survey.sent_at).toLocaleDateString() : new Date(survey.created_at).toLocaleDateString()}
                       </td>
 
-                      {/* Actions */}
+                      {/* CSAT Rating */}
+                      <td style={{ padding: "14px 18px" }}>
+                        {isCompleted && survey.average_score != null ? (
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "13px", fontWeight: 700, color: "#fbbf24" }}>
+                              ★ {survey.average_score.toFixed(1)}
+                            </span>
+                            <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
+                              ({Math.round((survey.average_score / 5.0) * 100)}%)
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
+                            Awaiting response
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Actions: Export Survey & Follow-up */}
                       <td style={{ padding: "14px 18px", textAlign: "right" }}>
                         <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
-                          {isReady && (
+                          {/* Export Button inside every survey row */}
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={isExportingThis}
+                            onClick={() => handleExportSingleSurvey(survey, "xlsx")}
+                            title="Export survey data to Excel"
+                          >
+                            {isExportingThis ? "Exporting..." : "📥 Export"}
+                          </Button>
+
+                          {/* Follow-up email for completed surveys */}
+                          {isCompleted && (
                             <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => openDispatchModal(survey)}
-                            >
-                              Dispatch Link
-                            </Button>
-                          )}
-
-                          {survey.unique_token && (
-                            <>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleCopyLink(survey.unique_token)}
-                                title="Copy public response link"
-                              >
-                                {copiedToken === survey.unique_token ? "✓ Copied" : "Copy Link"}
-                              </Button>
-
-                              <a
-                                href={`/s/${survey.unique_token}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ textDecoration: "none" }}
-                              >
-                                <Button variant="ghost" size="sm" title="Open client survey portal">
-                                  ↗ Open Form
-                                </Button>
-                              </a>
-                            </>
-                          )}
-
-                          {isSent && (
-                            <>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleSendReminder(survey.id)}
-                                disabled={remindingId === survey.id}
-                                title="Send reminder email to client contact"
-                              >
-                                {remindingId === survey.id ? "Sending..." : "🔔 Remind"}
-                              </Button>
-
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openDispatchModal(survey)}
-                                title="Update client contact details"
-                              >
-                                Edit Contact
-                              </Button>
-                            </>
-                          )}
-
-                          {survey.status === "Completed" && (
-                            <Button
-                              variant="secondary"
+                              variant="ghost"
                               size="sm"
                               onClick={() => openFollowupModal(survey)}
-                              title="Send response follow-up email to client stakeholder"
+                              title="Send follow-up response email to client stakeholder"
                             >
                               ✉ Follow-up
                             </Button>
@@ -880,322 +552,13 @@ export default function SurveysPage() {
         )}
       </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          MODAL 1: DISPATCH SURVEY TO CLIENT
-         ───────────────────────────────────────────────────────────── */}
-      {dispatchModalSurvey && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.75)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-            padding: "20px",
-          }}
-          onClick={closeDispatchModal}
-        >
-          <div
-            style={{
-              background: "var(--bg-surface, #0d1b2a)",
-              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
-              borderRadius: "var(--radius-lg, 14px)",
-              padding: "28px",
-              maxWidth: "520px",
-              width: "100%",
-              boxShadow: "0 16px 40px rgba(0, 0, 0, 0.6)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "18px",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div>
-              <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-                Dispatch Survey Link
-              </h3>
-              <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-                Generate a unique secure link for the client stakeholder to submit their CSAT feedback.
-              </p>
-            </div>
-
-            {/* Target Survey Pill */}
-            <div
-              style={{
-                background: "rgba(10, 22, 40, 0.6)",
-                border: "1px solid rgba(96, 165, 250, 0.15)",
-                borderRadius: "var(--radius-md, 8px)",
-                padding: "12px 14px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "4px",
-                fontSize: "12px",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-dim, #64748b)" }}>Project:</span>
-                <span style={{ color: "var(--text-white, #ffffff)", fontWeight: 600 }}>
-                  {dispatchModalSurvey.project?.name} ({dispatchModalSurvey.phase})
-                </span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-dim, #64748b)" }}>Client:</span>
-                <span style={{ color: "var(--text-white, #ffffff)" }}>{dispatchModalSurvey.client?.name}</span>
-              </div>
-            </div>
-
-            {/* Public Survey Link Box (Shown Here) */}
-            {dispatchModalSurvey.unique_token && (
-              <div
-                style={{
-                  background: "linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(13, 27, 42, 0.95) 100%)",
-                  border: "1px solid rgba(96, 165, 250, 0.28)",
-                  borderRadius: "var(--radius-md, 8px)",
-                  padding: "12px 14px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--primary-lt, #60a5fa)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    🔗 Public Survey Link
-                  </span>
-                  <Badge variant={dispatchModalSurvey.status === "Sent" ? "info" : "active"}>
-                    {dispatchModalSurvey.status === "Sent" ? "Dispatched" : "Ready"}
-                  </Badge>
-                </div>
-
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  <input
-                    type="text"
-                    readOnly
-                    value={`${window.location.origin}/s/${dispatchModalSurvey.unique_token}`}
-                    style={{
-                      flex: 1,
-                      background: "rgba(10, 22, 40, 0.8)",
-                      border: "1px solid rgba(96, 165, 250, 0.25)",
-                      borderRadius: "6px",
-                      padding: "7px 10px",
-                      color: "#93c5fd",
-                      fontSize: "12px",
-                      fontFamily: "monospace",
-                      outline: "none",
-                    }}
-                    onClick={(e) => e.target.select()}
-                  />
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={() => handleCopyLink(dispatchModalSurvey.unique_token)}
-                    style={{ whiteSpace: "nowrap" }}
-                  >
-                    {copiedToken === dispatchModalSurvey.unique_token ? "✓ Copied!" : "Copy Link"}
-                  </Button>
-                  <a
-                    href={`/s/${dispatchModalSurvey.unique_token}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ textDecoration: "none" }}
-                  >
-                    <Button type="button" variant="ghost" size="sm" style={{ whiteSpace: "nowrap" }}>
-                      ↗ Open
-                    </Button>
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {/* Dispatch Success Alert & Quick Gmail Send */}
-            {dispatchSuccess && (
-              <div
-                style={{
-                  background: "rgba(34, 197, 94, 0.12)",
-                  border: "1px solid rgba(34, 197, 94, 0.35)",
-                  borderRadius: "8px",
-                  padding: "12px 16px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--success, #22c55e)", fontSize: "13px", fontWeight: 600 }}>
-                  <span>✓</span>
-                  <span>{dispatchSuccess}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "12px" }}>
-                  <span style={{ color: "var(--text-muted, #94a3b8)" }}>Open directly in your webmail:</span>
-                  <a
-                    href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(contactEmail)}&su=${encodeURIComponent(`Invitation: CSAT Evaluation for ${dispatchModalSurvey.project?.name || "Project"} (${dispatchModalSurvey.phase})`)}&body=${encodeURIComponent(`Dear ${contactName || "Client Stakeholder"},\n\nYou are invited to complete our Customer Satisfaction (CSAT) survey.\n\nPlease submit your feedback using your unique secure link below:\n${window.location.origin}/s/${dispatchModalSurvey.unique_token}\n\nClient: ${dispatchModalSurvey.client?.name || ""}\nProject: ${dispatchModalSurvey.project?.name || ""}\nPhase: ${dispatchModalSurvey.phase}\nSurvey Code: ${dispatchModalSurvey.survey_code}\n\nThank you!`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      color: "#93c5fd",
-                      textDecoration: "underline",
-                      fontWeight: 600,
-                    }}
-                  >
-                    ✉ Open in Gmail
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {/* Form */}
-            <form onSubmit={handleDispatchSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              <Input
-                id="contactNameInput"
-                label="Client Contact Name"
-                placeholder="e.g. Sarah Jenkins"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                required
-              />
-
-              <Input
-                id="contactEmailInput"
-                label="Client Contact Email"
-                type="email"
-                placeholder="e.g. sjenkins@acmeglobal.com"
-                value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
-                required
-              />
-
-              {dispatchError && (
-                <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "6px", padding: "10px 14px", color: "#fca5a5", fontSize: "12px" }}>
-                  ⚠ {dispatchError}
-                </div>
-              )}
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
-                <Button variant="secondary" size="md" type="button" disabled={dispatching} onClick={closeDispatchModal}>
-                  {dispatchSuccess ? "Done" : "Cancel"}
-                </Button>
-                <Button variant="primary" size="md" type="submit" loading={dispatching} disabled={dispatching}>
-                  {dispatchModalSurvey.status === "Sent" ? "Update & Re-dispatch" : "Generate & Dispatch Link"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ─────────────────────────────────────────────────────────────
-          MODAL 2: SURVEY QUESTIONS BREAKDOWN
-         ───────────────────────────────────────────────────────────── */}
-      {detailsModalSurvey && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.75)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-            padding: "20px",
-          }}
-          onClick={() => setDetailsModalSurvey(null)}
-        >
-          <div
-            style={{
-              background: "var(--bg-surface, #0d1b2a)",
-              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
-              borderRadius: "var(--radius-lg, 14px)",
-              padding: "28px",
-              maxWidth: "680px",
-              width: "100%",
-              maxHeight: "85vh",
-              overflowY: "auto",
-              boxShadow: "0 16px 40px rgba(0, 0, 0, 0.6)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "20px",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div>
-                <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-                  Survey Questions Breakdown
-                </h3>
-                <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-                  {detailsModalSurvey.survey_code} — {detailsModalSurvey.project?.name} ({detailsModalSurvey.phase})
-                </p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setDetailsModalSurvey(null)}>
-                ✕ Close
-              </Button>
-            </div>
-
-            {/* Questions by Section */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              {[1, 2, 3, 4, 5, 6].map((secNum) => {
-                const sectionQuestions = (detailsModalSurvey.questions || []).filter(
-                  (q) => q.section_number === secNum
-                );
-                if (sectionQuestions.length === 0) return null;
-
-                const firstQ = sectionQuestions[0];
-                return (
-                  <div
-                    key={secNum}
-                    style={{
-                      background: "rgba(10, 22, 40, 0.6)",
-                      border: "1px solid rgba(96, 165, 250, 0.12)",
-                      borderRadius: "var(--radius-md, 8px)",
-                      padding: "14px 18px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--primary-lt, #60a5fa)" }}>
-                        Section {secNum}: {firstQ.section_title}
-                      </span>
-                      <Badge variant="count">{sectionQuestions.length} Questions</Badge>
-                    </div>
-
-                    <ul style={{ margin: "4px 0 0 16px", padding: 0, fontSize: "13px", color: "var(--text-main, #e2e8f0)", display: "flex", flexDirection: "column", gap: "4px" }}>
-                      {sectionQuestions.map((q, idx) => (
-                        <li key={idx}>
-                          <span>{q.question_text}</span>
-                          {q.is_custom && (
-                            <span style={{ fontSize: "10px", marginLeft: "6px", color: "var(--accent, #06b6d4)", background: "rgba(6, 182, 212, 0.1)", padding: "1px 4px", borderRadius: "3px" }}>
-                              Custom
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─────────────────────────────────────────────────────────────
-          MODAL 3: RESPONSE FOLLOW-UP EMAIL
-         ───────────────────────────────────────────────────────────── */}
+      {/* Response Follow-up Modal */}
       {followupModalSurvey && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             background: "rgba(0, 0, 0, 0.75)",
-            backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1206,108 +569,64 @@ export default function SurveysPage() {
         >
           <div
             style={{
-              background: "var(--bg-surface, #0d1b2a)",
-              border: "1px solid rgba(16, 185, 129, 0.35)",
-              borderRadius: "var(--radius-lg, 14px)",
-              padding: "28px",
-              maxWidth: "540px",
+              background: "#0d1b2a",
+              border: "1px solid rgba(96, 165, 250, 0.3)",
+              borderRadius: "12px",
+              padding: "26px",
+              maxWidth: "600px",
               width: "100%",
-              boxShadow: "0 16px 40px rgba(0, 0, 0, 0.6)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "18px",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "20px" }}>✉️</span>
-                <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-                  Follow-up on Client CSAT Response
-                </h3>
-              </div>
-              <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "6px 0 0 0" }}>
-                Send a formal follow-up email acknowledging the submitted evaluation and offering further discussion.
-              </p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+              <h3 style={{ color: "#ffffff", margin: 0, fontSize: "17px", fontWeight: 700 }}>
+                Send Follow-up Email
+              </h3>
+              <button
+                type="button"
+                onClick={() => setFollowupModalSurvey(null)}
+                style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}
+              >
+                &times;
+              </button>
             </div>
 
-            {/* Recipient & Score info */}
-            <div
+            <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 16px 0", lineHeight: 1.5 }}>
+              Send an acknowledgment email to <strong>{followupModalSurvey.client_contact_name}</strong> ({followupModalSurvey.client_contact_email}) regarding their {followupModalSurvey.phase} evaluation.
+            </p>
+
+            <textarea
+              value={followupMessage}
+              onChange={(e) => setFollowupMessage(e.target.value)}
+              rows={8}
               style={{
-                background: "rgba(10, 22, 40, 0.6)",
-                border: "1px solid rgba(16, 185, 129, 0.2)",
+                width: "100%",
+                background: "rgba(10, 22, 40, 0.8)",
+                border: "1px solid rgba(96, 165, 250, 0.3)",
                 borderRadius: "8px",
-                padding: "14px 16px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "6px",
+                color: "#e2e8f0",
                 fontSize: "13px",
+                padding: "12px",
+                outline: "none",
+                fontFamily: "inherit",
+                resize: "vertical",
+                boxSizing: "border-box",
+                marginBottom: "18px",
               }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-dim, #64748b)" }}>Recipient:</span>
-                <strong style={{ color: "#ffffff" }}>
-                  {followupModalSurvey.client_contact_name} ({followupModalSurvey.client_contact_email})
-                </strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--text-dim, #64748b)" }}>Project / Phase:</span>
-                <span style={{ color: "var(--text-white, #ffffff)" }}>
-                  {followupModalSurvey.project?.name} ({followupModalSurvey.phase})
-                </span>
-              </div>
-              {followupModalSurvey.average_score && (
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
-                  <span style={{ color: "var(--text-dim, #64748b)" }}>Recorded Rating:</span>
-                  <span style={{ color: "#34d399", fontWeight: 700 }}>
-                    ★ {followupModalSurvey.average_score.toFixed(1)} / 5.0
-                  </span>
-                </div>
-              )}
+            />
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <Button variant="ghost" size="sm" onClick={() => setFollowupModalSurvey(null)}>
+                Cancel
+              </Button>
+              <Button variant="primary" size="sm" disabled={sendingFollowup} onClick={handleSendFollowup}>
+                {sendingFollowup ? "Sending..." : "Send Follow-up"}
+              </Button>
             </div>
-
-            <form onSubmit={handleSendResponseFollowup} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-main, #e2e8f0)", marginBottom: "6px" }}>
-                  Custom PMO Follow-up Message <em style={{ color: "#94a3b8", fontWeight: 400 }}>(Optional)</em>
-                </label>
-                <textarea
-                  rows={4}
-                  value={followupMessage}
-                  onChange={(e) => setFollowupMessage(e.target.value)}
-                  placeholder="e.g. Thank you for your feedback regarding the technical delivery pace. We would like to schedule a 15-minute sync with our delivery lead..."
-                  style={{
-                    width: "100%",
-                    background: "rgba(10, 20, 36, 0.7)",
-                    border: "1px solid rgba(96, 165, 250, 0.25)",
-                    borderRadius: "8px",
-                    padding: "10px 12px",
-                    color: "#ffffff",
-                    fontSize: "13px",
-                    resize: "vertical",
-                  }}
-                />
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" }}>
-                <Button variant="secondary" size="md" onClick={() => setFollowupModalSurvey(null)}>
-                  Cancel
-                </Button>
-                <Button variant="primary" size="md" type="submit" disabled={sendingFollowup}>
-                  {sendingFollowup ? "Sending Email..." : "Send Follow-up Email →"}
-                </Button>
-              </div>
-            </form>
           </div>
         </div>
       )}
-
-      {/* Toast Notification */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        onClose={() => setToast({ message: "", type: "info" })}
-      />
     </div>
   );
 }

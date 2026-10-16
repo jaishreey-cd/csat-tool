@@ -28,6 +28,13 @@ class UpdateUserRoleRequest(BaseModel):
     role: str
     is_active: Optional[bool] = None
 
+class CreateUserRequest(BaseModel):
+    email: str
+    password: Optional[str] = "Password123!"
+    full_name: Optional[str] = None
+    role: str = "PMO"
+    is_active: bool = True
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

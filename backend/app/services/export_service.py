@@ -239,6 +239,7 @@ def export_surveys_registry(
     status_filter: Optional[str] = None,
     client_id: Optional[int] = None,
     project_id: Optional[int] = None,
+    survey_id: Optional[int] = None,
     format: str = "csv"
 ) -> Tuple[bytes, str, str]:
     """
@@ -246,12 +247,12 @@ def export_surveys_registry(
     Returns: (file_bytes, filename, media_type)
     """
     surveys = get_surveys(db, status_filter=status_filter, client_id=client_id, project_id=project_id)
+    if survey_id is not None:
+        surveys = [s for s in surveys if s.id == survey_id]
 
     headers = [
-        "Survey Code",
         "Client Name",
         "Project Name",
-        "Project Code",
         "Phase",
         "Status",
         "Average CSAT (1-5)",
@@ -275,10 +276,8 @@ def export_surveys_registry(
 
         for r_idx, s in enumerate(surveys, start=2):
             vals = [
-                s.survey_code,
                 s.client.name if s.client else "-",
                 s.project.name if s.project else "-",
-                s.project.project_code if s.project else "-",
                 s.phase,
                 s.status,
                 f"{s.average_score:.2f}" if s.average_score is not None else "-",
@@ -308,10 +307,8 @@ def export_surveys_registry(
 
         for s in surveys:
             writer.writerow([
-                s.survey_code,
                 s.client.name if s.client else "-",
                 s.project.name if s.project else "-",
-                s.project.project_code if s.project else "-",
                 s.phase,
                 s.status,
                 f"{s.average_score:.2f}" if s.average_score is not None else "-",

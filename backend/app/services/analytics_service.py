@@ -123,7 +123,7 @@ def get_project_analytics(db: Session, project_id: int) -> ProjectAnalyticsRespo
     ]
 
     # ── Phase-wise CSAT Analytics as Percentages ────────────────────────────
-    STANDARD_PHASES = ["Weekly", "Monthly", "Mid-Project", "Project Completion", "Post-Launch"]
+    STANDARD_PHASES = ["Weekly", "Monthly", "Quarterly", "Closure"]
     phase_metrics = []
     completed_phases_count = 0
     current_phase_name = None
@@ -164,7 +164,7 @@ def get_project_analytics(db: Session, project_id: int) -> ProjectAnalyticsRespo
         current_phase_name = upcoming[0] if upcoming else STANDARD_PHASES[-1]
 
     curr_idx = STANDARD_PHASES.index(current_phase_name) if current_phase_name in STANDARD_PHASES else 0
-    next_phase_name = STANDARD_PHASES[curr_idx + 1] if curr_idx + 1 < len(STANDARD_PHASES) else "All 5 Phases Complete"
+    next_phase_name = STANDARD_PHASES[curr_idx + 1] if curr_idx + 1 < len(STANDARD_PHASES) else "All Phases Complete"
     overall_csat_percentage = round((overall_csat / 5.0) * 100, 1) if overall_csat is not None else None
 
     return ProjectAnalyticsResponse(

@@ -444,7 +444,6 @@ export default function PublicSurveyPage() {
             <h1 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-white, #ffffff)", margin: 0 }}>
               Customer Satisfaction Survey
             </h1>
-            <Badge variant="active">{survey.project_code}</Badge>
           </div>
 
           <div style={{ fontSize: "14px", color: "var(--primary-lt, #60a5fa)", fontWeight: 600 }}>

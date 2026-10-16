@@ -1,8 +1,21 @@
 import { NavLink } from "react-router-dom";
 import Logo from "../components/Logo";
+import { useAuth } from "../context/AuthContext";
 
 export default function Sidebar({ isOpen = true, onClose = null }) {
+  const { user, logout } = useAuth();
+
   const navItems = [
+    {
+      to: "/surveys/new",
+      label: "Create Survey",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 20h9"></path>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+        </svg>
+      ),
+    },
     {
       to: "/dashboard",
       label: "Dashboard",
@@ -16,40 +29,37 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
       ),
     },
     {
-      to: "/surveys/new",
-      label: "Create Survey",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 20h9"></path>
-          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-        </svg>
-      ),
-    },
-    {
-      to: "/questions",
-      label: "Question Bank",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-          <line x1="12" y1="17" x2="12.01" y2="17"></line>
-        </svg>
-      ),
-    },
-    {
-      to: "/surveys",
-      label: "Surveys",
+      to: "/drafts",
+      label: "Drafts",
       icon: (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
           <polyline points="14 2 14 8 20 8"></polyline>
           <line x1="16" y1="13" x2="8" y2="13"></line>
           <line x1="16" y1="17" x2="8" y2="17"></line>
-          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+      ),
+    },
+    {
+      to: "/permissions",
+      label: "Permissions",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
         </svg>
       ),
     },
   ];
+
+  const getInitials = (name, email) => {
+    if (name) {
+      const parts = name.trim().split(" ");
+      if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+      return name.substring(0, 2).toUpperCase();
+    }
+    if (email) return email.substring(0, 2).toUpperCase();
+    return "US";
+  };
 
   return (
     <>
@@ -114,7 +124,7 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
           </button>
         </div>
 
-        {/* Navigation Items */}
+        {/* Navigation Items (Create Survey, Dashboard, Drafts, Permissions) */}
         <nav
           style={{
             flex: 1,
@@ -159,6 +169,100 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
             </NavLink>
           ))}
         </nav>
+
+        {/* Bottom Section: Account Info & Sign Out */}
+        <div
+          style={{
+            padding: "16px",
+            borderTop: "1px solid var(--border, rgba(96, 165, 250, 0.12))",
+            background: "rgba(10, 20, 35, 0.6)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}
+        >
+          {/* User Profile Card */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, var(--accent, #06b6d4), var(--primary, #2563eb))",
+                color: "var(--text-white, #ffffff)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "13px",
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+            >
+              {getInitials(user?.full_name, user?.email)}
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "var(--text-white, #ffffff)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {user?.full_name || "Authorized User"}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    background: user?.role === "Admin" ? "rgba(16, 185, 129, 0.2)" : "rgba(37, 99, 235, 0.2)",
+                    color: user?.role === "Admin" ? "#6ee7b7" : "#93c5fd",
+                    padding: "1px 6px",
+                    borderRadius: "4px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {user?.role || "Admin"}
+                </span>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    color: "var(--text-dim, #64748b)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {user?.email}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Sign Out Button */}
+          <button
+            type="button"
+            onClick={logout}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              borderRadius: "6px",
+              border: "1px solid rgba(239, 68, 68, 0.25)",
+              background: "rgba(239, 68, 68, 0.08)",
+              color: "#fca5a5",
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+            title="Sign out of CSAT"
+          >
+            Sign Out
+          </button>
+        </div>
       </aside>
 
       <style>{`

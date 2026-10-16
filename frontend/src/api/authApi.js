@@ -19,9 +19,32 @@ export const authApi = {
     return res.data;
   },
 
-  /** Update user permissions/role */
-  updateUserRole: async (userId, role) => {
-    const res = await axiosClient.put(`/auth/users/${userId}/permissions`, { role });
+  /** Update user permissions/role and active status */
+  updateUserRole: async (userId, role, isActive = null) => {
+    const payload = { role };
+    if (isActive !== null) payload.is_active = isActive;
+    const res = await axiosClient.put(`/auth/users/${userId}/permissions`, payload);
+    return res.data;
+  },
+
+  /** Grant access to a user by entering their email and role (PMO/Admin) */
+  grantUserAccess: async ({ email, role = "PMO" }) => {
+    const res = await axiosClient.post("/auth/users", {
+      email,
+      role,
+    });
+    return res.data;
+  },
+
+  /** Create/authorize a new user account (Admin) */
+  createUser: async ({ email, password, full_name, role = "PMO", is_active = true }) => {
+    const res = await axiosClient.post("/auth/users", {
+      email,
+      password,
+      full_name,
+      role,
+      is_active,
+    });
     return res.data;
   },
 };

@@ -2,12 +2,11 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
 import AppLayout from "../layouts/AppLayout";
 import LoginPage from "../pages/LoginPage";
-import DashboardPage from "../pages/DashboardPage";
 import CreateSurveyPage from "../pages/CreateSurveyPage";
 import SurveysPage from "../pages/SurveysPage";
-import QuestionsPage from "../pages/QuestionsPage";
+import DraftsPage from "../pages/DraftsPage";
+import PermissionsPage from "../pages/PermissionsPage";
 import ProjectAnalyticsPage from "../pages/ProjectAnalyticsPage";
-import ComingSoonPage from "../pages/ComingSoonPage";
 import PublicSurveyPage from "../pages/PublicSurveyPage";
 import NotFoundPage from "../pages/NotFoundPage";
 
@@ -20,11 +19,11 @@ export default function AppRoutes() {
       {/* Public Client Survey Response Route (No auth required) */}
       <Route path="/s/:token" element={<PublicSurveyPage />} />
 
-      {/* Redirect / and /app to /dashboard */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/app" element={<Navigate to="/dashboard" replace />} />
+      {/* Redirect / and /app directly to /surveys/new */}
+      <Route path="/" element={<Navigate to="/surveys/new" replace />} />
+      <Route path="/app" element={<Navigate to="/surveys/new" replace />} />
 
-      {/* Protected App Routes inside Minimal App Shell */}
+      {/* Protected App Routes */}
       <Route
         element={
           <ProtectedRoute>
@@ -32,20 +31,21 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        {/* Main Dashboard / Analytics */}
-        <Route path="/dashboard" element={<DashboardPage />} />
-
-        {/* Project Analytics Dashboard */}
-        <Route path="/projects/:projectId" element={<ProjectAnalyticsPage />} />
-
-        {/* Create Survey Stepper Wizard */}
+        {/* Create Survey Stepper Wizard (Primary landing route after login) */}
         <Route path="/surveys/new" element={<CreateSurveyPage />} />
 
-        {/* Surveys List & Management */}
-        <Route path="/surveys" element={<SurveysPage />} />
+        {/* Main Dashboard: Team-wise Analytics & Dispatched Surveys */}
+        <Route path="/dashboard" element={<SurveysPage />} />
+        <Route path="/surveys" element={<Navigate to="/dashboard" replace />} />
 
-        {/* Independent Question Bank Management */}
-        <Route path="/questions" element={<QuestionsPage />} />
+        {/* Dedicated Drafts Route */}
+        <Route path="/drafts" element={<DraftsPage />} />
+
+        {/* Permissions & User Access Route */}
+        <Route path="/permissions" element={<PermissionsPage />} />
+
+        {/* Inside Project Analytics Dashboard */}
+        <Route path="/projects/:projectId" element={<ProjectAnalyticsPage />} />
       </Route>
 
       {/* Fallback 404 Route */}

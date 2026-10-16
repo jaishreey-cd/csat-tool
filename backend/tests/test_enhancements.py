@@ -111,3 +111,50 @@ def test_survey_creation_with_optional_section_6(client, test_user, test_client_
     data = resp.json()
     assert len(data["questions"]) == 5
     assert data["status"] == "Draft"
+
+def test_authorize_new_user_and_inactive_access_control(client, test_user):
+    """Test admin creating authorized users and access restriction for non-authorized users."""
+    login_resp = client.post(
+        "/api/auth/login",
+        json={"email": "testadmin@example.com", "password": "Password123!"}
+    )
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Admin creates a new authorized user
+    new_user_payload = {
+        "email": "newpm@csat.local",
+        "password": "Password123!",
+        "full_name": "New Project Manager",
+        "role": "PMO",
+        "is_active": True
+    }
+    create_resp = client.post("/api/auth/users", json=new_user_payload, headers=headers)
+    assert create_resp.status_code == 201
+    created_data = create_resp.json()
+    new_user_id = created_data["id"]
+    assert created_data["role"] == "PMO"
+
+    # 2. New authorized user can log in
+    pm_login_resp = client.post(
+        "/api/auth/login",
+        json={"email": "newpm@csat.local", "password": "Password123!"}
+    )
+    assert pm_login_resp.status_code == 200
+
+    # 3. Admin revokes authorization (is_active = False)
+    deactivate_resp = client.put(
+        f"/api/auth/users/{new_user_id}/permissions",
+        json={"role": "PMO", "is_active": False},
+        headers=headers
+    )
+    assert deactivate_resp.status_code == 200
+    assert deactivate_resp.json()["is_active"] is False
+
+    # 4. Inactive user login returns 403 Forbidden
+    blocked_login_resp = client.post(
+        "/api/auth/login",
+        json={"email": "newpm@csat.local", "password": "Password123!"}
+    )
+    assert blocked_login_resp.status_code == 403
+    assert "pending administrator authorization" in blocked_login_resp.json()["detail"]

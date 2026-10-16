@@ -3,20 +3,19 @@ import questionsApi from "../api/questionsApi";
 import Button from "../components/Button";
 
 const SECTIONS = [
-  { num: 1, title: "Delivery & Timelines" },
-  { num: 2, title: "Quality of Deliverables" },
-  { num: 3, title: "Communication & Transparency" },
-  { num: 4, title: "Technical Competence" },
-  { num: 5, title: "Overall Partnership" },
-  { num: 6, title: "Additional Feedback & Comments (Optional)" },
+  { num: 1, title: "Project Management & Communication" },
+  { num: 2, title: "Technical Competence & Solution Quality" },
+  { num: 3, title: "Team Responsiveness & Collaboration" },
+  { num: 4, title: "Delivery & Execution Quality" },
+  { num: 5, title: "Value & Business Impact" },
+  { num: 6, title: "Qualitative Feedback & General Comments" },
 ];
 
 const ALL_PHASES = [
   "Weekly",
   "Monthly",
-  "Mid-Project",
-  "Project Completion",
-  "Post-Launch",
+  "Quarterly",
+  "Closure",
 ];
 
 export default function QuestionsPage() {

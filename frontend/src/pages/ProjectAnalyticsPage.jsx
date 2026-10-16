@@ -241,19 +241,6 @@ export default function ProjectAnalyticsPage() {
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <code
-              style={{
-                color: "var(--accent, #06b6d4)",
-                fontSize: "12px",
-                fontWeight: 600,
-                background: "rgba(6, 182, 212, 0.12)",
-                padding: "3px 8px",
-                borderRadius: "5px",
-                border: "1px solid rgba(6, 182, 212, 0.25)",
-              }}
-            >
-              {data.project_code}
-            </code>
             <Badge variant="active" size="sm">
               {data.status || "In Progress"}
             </Badge>
@@ -913,7 +900,6 @@ export default function ProjectAnalyticsPage() {
                       <Badge variant="count" size="sm">
                         Phase: {comment.phase}
                       </Badge>
-                      <code style={{ fontSize: "11px", color: "var(--primary-lt, #60a5fa)" }}>{comment.survey_code}</code>
                     </div>
 
                     <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)" }}>
@@ -973,7 +959,6 @@ export default function ProjectAnalyticsPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
                 <thead>
                   <tr style={{ background: "rgba(15, 23, 42, 0.85)", borderBottom: "1px solid rgba(96, 165, 250, 0.15)" }}>
-                    <th style={{ padding: "12px 18px", color: "var(--text-dim, #64748b)", fontWeight: 600 }}>Survey Code</th>
                     <th style={{ padding: "12px 18px", color: "var(--text-dim, #64748b)", fontWeight: 600 }}>Phase</th>
                     <th style={{ padding: "12px 18px", color: "var(--text-dim, #64748b)", fontWeight: 600 }}>Client Contact</th>
                     <th style={{ padding: "12px 18px", color: "var(--text-dim, #64748b)", fontWeight: 600 }}>Status</th>
@@ -984,9 +969,6 @@ export default function ProjectAnalyticsPage() {
                 <tbody>
                   {data.timeline.map((s) => (
                     <tr key={s.id} style={{ borderBottom: "1px solid rgba(96, 165, 250, 0.06)" }}>
-                      <td style={{ padding: "14px 18px" }}>
-                        <code style={{ color: "var(--accent, #06b6d4)", fontWeight: 600 }}>{s.survey_code}</code>
-                      </td>
                       <td style={{ padding: "14px 18px", color: "var(--text-main, #e2e8f0)" }}>{s.phase}</td>
                       <td style={{ padding: "14px 18px", color: "var(--text-main, #e2e8f0)" }}>
                         {s.client_contact_name || s.client_contact_email || "—"}

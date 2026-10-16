@@ -45,6 +45,7 @@ def download_portfolio_overview_export(
 
 @router.get("/surveys/export")
 def download_surveys_registry_export(
+    survey_id: Optional[int] = Query(None, description="Filter by individual survey ID"),
     status: Optional[str] = Query(None, description="Filter by survey status"),
     client_id: Optional[int] = Query(None, description="Filter by client ID"),
     project_id: Optional[int] = Query(None, description="Filter by project ID"),
@@ -53,10 +54,10 @@ def download_surveys_registry_export(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Export filtered or all surveys from registry to CSV or Excel (XLSX).
+    Export filtered, individual, or all surveys from registry to CSV or Excel (XLSX).
     """
     file_bytes, filename, media_type = export_surveys_registry(
-        db, status_filter=status, client_id=client_id, project_id=project_id, format=format
+        db, status_filter=status, client_id=client_id, project_id=project_id, survey_id=survey_id, format=format
     )
     return Response(
         content=file_bytes,
