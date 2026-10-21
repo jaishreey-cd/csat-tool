@@ -10,8 +10,8 @@ from app.models.import_batch import ImportBatch
 from app.models.survey import Survey
 from app.schemas.client import ClientResponse, ProjectResponse, ClientListResponse
 
-# Lightweight in-memory cache for clients tree: key -> (timestamp, ClientListResponse)
-_clients_cache: Dict[Tuple[str, bool, str], Tuple[float, ClientListResponse]] = {}
+# Lightweight in-memory cache for clients tree
+_clients_cache: Dict[Tuple[str, bool], Tuple[float, ClientListResponse]] = {}
 _CACHE_TTL = 30.0  # seconds
 
 def invalidate_clients_cache():
@@ -41,19 +41,15 @@ def get_clients_data_last_updated(db: Session) -> Optional[datetime]:
 def get_clients_tree(
     db: Session,
     search: Optional[str] = None,
-    include_archived: bool = False,
-    allowed_project_ids: Optional[List[int]] = None,
-    is_admin: bool = True,
-    user_id: Optional[int] = None,
+    include_archived: bool = False
 ) -> ClientListResponse:
     """
     Query clients and their nested projects.
-    For non-Admin users, restricts returned projects and clients to only those
-    explicitly in allowed_project_ids.
+    Filters active records by default, supporting search on client/project name & code.
+    Uses selectinload to eliminate N+1 queries and caches results in memory for high performance.
     """
     clean_search = search.strip().lower() if search and search.strip() else ""
-    user_scope_key = "ADMIN" if is_admin else f"USER_{user_id}"
-    cache_key = (clean_search, bool(include_archived), user_scope_key)
+    cache_key = (clean_search, bool(include_archived))
     now = time.time()
 
     if cache_key in _clients_cache:
@@ -66,30 +62,9 @@ def get_clients_tree(
     if not include_archived:
         client_query = client_query.filter(Client.is_active == True)
 
-    if not is_admin:
-        # If user has no assigned projects, return empty result
-        if not allowed_project_ids:
-            empty_res = ClientListResponse(
-                clients=[],
-                total_clients=0,
-                total_projects=0,
-                clients_data_last_updated=get_clients_data_last_updated(db),
-            )
-            _clients_cache[cache_key] = (now, empty_res)
-            return empty_res
-
-        # Filter clients to only those who own the allowed projects
-        client_ids_with_access = (
-            db.query(Project.client_id)
-            .filter(Project.id.in_(allowed_project_ids))
-            .distinct()
-            .all()
-        )
-        accessible_client_ids = [c[0] for c in client_ids_with_access if c[0]]
-        client_query = client_query.filter(Client.id.in_(accessible_client_ids))
-
     if clean_search:
         term = f"%{clean_search}%"
+        # Clients matching directly OR having a project matching term
         matching_client_ids_from_projects = (
             db.query(Project.client_id)
             .filter(
@@ -134,16 +109,12 @@ def get_clients_tree(
     total_projects_count = 0
 
     for c in clients:
+        # Filter projects belonging to client
         proj_query = [p for p in c.projects]
         if not include_archived:
             proj_query = [p for p in proj_query if p.is_active]
 
-        if not is_admin and allowed_project_ids is not None:
-            proj_query = [p for p in proj_query if p.id in allowed_project_ids]
-
-        if not proj_query and not is_admin:
-            continue
-
+        # Sort projects by project_code
         proj_query.sort(key=lambda p: (p.project_code or p.name).lower())
 
         project_dtos = []

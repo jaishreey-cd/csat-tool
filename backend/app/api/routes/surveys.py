@@ -1,9 +1,8 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
 
-from app.api.deps import get_db, get_current_user, require_admin
+from app.api.deps import get_db, get_current_user
 from app.models.user import User
 from app.schemas.survey import (
     SurveyCreate,
@@ -23,7 +22,6 @@ from app.services.survey_service import (
     submit_public_survey_response,
     check_and_trigger_automated_followups,
 )
-from app.services.audit_service import log_audit_event
 
 router = APIRouter(prefix="/surveys", tags=["Surveys"])
 
@@ -36,19 +34,8 @@ def create_new_survey(
     """
     Create a new CSAT survey with selected questions across 6 sections.
     Status starts in 'Draft' / 'Ready'.
-    Enforces record-level authorization and section limits for all users.
     """
-    survey = create_survey(db, survey_in, creator_id=current_user.id, user=current_user)
-    log_audit_event(
-        db=db,
-        user_id=current_user.id,
-        actor_email=current_user.email,
-        action="CREATE_SURVEY",
-        resource_type="SURVEY",
-        resource_id=survey.id,
-        details=f"Created survey {survey.survey_code} for project #{survey.project_id}",
-    )
-    return survey
+    return create_survey(db, survey_in, creator_id=current_user.id)
 
 @router.get("", response_model=SurveyListResponse)
 def list_all_surveys(
@@ -58,27 +45,28 @@ def list_all_surveys(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List surveys. Admins view all; Users view only authorized surveys."""
-    surveys = get_surveys(db, status_filter=status, client_id=client_id, project_id=project_id, user=current_user)
+    """List all surveys with optional filters."""
+    surveys = get_surveys(db, status_filter=status, client_id=client_id, project_id=project_id)
     return SurveyListResponse(surveys=surveys, total=len(surveys))
-
-class TestEmailRequest(BaseModel):
-    recipient_email: EmailStr
 
 @router.get("/email-status")
 def get_email_service_status(
-    admin_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ):
-    """Check connectivity and configuration status of the SMTP email dispatch service (Admin only)."""
+    """Check connectivity and configuration status of the SMTP email dispatch service."""
     from app.services.email_service import verify_smtp_status
     return verify_smtp_status()
+
+from pydantic import BaseModel, EmailStr
+class TestEmailRequest(BaseModel):
+    recipient_email: EmailStr
 
 @router.post("/test-email")
 def trigger_diagnostic_test_email(
     payload: TestEmailRequest,
-    admin_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ):
-    """Send a test email to verify live delivery to recipient (Admin only)."""
+    """Send a test email to verify live delivery to recipient."""
     from app.services.email_service import send_test_email
     return send_test_email(recipient_email=payload.recipient_email)
 
@@ -88,8 +76,8 @@ def get_survey_details(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get single survey with its configured questions. Enforces record-level authorization."""
-    return get_survey_by_id(db, survey_id, user=current_user)
+    """Get single survey with its configured questions."""
+    return get_survey_by_id(db, survey_id)
 
 @router.post("/{survey_id}/submit-approval", response_model=SurveyResponse)
 def submit_survey(
@@ -97,8 +85,8 @@ def submit_survey(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Submit a survey for review. Enforces record-level authorization."""
-    return submit_survey_for_approval(db, survey_id, user=current_user)
+    """Submit a survey for review."""
+    return submit_survey_for_approval(db, survey_id, user_id=current_user.id)
 
 @router.post("/{survey_id}/dispatch", response_model=SurveyResponse)
 def dispatch_survey_to_client(
@@ -107,33 +95,23 @@ def dispatch_survey_to_client(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Dispatch survey to client contact and generate unique link. Enforces record-level authorization."""
-    survey = dispatch_survey(
+    """Dispatch survey to client contact and generate unique link."""
+    return dispatch_survey(
         db,
         survey_id=survey_id,
         client_contact_name=dispatch_in.client_contact_name,
         client_contact_email=dispatch_in.client_contact_email,
-        user=current_user,
     )
-    log_audit_event(
-        db=db,
-        user_id=current_user.id,
-        actor_email=current_user.email,
-        action="DISPATCH_SURVEY",
-        resource_type="SURVEY",
-        resource_id=survey.id,
-        details=f"Dispatched survey {survey.survey_code} to {dispatch_in.client_contact_email}",
-    )
-    return survey
 
 @router.post("/check-followups")
 def trigger_automated_followups(
     threshold_days: int = Query(15, description="Minimum days pending before reminder is sent"),
-    admin_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
-    Scan all pending sent surveys and dispatch follow-up reminders past threshold days (Admin only).
+    Automated job / trigger endpoint to scan all pending sent surveys and
+    dispatch follow-up reminders to client contacts past the threshold days.
     """
     return check_and_trigger_automated_followups(db, threshold_days=threshold_days)
 

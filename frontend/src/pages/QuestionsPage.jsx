@@ -150,18 +150,6 @@ export default function QuestionsPage() {
     }
   };
 
-  const handleToggleActive = async (q) => {
-    try {
-      await questionsApi.toggleQuestion(q.id);
-      setSuccessMsg(`Question #${q.id} is now ${q.is_active ? "deactivated" : "activated"}.`);
-      fetchQuestions();
-      setTimeout(() => setSuccessMsg(null), 3500);
-    } catch (err) {
-      console.error("Toggle question error:", err);
-      alert("Failed to update question status.");
-    }
-  };
-
   return (
     <div style={{ padding: "28px 32px", maxWidth: "1280px", margin: "0 auto" }}>
       {/* Header */}
@@ -378,20 +366,6 @@ export default function QuestionsPage() {
                     Type: {q.response_type === "Text" ? "Text / Comment" : "1-5 Star Rating"}
                   </span>
 
-                  <span
-                    style={{
-                      background: q.is_active === false ? "rgba(100, 116, 139, 0.2)" : "rgba(16, 185, 129, 0.15)",
-                      color: q.is_active === false ? "#94a3b8" : "#6ee7b7",
-                      fontSize: "11px",
-                      padding: "2px 8px",
-                      borderRadius: "4px",
-                      border: `1px solid ${q.is_active === false ? "rgba(100, 116, 139, 0.3)" : "rgba(16, 185, 129, 0.3)"}`,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {q.is_active === false ? "Inactive" : "Active"}
-                  </span>
-
                   {q.section_number === 6 && (
                     <span
                       style={{
@@ -436,22 +410,6 @@ export default function QuestionsPage() {
 
               {/* Actions */}
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <button
-                  type="button"
-                  onClick={() => handleToggleActive(q)}
-                  style={{
-                    background: q.is_active === false ? "rgba(16, 185, 129, 0.15)" : "rgba(234, 179, 8, 0.15)",
-                    border: `1px solid ${q.is_active === false ? "rgba(16, 185, 129, 0.3)" : "rgba(234, 179, 8, 0.3)"}`,
-                    color: q.is_active === false ? "#6ee7b7" : "#facc15",
-                    borderRadius: "6px",
-                    padding: "6px 10px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  {q.is_active === false ? "Activate" : "Deactivate"}
-                </button>
                 <Button variant="secondary" size="sm" onClick={() => openEditModal(q)}>
                   Edit
                 </Button>

@@ -11,7 +11,6 @@ import { QUESTION_BANK, SURVEY_PHASES } from "../data/questionBank";
 import clientsApi from "../api/clientsApi";
 import surveysApi from "../api/surveysApi";
 import questionsApi from "../api/questionsApi";
-import { useAuth } from "../context/AuthContext";
 
 const PHASE_WORKFLOW = [
   { value: "Weekly", label: "Weekly Review", order: 1, next: "Monthly Milestone", desc: "Short cadence weekly progress and sprint pulse check." },
@@ -29,8 +28,6 @@ const RATING_LABELS = {
 };
 
 export default function CreateSurveyPage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "Admin";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -684,18 +681,8 @@ export default function CreateSurveyPage() {
               </p>
             </div>
 
-            {/* Total Questions Count Badge and Admin Configuration Actions */}
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-              {isAdmin && (
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <Link to="/question-bank" target="_blank" style={{ textDecoration: "none" }}>
-                    <Button size="sm" variant="secondary">Question Bank ↗</Button>
-                  </Link>
-                  <Link to="/categories" target="_blank" style={{ textDecoration: "none" }}>
-                    <Button size="sm" variant="secondary">Categories ↗</Button>
-                  </Link>
-                </div>
-              )}
+            {/* Total Questions Count Badge */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <Badge variant={allSectionsHaveQuestions ? "active" : "warning"}>
                 {totalQuestionsCount} / 30 Questions Selected
               </Badge>
@@ -1021,44 +1008,42 @@ export default function CreateSurveyPage() {
                   );
                 })()}
 
-                {/* Add Custom Question Form (Admin Only - Persists to Database Question Bank) */}
-                {isAdmin && (
-                  <form
-                    onSubmit={handleAddCustomQuestion}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                      paddingTop: "14px",
-                      borderTop: "1px solid var(--border, rgba(96, 165, 250, 0.12))",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase" }}>
-                        + Add Custom Question (Admin Only — Saves to Question Bank)
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", gap: "10px" }}>
-                      <Input
-                        id="customQuestionInput"
-                        placeholder="Type custom question..."
-                        value={customQuestionText}
-                        onChange={(e) => setCustomQuestionText(e.target.value)}
-                        disabled={atLimit}
-                        error={customQuestionError}
-                      />
-                      <Button
-                        type="submit"
-                        variant="secondary"
-                        size="md"
-                        disabled={atLimit || !customQuestionText.trim()}
-                        style={{ whiteSpace: "nowrap" }}
-                      >
-                        Add Question
-                      </Button>
-                    </div>
-                  </form>
-                )}
+                {/* Add Custom Question Form (Persists to Database Question Bank) */}
+                <form
+                  onSubmit={handleAddCustomQuestion}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                    paddingTop: "14px",
+                    borderTop: "1px solid var(--border, rgba(96, 165, 250, 0.12))",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase" }}>
+                      + Add Custom Question (Saves to Database Question Bank)
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <Input
+                      id="customQuestionInput"
+                      placeholder="Type custom question..."
+                      value={customQuestionText}
+                      onChange={(e) => setCustomQuestionText(e.target.value)}
+                      disabled={atLimit}
+                      error={customQuestionError}
+                    />
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      size="md"
+                      disabled={atLimit || !customQuestionText.trim()}
+                      style={{ whiteSpace: "nowrap" }}
+                    >
+                      Add Question
+                    </Button>
+                  </div>
+                </form>
 
                 {/* ── Section Navigation Inside Question Section Grid ── */}
                 <div

@@ -7,21 +7,7 @@ import SurveysPage from "../pages/SurveysPage";
 import PermissionsPage from "../pages/PermissionsPage";
 import ProjectAnalyticsPage from "../pages/ProjectAnalyticsPage";
 import PublicSurveyPage from "../pages/PublicSurveyPage";
-import DataImportPage from "../pages/DataImportPage";
-import ClientsProjectsPage from "../pages/ClientsProjectsPage";
-import FeedbackCategoriesPage from "../pages/FeedbackCategoriesPage";
-import QuestionsPage from "../pages/QuestionsPage";
-import AuditLogPage from "../pages/AuditLogPage";
-import UserResultsPage from "../pages/UserResultsPage";
 import NotFoundPage from "../pages/NotFoundPage";
-import { useAuth } from "../context/AuthContext";
-
-function RoleLandingRedirect() {
-  const { user, isAuthenticated, loading } = useAuth();
-  if (loading) return null;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return user?.role === "Admin" ? <Navigate to="/dashboard" replace /> : <Navigate to="/surveys/new" replace />;
-}
 
 export default function AppRoutes() {
   return (
@@ -32,9 +18,9 @@ export default function AppRoutes() {
       {/* Public Client Survey Response Route (No auth required) */}
       <Route path="/s/:token" element={<PublicSurveyPage />} />
 
-      {/* Role-based landing redirects */}
-      <Route path="/" element={<RoleLandingRedirect />} />
-      <Route path="/app" element={<RoleLandingRedirect />} />
+      {/* Redirect / and /app directly to /surveys/new */}
+      <Route path="/" element={<Navigate to="/surveys/new" replace />} />
+      <Route path="/app" element={<Navigate to="/surveys/new" replace />} />
 
       {/* Protected App Routes */}
       <Route
@@ -44,51 +30,14 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        {/* Common Authorized Routes */}
-        <Route path="/dashboard" element={<SurveysPage />} />
-        <Route path="/surveys" element={<Navigate to="/dashboard" replace />} />
+        {/* Create Survey Stepper Wizard (Primary landing route after login) */}
         <Route path="/surveys/new" element={<CreateSurveyPage />} />
 
-        {/* PMO User Results Route */}
-        <Route path="/results" element={<UserResultsPage />} />
+        {/* Main Dashboard: Team-wise Analytics & Dispatched Surveys */}
+        <Route path="/dashboard" element={<SurveysPage />} />
+        <Route path="/surveys" element={<Navigate to="/dashboard" replace />} />
 
-        {/* Admin Only Routes (Blocked with 403 / Redirect for PMO Users) */}
-        <Route
-          path="/data-import"
-          element={
-            <ProtectedRoute requiredRole="Admin">
-              <DataImportPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/clients-projects"
-          element={
-            <ProtectedRoute requiredRole="Admin">
-              <ClientsProjectsPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/categories"
-          element={
-            <ProtectedRoute requiredRole="Admin">
-              <FeedbackCategoriesPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/question-bank"
-          element={
-            <ProtectedRoute requiredRole="Admin">
-              <QuestionsPage />
-            </ProtectedRoute>
-          }
-        />
-
+        {/* Permissions & User Access Route (Admin Only) */}
         <Route
           path="/permissions"
           element={
@@ -98,15 +47,7 @@ export default function AppRoutes() {
           }
         />
 
-        <Route
-          path="/audit"
-          element={
-            <ProtectedRoute requiredRole="Admin">
-              <AuditLogPage />
-            </ProtectedRoute>
-          }
-        />
-
+        {/* Inside Project Analytics Dashboard (Admin Only) */}
         <Route
           path="/projects/:projectId"
           element={

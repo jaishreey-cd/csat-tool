@@ -15,14 +15,6 @@ security = HTTPBearer(auto_error=False)
 _user_auth_cache: dict[str, tuple[dict, float]] = {}
 _USER_CACHE_TTL = 60.0  # seconds
 
-def clear_user_cache(user_key: Optional[str] = None):
-    """Clear cached authentication payload."""
-    global _user_auth_cache
-    if user_key:
-        _user_auth_cache.pop(str(user_key).lower(), None)
-    else:
-        _user_auth_cache.clear()
-
 def get_db() -> Generator[Session, None, None]:
     """Dependency that yields a database session."""
     db = SessionLocal()

@@ -6,10 +6,15 @@ import Input from "../components/Input";
 import styles from "./LoginPage.module.css";
 
 export default function LoginPage() {
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const isSsoEnabled = import.meta.env.VITE_SSO_ENABLED === "true";
+
+  // Target destination after successful authentication: direct to Create Survey
+  const redirectTarget = searchParams.get("from") || "/surveys/new";
+
+  // Feature flag: SSO with Entra ID (In development)
+  const isSsoEnabled = false;
 
   // Form states
   const [email, setEmail] = useState("");
@@ -21,14 +26,12 @@ export default function LoginPage() {
   const [authError, setAuthError] = useState("");
   const [networkError, setNetworkError] = useState("");
 
-  // Redirect if already signed in based on role
+  // Redirect if already signed in
   useEffect(() => {
-    if (isAuthenticated && user) {
-      const fromParam = searchParams.get("from");
-      const roleLanding = user?.role === "Admin" ? "/dashboard" : "/surveys/new";
-      navigate(fromParam || roleLanding, { replace: true });
+    if (isAuthenticated) {
+      navigate(redirectTarget, { replace: true });
     }
-  }, [isAuthenticated, user, navigate, searchParams]);
+  }, [isAuthenticated, navigate, redirectTarget]);
 
   // Validation rules
   const validateEmail = (val) => {
@@ -86,9 +89,8 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const data = await login(email.trim(), password);
-      const roleLanding = data?.user?.role === "Admin" ? "/dashboard" : "/surveys/new";
-      navigate(searchParams.get("from") || roleLanding, { replace: true });
+      await login(email.trim(), password);
+      navigate(redirectTarget, { replace: true });
     } catch (err) {
       if (err?.response?.status === 403) {
         setAuthError(
@@ -109,7 +111,7 @@ export default function LoginPage() {
   };
 
   // Integration stub: Microsoft Entra ID (MSAL) SSO
-  const _handleMicrosoftSso = async () => {
+  const handleMicrosoftSso = async () => {
     if (!isSsoEnabled) return;
     // INTEGRATION STUB: Entra ID / MSAL authentication flow
     // When VITE_SSO_ENABLED=true and organizational approval is granted:

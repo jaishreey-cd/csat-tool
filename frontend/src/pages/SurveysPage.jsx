@@ -2,8 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import surveysApi from "../api/surveysApi";
 import clientsApi from "../api/clientsApi";
-import authApi from "../api/authApi";
-import dataSyncApi from "../api/dataSyncApi";
 import analyticsApi, { sanitizeFilename } from "../api/analyticsApi";
 import { useAuth } from "../context/AuthContext";
 import Button from "../components/Button";
@@ -50,25 +48,6 @@ export default function SurveysPage() {
 
   // Export state per survey
   const [exportingSurveyId, setExportingSurveyId] = useState(null);
-
-  const isAdmin = user?.role === "Admin";
-  const [adminSummary, setAdminSummary] = useState({ pmoActive: 0, pmoMax: 3, lastImport: null });
-
-  useEffect(() => {
-    if (isAdmin) {
-      authApi.getUsers().then((res) => {
-        const pmos = (res || []).filter((u) => u.email.toLowerCase() !== "admin@csat.local");
-        const active = pmos.filter((u) => u.is_active).length;
-        setAdminSummary((prev) => ({ ...prev, pmoActive: active }));
-      }).catch(() => {});
-
-      dataSyncApi.getImports().then((res) => {
-        if (res && res.length > 0) {
-          setAdminSummary((prev) => ({ ...prev, lastImport: res[0] }));
-        }
-      }).catch(() => {});
-    }
-  }, [isAdmin]);
 
   // Fetch surveys and clients independently
   const fetchSurveys = async (force = false) => {
@@ -315,103 +294,6 @@ export default function SurveysPage() {
           </span>
         </div>
       </div>
-
-      {/* Admin Oversight Widgets: Data Import Status & PMO Access Summary */}
-      {isAdmin && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px" }}>
-          {/* Data Import Status Widget */}
-          <div
-            style={{
-              background: "var(--bg-surface, #0d1b2a)",
-              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
-              borderRadius: "12px",
-              padding: "18px 22px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase" }}>
-                Data Import & Sync Status
-              </div>
-              <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", marginTop: "4px" }}>
-                {adminSummary.lastImport ? (
-                  <span>
-                    Latest: {adminSummary.lastImport.filename}{" "}
-                    <span style={{ fontSize: "12px", color: "#34d399", fontWeight: 600 }}>({adminSummary.lastImport.status})</span>
-                  </span>
-                ) : (
-                  <span>No dataset uploaded yet</span>
-                )}
-              </div>
-              <div style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", marginTop: "2px" }}>
-                {adminSummary.lastImport
-                  ? `Uploaded on ${new Date(adminSummary.lastImport.uploaded_at).toLocaleDateString()}`
-                  : "Upload datasets to refresh clients & projects portfolio"}
-              </div>
-            </div>
-            <Link to="/data-import">
-              <Button size="sm" variant="secondary">Import Data →</Button>
-            </Link>
-          </div>
-
-          {/* PMO Access Summary Widget */}
-          <div
-            style={{
-              background: "var(--bg-surface, #0d1b2a)",
-              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
-              borderRadius: "12px",
-              padding: "18px 22px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase" }}>
-                PMO User Access Summary
-              </div>
-              <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", marginTop: "4px" }}>
-                {adminSummary.pmoActive} of {adminSummary.pmoMax} PMO Seats Active
-              </div>
-              <div style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", marginTop: "2px" }}>
-                Manage team authorizations and project allocations
-              </div>
-            </div>
-            <Link to="/permissions">
-              <Button size="sm" variant="secondary">Permissions →</Button>
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* User Workspace Quick Actions Banner */}
-      {!isAdmin && (
-        <div
-          style={{
-            background: "linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(6, 182, 212, 0.12))",
-            border: "1px solid rgba(96, 165, 250, 0.25)",
-            borderRadius: "12px",
-            padding: "18px 22px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)" }}>
-              Ready to gather client feedback?
-            </div>
-            <div style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", marginTop: "2px" }}>
-              Configure and dispatch a CSAT survey for your assigned clients and projects.
-            </div>
-          </div>
-          <Link to="/surveys/new">
-            <Button size="md" variant="primary">+ Create Survey</Button>
-          </Link>
-        </div>
-      )}
 
       {/* Filter and Search Bar */}
       <div

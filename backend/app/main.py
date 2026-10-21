@@ -3,16 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.routes import (
-    auth_router,
-    clients_router,
-    data_sync_router,
-    surveys_router,
-    analytics_router,
-    questions_router,
-    categories_router,
-    audit_router,
-)
+from app.api.routes import auth_router, clients_router, data_sync_router, surveys_router, analytics_router, questions_router
 
 import asyncio
 
@@ -101,8 +92,6 @@ app.include_router(data_sync_router, prefix=settings.API_V1_STR)
 app.include_router(surveys_router, prefix=settings.API_V1_STR)
 app.include_router(analytics_router, prefix=settings.API_V1_STR)
 app.include_router(questions_router, prefix=settings.API_V1_STR)
-app.include_router(categories_router, prefix=settings.API_V1_STR)
-app.include_router(audit_router, prefix=settings.API_V1_STR)
 
 @app.get("/api/health", tags=["Health"])
 def health_check():

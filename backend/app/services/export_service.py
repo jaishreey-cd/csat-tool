@@ -1,7 +1,7 @@
 import io
 import csv
 import re
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 import openpyxl
@@ -15,7 +15,7 @@ from app.services.analytics_service import get_project_analytics, get_system_ove
 from app.services.survey_service import get_surveys
 
 def sanitize_filename(name: str) -> str:
-    r"""
+    """
     Sanitize a project name to be safe for filenames across Windows/Linux/macOS.
     Removes invalid characters: / \ : * ? " < > | and strips whitespace/dots.
     """
@@ -252,14 +252,13 @@ def export_surveys_registry(
     client_id: Optional[int] = None,
     project_id: Optional[int] = None,
     survey_id: Optional[int] = None,
-    format: str = "csv",
-    user: Optional[Any] = None,
+    format: str = "csv"
 ) -> Tuple[bytes, str, str]:
     """
     Exports all or filtered surveys from the surveys registry.
     Returns: (file_bytes, filename, media_type)
     """
-    surveys = get_surveys(db, status_filter=status_filter, client_id=client_id, project_id=project_id, user=user)
+    surveys = get_surveys(db, status_filter=status_filter, client_id=client_id, project_id=project_id)
     target_project_name = None
     if survey_id is not None:
         surveys = [s for s in surveys if s.id == survey_id]

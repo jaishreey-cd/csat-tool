@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, Response, status, HTTPException
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_user, require_admin
@@ -46,7 +46,7 @@ def download_portfolio_overview_export(
 @router.get("/surveys/export")
 def download_surveys_registry_export(
     survey_id: Optional[int] = Query(None, description="Filter by individual survey ID"),
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by survey status"),
+    status: Optional[str] = Query(None, description="Filter by survey status"),
     client_id: Optional[int] = Query(None, description="Filter by client ID"),
     project_id: Optional[int] = Query(None, description="Filter by project ID"),
     format: str = Query("csv", description="Export format: 'csv' or 'xlsx'"),
@@ -56,27 +56,8 @@ def download_surveys_registry_export(
     """
     Export filtered, individual, or all surveys from registry to CSV or Excel (XLSX).
     """
-    if current_user.role != "Admin" and survey_id is not None:
-        from app.models.survey import Survey
-        from app.services.survey_service import get_user_allowed_project_ids
-        target_survey = db.query(Survey).filter(Survey.id == survey_id).first()
-        if not target_survey:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
-        allowed_pids = get_user_allowed_project_ids(db, current_user)
-        if target_survey.creator_id != current_user.id and (target_survey.project_id not in allowed_pids):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied: You are not authorized to export this survey."
-            )
-
     file_bytes, filename, media_type = export_surveys_registry(
-        db,
-        status_filter=status_filter,
-        client_id=client_id,
-        project_id=project_id,
-        survey_id=survey_id,
-        format=format,
-        user=current_user,
+        db, status_filter=status, client_id=client_id, project_id=project_id, survey_id=survey_id, format=format
     )
     return Response(
         content=file_bytes,

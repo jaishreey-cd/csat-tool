@@ -2,23 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 
-from app.api.deps import get_db, get_current_user, require_admin, clear_user_cache
+from app.api.deps import get_db, get_current_user, require_admin
 from app.core.config import settings
 from app.models.user import User
-from app.models.assignment import UserProjectAssignment
-from app.models.project import Project
 from app.core.security import hash_password
-from app.schemas.auth import (
-    LoginRequest,
-    TokenResponse,
-    UserResponse,
-    UpdateUserRoleRequest,
-    CreateUserRequest,
-    UserAssignmentRequest,
-    UserAssignmentResponse,
-)
+from app.schemas.auth import LoginRequest, TokenResponse, UserResponse, UpdateUserRoleRequest, CreateUserRequest
 from app.services.auth_service import authenticate_user, build_token_response
-from app.services.audit_service import log_audit_event
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -58,7 +47,7 @@ def list_system_users(
     db: Session = Depends(get_db),
     admin_user: User = Depends(require_admin),
 ):
-    """Admin-only: List all registered users and their permission roles (User returns 403 Forbidden)."""
+    """Admin-only: List all registered users and their permission roles."""
     users = db.query(User).order_by(User.id).all()
     return [UserResponse.model_validate(u) for u in users]
 
@@ -84,6 +73,7 @@ def create_authorized_user(
 
     existing = db.query(User).filter(User.email == normalized_email).first()
     if existing:
+        # If activating a previously suspended user, verify the 3-PMO limit
         if not existing.is_active:
             active_pmos = db.query(User).filter(
                 User.email != initial_admin_email,
@@ -98,21 +88,8 @@ def create_authorized_user(
 
         existing.role = target_role
         existing.is_active = True
-        if payload.password:
-            existing.hashed_password = hash_password(payload.password)
         db.commit()
         db.refresh(existing)
-        clear_user_cache(existing.email)
-
-        log_audit_event(
-            db=db,
-            user_id=admin_user.id,
-            actor_email=admin_user.email,
-            action="ACTIVATE_USER",
-            resource_type="USER",
-            resource_id=existing.id,
-            details=f"Reactivated user {existing.email} with role {target_role}",
-        )
         return UserResponse.model_validate(existing)
 
     # For a new user grant: verify active PMO limit
@@ -136,17 +113,6 @@ def create_authorized_user(
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    clear_user_cache(new_user.email)
-
-    log_audit_event(
-        db=db,
-        user_id=admin_user.id,
-        actor_email=admin_user.email,
-        action="CREATE_USER",
-        resource_type="USER",
-        resource_id=new_user.id,
-        details=f"Created PMO user {new_user.email} with role {target_role}",
-    )
     return UserResponse.model_validate(new_user)
 
 @router.put("/users/{user_id}/permissions", response_model=UserResponse)
@@ -188,115 +154,10 @@ def update_user_permissions(
                 detail="Maximum limit of 3 PMOs reached. Cannot activate additional users."
             )
 
-    old_role = target_user.role
-    old_active = target_user.is_active
     target_user.role = target_role
     if payload.is_active is not None:
         target_user.is_active = payload.is_active
     db.commit()
     db.refresh(target_user)
-    clear_user_cache(target_user.email)
-
-    log_audit_event(
-        db=db,
-        user_id=admin_user.id,
-        actor_email=admin_user.email,
-        action="UPDATE_USER_PERMISSIONS",
-        resource_type="USER",
-        resource_id=target_user.id,
-        details=f"Updated user {target_user.email}: role {old_role}->{target_role}, active {old_active}->{target_user.is_active}",
-    )
     return UserResponse.model_validate(target_user)
 
-@router.get("/users/{user_id}/assignments", response_model=UserAssignmentResponse)
-def get_user_project_assignments(
-    user_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Get project assignments for a user.
-    Admin can check any user; non-admin can only check their own.
-    """
-    if current_user.role != "Admin" and current_user.id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only view your own project assignments."
-        )
-    assignments = db.query(UserProjectAssignment).filter(UserProjectAssignment.user_id == user_id).all()
-    project_ids = [a.project_id for a in assignments]
-    return UserAssignmentResponse(user_id=user_id, project_ids=project_ids)
-
-@router.put("/users/{user_id}/assignments", response_model=UserAssignmentResponse)
-def set_user_project_assignments(
-    user_id: int,
-    payload: UserAssignmentRequest,
-    db: Session = Depends(get_db),
-    admin_user: User = Depends(require_admin),
-):
-    """
-    Admin-only: Assign permitted projects to a PMO user.
-    """
-    target_user = db.query(User).filter(User.id == user_id).first()
-    if not target_user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    # Clear existing assignments
-    db.query(UserProjectAssignment).filter(UserProjectAssignment.user_id == user_id).delete()
-
-    # Verify project_ids exist
-    valid_projects = db.query(Project).filter(Project.id.in_(payload.project_ids)).all()
-    valid_ids = [p.id for p in valid_projects]
-
-    for pid in valid_ids:
-        assignment = UserProjectAssignment(user_id=user_id, project_id=pid)
-        db.add(assignment)
-
-    db.commit()
-
-    log_audit_event(
-        db=db,
-        user_id=admin_user.id,
-        actor_email=admin_user.email,
-        action="UPDATE_USER_ASSIGNMENTS",
-        resource_type="USER_ASSIGNMENT",
-        resource_id=user_id,
-        details=f"Assigned {len(valid_ids)} projects to {target_user.email}: {valid_ids}",
-    )
-    return UserAssignmentResponse(user_id=user_id, project_ids=valid_ids)
-
-@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(
-    user_id: int,
-    db: Session = Depends(get_db),
-    admin_user: User = Depends(require_admin),
-):
-    """
-    Admin-only: Delete a PMO user. Cannot delete the initial admin.
-    """
-    target_user = db.query(User).filter(User.id == user_id).first()
-    if not target_user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    initial_admin_email = settings.SEED_ADMIN_EMAIL.strip().lower()
-    if target_user.email.lower() == initial_admin_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Initial administrator account cannot be deleted."
-        )
-
-    email = target_user.email
-    db.delete(target_user)
-    db.commit()
-    clear_user_cache(email)
-
-    log_audit_event(
-        db=db,
-        user_id=admin_user.id,
-        actor_email=admin_user.email,
-        action="DELETE_USER",
-        resource_type="USER",
-        resource_id=user_id,
-        details=f"Deleted PMO user {email}",
-    )
-    return None

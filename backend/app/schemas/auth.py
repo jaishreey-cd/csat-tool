@@ -43,10 +43,3 @@ class TokenResponse(BaseModel):
 class TokenPayload(BaseModel):
     sub: Optional[str] = None
     exp: Optional[int] = None
-
-class UserAssignmentRequest(BaseModel):
-    project_ids: list[int]
-
-class UserAssignmentResponse(BaseModel):
-    user_id: int
-    project_ids: list[int]
