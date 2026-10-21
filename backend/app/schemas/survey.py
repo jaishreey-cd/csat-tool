@@ -64,8 +64,6 @@ class SurveyResponse(BaseModel):
     phase: str
     status: str
     creator_id: int
-    reviewer_id: Optional[int] = None
-    rejection_comment: Optional[str] = None
     unique_token: Optional[str] = None
     client_contact_name: Optional[str] = None
     client_contact_email: Optional[str] = None
@@ -79,7 +77,6 @@ class SurveyResponse(BaseModel):
     client: Optional[ClientSimple] = None
     project: Optional[ProjectSimple] = None
     creator: Optional[UserSimple] = None
-    reviewer: Optional[UserSimple] = None
     questions: List[SurveyQuestionResponse] = []
 
     model_config = ConfigDict(from_attributes=True)

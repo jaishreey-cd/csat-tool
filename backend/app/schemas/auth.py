@@ -32,7 +32,7 @@ class CreateUserRequest(BaseModel):
     email: str
     password: Optional[str] = "Password123!"
     full_name: Optional[str] = None
-    role: str = "PMO"
+    role: str = "User"
     is_active: bool = True
 
 class TokenResponse(BaseModel):
@@ -43,3 +43,10 @@ class TokenResponse(BaseModel):
 class TokenPayload(BaseModel):
     sub: Optional[str] = None
     exp: Optional[int] = None
+
+class UserAssignmentRequest(BaseModel):
+    project_ids: list[int]
+
+class UserAssignmentResponse(BaseModel):
+    user_id: int
+    project_ids: list[int]

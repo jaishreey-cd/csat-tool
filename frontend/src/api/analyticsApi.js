@@ -1,5 +1,10 @@
 import axiosClient from "./axiosClient";
 
+export const sanitizeFilename = (name) => {
+  if (!name) return "Survey_Export";
+  return String(name).replace(/[\\/*?:"<>|]/g, "_").trim().replace(/^\.+/, "") || "Survey_Export";
+};
+
 const triggerDownload = (response, defaultFilename) => {
   const contentDisposition = response.headers["content-disposition"];
   let filename = defaultFilename;
@@ -33,20 +38,20 @@ const analyticsApi = {
     return response.data;
   },
 
-  exportProjectAnalytics: async (projectId, format = "xlsx") => {
+  exportProjectAnalytics: async (projectId, format = "xlsx", customFilename = null) => {
     const response = await axiosClient.get(`/analytics/projects/${projectId}/export`, {
       params: { format },
       responseType: "blob",
     });
-    triggerDownload(response, `Project_${projectId}_CSAT_Report.${format}`);
+    triggerDownload(response, customFilename || `Project_${projectId}_CSAT_Report.${format}`);
   },
 
-  exportSurveysRegistry: async (params = {}, format = "xlsx") => {
+  exportSurveysRegistry: async (params = {}, format = "csv", customFilename = null) => {
     const response = await axiosClient.get("/analytics/surveys/export", {
       params: { ...params, format },
       responseType: "blob",
     });
-    triggerDownload(response, `CSAT_Surveys_Registry.${format}`);
+    triggerDownload(response, customFilename || `CSAT_Surveys_Registry.${format}`);
   },
 
   exportOverview: async (format = "xlsx") => {

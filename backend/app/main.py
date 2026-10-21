@@ -3,7 +3,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.routes import auth_router, clients_router, data_sync_router, surveys_router, analytics_router, questions_router
+from app.api.routes import (
+    auth_router,
+    clients_router,
+    data_sync_router,
+    surveys_router,
+    analytics_router,
+    questions_router,
+    categories_router,
+    audit_router,
+)
 
 import asyncio
 
@@ -15,7 +24,7 @@ async def _periodic_followup_checker():
             from app.db.session import SessionLocal
             from app.services.survey_service import check_and_trigger_automated_followups
             with SessionLocal() as db:
-                result = check_and_trigger_automated_followups(db, threshold_days=7)
+                result = check_and_trigger_automated_followups(db, threshold_days=15)
                 if result.get("reminded_count", 0) > 0:
                     print(f"[AUTOMATED FOLLOWUP] Auto-reminded {result['reminded_count']} overdue survey(s)")
         except asyncio.CancelledError:
@@ -92,6 +101,8 @@ app.include_router(data_sync_router, prefix=settings.API_V1_STR)
 app.include_router(surveys_router, prefix=settings.API_V1_STR)
 app.include_router(analytics_router, prefix=settings.API_V1_STR)
 app.include_router(questions_router, prefix=settings.API_V1_STR)
+app.include_router(categories_router, prefix=settings.API_V1_STR)
+app.include_router(audit_router, prefix=settings.API_V1_STR)
 
 @app.get("/api/health", tags=["Health"])
 def health_check():

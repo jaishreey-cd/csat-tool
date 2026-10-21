@@ -37,3 +37,26 @@ class ClientListResponse(BaseModel):
     total_clients: int
     total_projects: int
     clients_data_last_updated: Optional[datetime] = None
+
+class ClientCreate(BaseModel):
+    client_code: str
+    name: str
+
+class ClientUpdate(BaseModel):
+    client_code: Optional[str] = None
+    name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class ProjectCreate(BaseModel):
+    client_id: int
+    project_code: str
+    name: str
+    team_name: Optional[str] = None
+    status: Optional[str] = "Active"
+
+class ProjectUpdate(BaseModel):
+    project_code: Optional[str] = None
+    name: Optional[str] = None
+    team_name: Optional[str] = None
+    status: Optional[str] = None
+    is_active: Optional[bool] = None

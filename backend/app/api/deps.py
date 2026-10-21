@@ -15,6 +15,14 @@ security = HTTPBearer(auto_error=False)
 _user_auth_cache: dict[str, tuple[dict, float]] = {}
 _USER_CACHE_TTL = 60.0  # seconds
 
+def clear_user_cache(user_key: Optional[str] = None):
+    """Clear cached authentication payload."""
+    global _user_auth_cache
+    if user_key:
+        _user_auth_cache.pop(str(user_key).lower(), None)
+    else:
+        _user_auth_cache.clear()
+
 def get_db() -> Generator[Session, None, None]:
     """Dependency that yields a database session."""
     db = SessionLocal()
@@ -87,6 +95,7 @@ def get_current_user(
             "id": user.id,
             "email": user.email,
             "full_name": user.full_name,
+            "role": user.role,
             "hashed_password": user.hashed_password,
             "is_active": user.is_active,
             "created_at": user.created_at,
@@ -95,3 +104,15 @@ def get_current_user(
     )
 
     return user
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """
+    Ensure the authenticated user has the Admin role.
+    Raises HTTP 403 Forbidden for non-Admin users.
+    """
+    if current_user.role != "Admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required for this action.",
+        )
+    return current_user

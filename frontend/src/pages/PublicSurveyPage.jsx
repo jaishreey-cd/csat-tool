@@ -564,12 +564,6 @@ export default function PublicSurveyPage() {
           const isFirstCategory = currentCategoryIndex === 0;
           const isLastCategory = currentCategoryIndex === categoryGroups.length - 1;
 
-          // Calculate continuous question start number for the active category
-          let questionStartIndex = 0;
-          for (let i = 0; i < currentCategoryIndex; i++) {
-            questionStartIndex += categoryGroups[i]?.questions?.length || 0;
-          }
-
           const currentGroupStarQuestions = currentGroup.questions.filter((q) => q.response_type === "star_rating");
           const currentGroupRatedCount = currentGroupStarQuestions.filter((q) => responses[q.id]?.rating_score > 0).length;
 
@@ -621,7 +615,6 @@ export default function PublicSurveyPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 {currentGroup.questions.map((q, idx) => {
                   const isStarRating = q.response_type === "star_rating";
-                  const currentNum = questionStartIndex + idx + 1;
                   const currentRating = responses[q.id]?.rating_score || 0;
                   const hoverRating = hoveredRatings[q.id] || 0;
                   const activeScore = hoverRating || currentRating;
@@ -657,16 +650,17 @@ export default function PublicSurveyPage() {
                             fontWeight: 700,
                             color: currentRating > 0 ? "var(--success, #22c55e)" : "var(--primary-lt, #60a5fa)",
                             background: currentRating > 0 ? "rgba(34, 197, 94, 0.15)" : "rgba(37, 99, 235, 0.15)",
-                            width: "26px",
+                            minWidth: "28px",
                             height: "26px",
-                            borderRadius: "50%",
+                            padding: "0 6px",
+                            borderRadius: "13px",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             flexShrink: 0,
                           }}
                         >
-                          {currentRating > 0 ? "✓" : currentNum}
+                          {currentRating > 0 ? "✓" : `Q${idx + 1}`}
                         </span>
                         <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-white, #ffffff)", lineHeight: 1.5, marginTop: "2px" }}>
                           {q.question_text}

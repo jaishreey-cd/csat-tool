@@ -81,6 +81,48 @@ export const clientsApi = {
     _inFlightRequest = { key, promise: requestPromise };
     return requestPromise;
   },
+
+  /** Create Client (Admin) */
+  createClient: async (clientData) => {
+    const res = await axiosClient.post("/clients", clientData);
+    clientsApi.invalidateCache();
+    return res.data;
+  },
+
+  /** Update Client (Admin) */
+  updateClient: async (clientId, clientData) => {
+    const res = await axiosClient.put(`/clients/${clientId}`, clientData);
+    clientsApi.invalidateCache();
+    return res.data;
+  },
+
+  /** Archive Client (Admin) */
+  archiveClient: async (clientId) => {
+    const res = await axiosClient.delete(`/clients/${clientId}`);
+    clientsApi.invalidateCache();
+    return res.data;
+  },
+
+  /** Create Project (Admin) */
+  createProject: async (projectData) => {
+    const res = await axiosClient.post("/projects", projectData);
+    clientsApi.invalidateCache();
+    return res.data;
+  },
+
+  /** Update Project (Admin) */
+  updateProject: async (projectId, projectData) => {
+    const res = await axiosClient.put(`/projects/${projectId}`, projectData);
+    clientsApi.invalidateCache();
+    return res.data;
+  },
+
+  /** Archive Project (Admin) */
+  archiveProject: async (projectId) => {
+    const res = await axiosClient.delete(`/projects/${projectId}`);
+    clientsApi.invalidateCache();
+    return res.data;
+  },
 };
 
 export default clientsApi;

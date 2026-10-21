@@ -1,14 +1,22 @@
 import { useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export default function Topbar({ onToggleSidebar }) {
   const location = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "Admin";
 
   const titleMap = {
     "/dashboard": "CSAT Dashboard",
     "/surveys/new": "Create Survey",
     "/surveys": "CSAT Dashboard",
-    "/drafts": "Draft Surveys",
-    "/permissions": "User Permissions",
+    "/data-import": "Data Import & Synchronization",
+    "/clients-projects": "Clients & Projects Management",
+    "/categories": "Feedback Categories",
+    "/question-bank": "Question Bank",
+    "/permissions": "User Permissions & PMO Access",
+    "/audit": "System Audit Log",
+    "/results": "Survey Results & Analytics",
   };
 
   let currentTitle = titleMap[location.pathname];
@@ -16,7 +24,7 @@ export default function Topbar({ onToggleSidebar }) {
     if (location.pathname.startsWith("/projects/")) {
       currentTitle = "Project Analytics Dashboard";
     } else {
-      currentTitle = "CSAT";
+      currentTitle = "CSAT Portal";
     }
   }
 
@@ -67,6 +75,66 @@ export default function Topbar({ onToggleSidebar }) {
         >
           {currentTitle}
         </h1>
+      </div>
+
+      {/* Right: Header Role Badge and User Pill */}
+      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        {/* Prominent Header Role Badge */}
+        <div
+          id="headerRoleBadge"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "5px 12px",
+            borderRadius: "20px",
+            fontSize: "12px",
+            fontWeight: 700,
+            letterSpacing: "0.04em",
+            background: isAdmin
+              ? "linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(5, 150, 105, 0.25))"
+              : "linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(6, 182, 212, 0.25))",
+            color: isAdmin ? "#34d399" : "#60a5fa",
+            border: `1px solid ${isAdmin ? "rgba(16, 185, 129, 0.4)" : "rgba(96, 165, 250, 0.4)"}`,
+            boxShadow: isAdmin
+              ? "0 0 12px rgba(16, 185, 129, 0.15)"
+              : "0 0 12px rgba(37, 99, 235, 0.15)",
+          }}
+        >
+          <span
+            style={{
+              width: "7px",
+              height: "7px",
+              borderRadius: "50%",
+              background: isAdmin ? "#10b981" : "#3b82f6",
+              boxShadow: `0 0 6px ${isAdmin ? "#10b981" : "#3b82f6"}`,
+            }}
+          />
+          <span>{isAdmin ? "PMO ADMIN" : "PMO USER"}</span>
+        </div>
+
+        {/* User identification */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "4px 10px",
+            borderRadius: "8px",
+            background: "rgba(15, 23, 42, 0.5)",
+            border: "1px solid rgba(148, 163, 184, 0.12)",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "var(--text-main, #cbd5e1)",
+            }}
+          >
+            {user?.email || "user"}
+          </span>
+        </div>
       </div>
 
       <style>{`

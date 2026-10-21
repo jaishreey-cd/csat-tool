@@ -10,12 +10,6 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Target destination after successful authentication: direct to Create Survey
-  const redirectTarget = searchParams.get("from") || "/surveys/new";
-
-  // Feature flag: SSO with Entra ID (In development)
-  const isSsoEnabled = false;
-
   // Form states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,12 +20,14 @@ export default function LoginPage() {
   const [authError, setAuthError] = useState("");
   const [networkError, setNetworkError] = useState("");
 
-  // Redirect if already signed in
+  // Redirect if already signed in based on role
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate(redirectTarget, { replace: true });
+    if (isAuthenticated && user) {
+      const fromParam = searchParams.get("from");
+      const roleLanding = user?.role === "Admin" ? "/dashboard" : "/surveys/new";
+      navigate(fromParam || roleLanding, { replace: true });
     }
-  }, [isAuthenticated, navigate, redirectTarget]);
+  }, [isAuthenticated, user, navigate, searchParams]);
 
   // Validation rules
   const validateEmail = (val) => {
@@ -89,8 +85,9 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      await login(email.trim(), password);
-      navigate(redirectTarget, { replace: true });
+      const data = await login(email.trim(), password);
+      const roleLanding = data?.user?.role === "Admin" ? "/dashboard" : "/surveys/new";
+      navigate(searchParams.get("from") || roleLanding, { replace: true });
     } catch (err) {
       if (err?.response?.status === 403) {
         setAuthError(

@@ -25,7 +25,7 @@ csat-tool/
 │   │   ├── schemas/                  # Pydantic v2 validation DTOs (auth, client, data_sync)
 │   │   └── services/                 # auth_service, client_service, sync_service
 │   ├── scripts/
-│   │   └── seed.py                   # Idempotent seed script (admin@csat.local, reviewer@csat.local)
+│   │   └── seed.py                   # Idempotent seed script (admin@csat.local)
 │   ├── seed/
 │   │   └── clients_projects.csv      # Sample dataset (5 clients, 12 projects)
 │   ├── tests/                        # Full Pytest test suite (17 comprehensive test cases)
@@ -121,7 +121,6 @@ Frontend application will be accessible at: `http://localhost:5173`.
    - Enter invalid credentials (e.g., `user@test.com` / `password123`) to observe the generic 401 banner: *"Invalid email or password"*.
    - Log in using either seeded account:
      - **Admin**: `admin@csat.local` / `AdminPassword123!`
-     - **Reviewer**: `reviewer@csat.local` / `ReviewerPassword123!`
    - You are redirected to `/dashboard`.
 
 2. **Session Persistence**:

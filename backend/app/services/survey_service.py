@@ -13,7 +13,10 @@ from app.models.project import Project
 from app.schemas.survey import SurveyCreate
 from app.services.email_service import send_survey_invitation_email
 
-# In-memory cache for get_surveys
+from app.models.assignment import UserProjectAssignment
+from app.models.user import User
+
+# In-memory cache for get_surveys: key -> (timestamp, List[Survey])
 _surveys_cache: Dict[Tuple, Tuple[float, List]] = {}
 _SURVEYS_CACHE_TTL = 30.0
 
@@ -21,15 +24,28 @@ def invalidate_surveys_cache():
     """Clear surveys list cache upon survey creation or state mutation."""
     _surveys_cache.clear()
 
-def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Survey:
+def get_user_allowed_project_ids(db: Session, user: User) -> List[int]:
+    """Retrieve all project IDs a PMO User is permitted to access."""
+    if user.role == "Admin":
+        return []
+    assigned = db.query(UserProjectAssignment.project_id).filter(
+        UserProjectAssignment.user_id == user.id
+    ).all()
+    assigned_ids = {r[0] for r in assigned}
+    created_survey_project_ids = db.query(Survey.project_id).filter(
+        Survey.creator_id == user.id
+    ).all()
+    survey_pids = {r[0] for r in created_survey_project_ids if r[0]}
+    return list(assigned_ids | survey_pids)
+
+def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int, user: Optional[User] = None) -> Survey:
     """
     Create a new CSAT survey with strict section and question limits.
     Rules:
-      - 6 fixed sections.
-      - Each section must have between 1 and 5 questions.
-      - No section can be skipped (all 6 sections must have >= 1 question).
+      - Sections 1 to 5 must have 1 to 5 questions each.
+      - Section 6 is optional (0 to 5 questions).
       - Maximum 30 questions in total.
-      - Sections 1-5 use star ratings; Section 6 is free-text.
+      - User must be authorized for the project.
     """
     # 1. Verify Client and Project
     client = db.query(Client).filter(Client.id == survey_in.client_id, Client.is_active.is_(True)).first()
@@ -46,6 +62,16 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Project not found, archived, or does not belong to the selected client"
         )
+
+    # 1b. Record-level check: ensure user is authorized for this project
+    if user and user.role != "Admin":
+        allowed_pids = get_user_allowed_project_ids(db, user)
+        # If user has no assignments or project not in allowed, forbid access
+        if allowed_pids and project.id not in allowed_pids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You are not authorized to create surveys for this project."
+            )
 
     # 2. Validate Questions across 6 sections
     section_counts = {sec: 0 for sec in range(1, 7)}
@@ -131,11 +157,19 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
     invalidate_clients_cache()
     return survey
 
-def submit_survey_for_approval(db: Session, survey_id: int, user_id: int) -> Survey:
-    """Move survey from Draft to Pending Approval."""
+def submit_survey_for_approval(db: Session, survey_id: int, user: User) -> Survey:
+    """Move survey from Draft to Pending Approval with authorization check."""
     survey = db.query(Survey).filter(Survey.id == survey_id).first()
     if not survey:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
+
+    if user.role != "Admin":
+        allowed_pids = get_user_allowed_project_ids(db, user)
+        if survey.creator_id != user.id and (survey.project_id not in allowed_pids):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You are not authorized to modify this survey."
+            )
 
     if survey.status not in ["Draft", "Rejected"]:
         raise HTTPException(
@@ -156,9 +190,11 @@ def get_surveys(
     status_filter: Optional[str] = None,
     client_id: Optional[int] = None,
     project_id: Optional[int] = None,
+    user: Optional[User] = None,
 ) -> List[Survey]:
-    """List surveys with optional filters and eager loading to eliminate N+1 queries."""
-    cache_key = (status_filter, client_id, project_id)
+    """List surveys with optional filters and eager loading. Restricts non-Admin users to their authorized surveys."""
+    user_scope = "ADMIN" if user is None or user.role == "Admin" else f"USER_{user.id}"
+    cache_key = (status_filter, client_id, project_id, user_scope)
     now = time.time()
     if cache_key in _surveys_cache:
         cached_time, cached_data = _surveys_cache[cache_key]
@@ -166,16 +202,27 @@ def get_surveys(
             return cached_data
 
     from sqlalchemy.orm import joinedload, selectinload
+    from sqlalchemy import or_
+
     query = (
         db.query(Survey)
         .options(
             joinedload(Survey.client),
             joinedload(Survey.project),
             joinedload(Survey.creator),
-            joinedload(Survey.reviewer),
             selectinload(Survey.questions),
         )
     )
+
+    if user and user.role != "Admin":
+        allowed_pids = get_user_allowed_project_ids(db, user)
+        query = query.filter(
+            or_(
+                Survey.creator_id == user.id,
+                Survey.project_id.in_(allowed_pids) if allowed_pids else False
+            )
+        )
+
     if status_filter:
         query = query.filter(Survey.status == status_filter)
     if client_id:
@@ -199,25 +246,49 @@ from app.models.client import Client
 from app.models.project import Project
 from app.schemas.survey import SurveyCreate, PublicSurveyDetail, PublicQuestionResponse, AnswerItem
 
-def get_survey_by_id(db: Session, survey_id: int) -> Survey:
-    """Fetch single survey with joined relationships."""
+def get_survey_by_id(db: Session, survey_id: int, user: Optional[User] = None) -> Survey:
+    """Fetch single survey with joined relationships, enforcing user access control."""
     survey = db.query(Survey).filter(Survey.id == survey_id).first()
     if not survey:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
+
+    if user and user.role != "Admin":
+        allowed_pids = get_user_allowed_project_ids(db, user)
+        if survey.creator_id != user.id and (survey.project_id not in allowed_pids):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You are not authorized to view this survey."
+            )
+
     if not survey.unique_token:
         survey.unique_token = str(uuid.uuid4()).replace("-", "")
         db.commit()
         db.refresh(survey)
     return survey
 
-def dispatch_survey(db: Session, survey_id: int, client_contact_name: str, client_contact_email: str) -> Survey:
+def dispatch_survey(
+    db: Session,
+    survey_id: int,
+    client_contact_name: str,
+    client_contact_email: str,
+    user: Optional[User] = None,
+) -> Survey:
     """
     Dispatch survey to client contact.
     Generates a secure unique token for the public response URL.
+    Enforces authorization check.
     """
     survey = db.query(Survey).filter(Survey.id == survey_id).first()
     if not survey:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
+
+    if user and user.role != "Admin":
+        allowed_pids = get_user_allowed_project_ids(db, user)
+        if survey.creator_id != user.id and (survey.project_id not in allowed_pids):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You are not authorized to dispatch this survey."
+            )
 
     if not survey.unique_token:
         survey.unique_token = str(uuid.uuid4()).replace("-", "")
@@ -342,60 +413,10 @@ def submit_public_survey_response(db: Session, token: str, answers: List[AnswerI
         "average_score": survey.average_score,
     }
 
-def send_survey_response_followup(db: Session, survey_id: int, custom_message: Optional[str] = None) -> dict:
-    """Manually send a follow-up email to a client regarding their completed survey response."""
-    survey = db.query(Survey).filter(Survey.id == survey_id).first()
-    if not survey:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
-
-    if not survey.client_contact_email:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No client contact email recorded for this survey.")
-
-    from app.services.email_service import send_response_followup_email
-    result = send_response_followup_email(
-        recipient_email=survey.client_contact_email,
-        recipient_name=survey.client_contact_name or "Client Stakeholder",
-        project_name=survey.project.name if survey.project else "Project",
-        client_name=survey.client.name if survey.client else "Client",
-        phase=survey.phase,
-        average_score=survey.average_score,
-        custom_message=custom_message,
-    )
-    return result
-
-def send_survey_reminder(db: Session, survey_id: int) -> Survey:
-    """Send follow-up reminder email for an unanswered survey."""
-    survey = db.query(Survey).filter(Survey.id == survey_id).first()
-    if not survey:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
-
-    if survey.status == "Completed":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Survey has already been completed by the client.")
-
-    if not survey.client_contact_email:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Survey has not been dispatched to a client contact yet.")
-
-    from app.services.email_service import send_survey_reminder_email
-    send_survey_reminder_email(
-        recipient_email=survey.client_contact_email,
-        recipient_name=survey.client_contact_name or "Client Stakeholder",
-        survey_code=survey.survey_code,
-        project_name=survey.project.name if survey.project else "Project",
-        client_name=survey.client.name if survey.client else "Client",
-        phase=survey.phase,
-        survey_token=survey.unique_token,
-    )
-
-    survey.followup_sent_at = datetime.utcnow()
-    db.commit()
-    db.refresh(survey)
-    invalidate_surveys_cache()
-    return survey
-
-def check_and_trigger_automated_followups(db: Session, threshold_days: int = 7) -> dict:
+def check_and_trigger_automated_followups(db: Session, threshold_days: int = 15) -> dict:
     """
     Scans all pending sent surveys. If days since sent_at >= threshold_days and
-    no reminder has been sent in the last 7 days, automatically triggers a reminder.
+    no follow-up has been sent yet, automatically triggers one follow-up reminder email.
     """
     now = datetime.utcnow()
     pending_surveys = (
@@ -417,10 +438,9 @@ def check_and_trigger_automated_followups(db: Session, threshold_days: int = 7) 
 
         days_since_sent = (now - survey.sent_at).days
         if days_since_sent >= threshold_days:
+            # If a follow-up email has already been sent, do not send another.
             if survey.followup_sent_at:
-                days_since_last_followup = (now - survey.followup_sent_at).days
-                if days_since_last_followup < 7:
-                    continue
+                continue
 
             send_survey_reminder_email(
                 recipient_email=survey.client_contact_email,

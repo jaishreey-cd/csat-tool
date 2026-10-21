@@ -1,8 +1,9 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, EmailStr
 
-from app.api.deps import get_db, get_current_user
+from app.api.deps import get_db, get_current_user, require_admin
 from app.models.user import User
 from app.schemas.survey import (
     SurveyCreate,
@@ -20,10 +21,9 @@ from app.services.survey_service import (
     dispatch_survey,
     get_public_survey_by_token,
     submit_public_survey_response,
-    send_survey_reminder,
-    send_survey_response_followup,
     check_and_trigger_automated_followups,
 )
+from app.services.audit_service import log_audit_event
 
 router = APIRouter(prefix="/surveys", tags=["Surveys"])
 
@@ -36,8 +36,19 @@ def create_new_survey(
     """
     Create a new CSAT survey with selected questions across 6 sections.
     Status starts in 'Draft' / 'Ready'.
+    Enforces record-level authorization and section limits for all users.
     """
-    return create_survey(db, survey_in, creator_id=current_user.id)
+    survey = create_survey(db, survey_in, creator_id=current_user.id, user=current_user)
+    log_audit_event(
+        db=db,
+        user_id=current_user.id,
+        actor_email=current_user.email,
+        action="CREATE_SURVEY",
+        resource_type="SURVEY",
+        resource_id=survey.id,
+        details=f"Created survey {survey.survey_code} for project #{survey.project_id}",
+    )
+    return survey
 
 @router.get("", response_model=SurveyListResponse)
 def list_all_surveys(
@@ -47,28 +58,27 @@ def list_all_surveys(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List all surveys with optional filters."""
-    surveys = get_surveys(db, status_filter=status, client_id=client_id, project_id=project_id)
+    """List surveys. Admins view all; Users view only authorized surveys."""
+    surveys = get_surveys(db, status_filter=status, client_id=client_id, project_id=project_id, user=current_user)
     return SurveyListResponse(surveys=surveys, total=len(surveys))
+
+class TestEmailRequest(BaseModel):
+    recipient_email: EmailStr
 
 @router.get("/email-status")
 def get_email_service_status(
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
 ):
-    """Check connectivity and configuration status of the SMTP email dispatch service."""
+    """Check connectivity and configuration status of the SMTP email dispatch service (Admin only)."""
     from app.services.email_service import verify_smtp_status
     return verify_smtp_status()
-
-from pydantic import BaseModel, EmailStr
-class TestEmailRequest(BaseModel):
-    recipient_email: EmailStr
 
 @router.post("/test-email")
 def trigger_diagnostic_test_email(
     payload: TestEmailRequest,
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
 ):
-    """Send a test email to verify live delivery to recipient."""
+    """Send a test email to verify live delivery to recipient (Admin only)."""
     from app.services.email_service import send_test_email
     return send_test_email(recipient_email=payload.recipient_email)
 
@@ -78,8 +88,8 @@ def get_survey_details(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get single survey with its configured questions."""
-    return get_survey_by_id(db, survey_id)
+    """Get single survey with its configured questions. Enforces record-level authorization."""
+    return get_survey_by_id(db, survey_id, user=current_user)
 
 @router.post("/{survey_id}/submit-approval", response_model=SurveyResponse)
 def submit_survey(
@@ -87,8 +97,8 @@ def submit_survey(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Submit a survey for review."""
-    return submit_survey_for_approval(db, survey_id, user_id=current_user.id)
+    """Submit a survey for review. Enforces record-level authorization."""
+    return submit_survey_for_approval(db, survey_id, user=current_user)
 
 @router.post("/{survey_id}/dispatch", response_model=SurveyResponse)
 def dispatch_survey_to_client(
@@ -97,47 +107,33 @@ def dispatch_survey_to_client(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Dispatch survey to client contact and generate unique link."""
-    return dispatch_survey(
+    """Dispatch survey to client contact and generate unique link. Enforces record-level authorization."""
+    survey = dispatch_survey(
         db,
         survey_id=survey_id,
         client_contact_name=dispatch_in.client_contact_name,
         client_contact_email=dispatch_in.client_contact_email,
+        user=current_user,
     )
-
-@router.post("/{survey_id}/remind", response_model=SurveyResponse)
-def remind_survey_client(
-    survey_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Send on-demand reminder email to client contact for a pending survey."""
-    return send_survey_reminder(db, survey_id=survey_id)
-
-class FollowupRequest(BaseModel):
-    message: Optional[str] = None
-
-@router.post("/{survey_id}/response-followup")
-def follow_up_survey_response(
-    survey_id: int,
-    payload: FollowupRequest = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Send a dedicated follow-up email acknowledging and discussing client survey responses."""
-    msg = payload.message if payload else None
-    return send_survey_response_followup(db, survey_id=survey_id, custom_message=msg)
-
+    log_audit_event(
+        db=db,
+        user_id=current_user.id,
+        actor_email=current_user.email,
+        action="DISPATCH_SURVEY",
+        resource_type="SURVEY",
+        resource_id=survey.id,
+        details=f"Dispatched survey {survey.survey_code} to {dispatch_in.client_contact_email}",
+    )
+    return survey
 
 @router.post("/check-followups")
 def trigger_automated_followups(
-    threshold_days: int = Query(7, description="Minimum days pending before reminder is sent"),
-    current_user: User = Depends(get_current_user),
+    threshold_days: int = Query(15, description="Minimum days pending before reminder is sent"),
+    admin_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """
-    Automated job / trigger endpoint to scan all pending sent surveys and
-    dispatch follow-up reminders to client contacts past the threshold days.
+    Scan all pending sent surveys and dispatch follow-up reminders past threshold days (Admin only).
     """
     return check_and_trigger_automated_followups(db, threshold_days=threshold_days)
 

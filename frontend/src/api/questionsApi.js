@@ -35,6 +35,14 @@ export const questionsApi = {
   },
 
   /**
+   * Toggle question active/inactive.
+   */
+  toggleQuestion: async (id) => {
+    const res = await axiosClient.patch(`/questions/${id}/toggle`);
+    return res.data;
+  },
+
+  /**
    * Permanently delete question from database.
    */
   deleteQuestion: async (id) => {

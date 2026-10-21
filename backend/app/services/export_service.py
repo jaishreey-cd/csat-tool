@@ -1,6 +1,7 @@
 import io
 import csv
-from typing import Optional, Tuple
+import re
+from typing import Optional, Tuple, Any
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 import openpyxl
@@ -12,6 +13,17 @@ from app.models.client import Client
 from app.models.survey import Survey
 from app.services.analytics_service import get_project_analytics, get_system_overview, SECTION_TITLES
 from app.services.survey_service import get_surveys
+
+def sanitize_filename(name: str) -> str:
+    """
+    Sanitize a project name to be safe for filenames across Windows/Linux/macOS.
+    Removes invalid characters: / \ : * ? " < > | and strips whitespace/dots.
+    """
+    if not name:
+        return "Survey_Export"
+    cleaned = re.sub(r'[\\/*?:"<>|]', '_', str(name))
+    cleaned = re.sub(r'[\r\n\t]+', ' ', cleaned).strip('. ')
+    return cleaned or "Survey_Export"
 
 # ── Styling Constants for XLSX ──────────────────────────────────────────────
 HEADER_FILL = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
@@ -230,7 +242,7 @@ def export_project_analytics(db: Session, project_id: int, format: str = "csv") 
             ])
 
         content = output.getvalue().encode("utf-8")
-        filename = f"{safe_code}_CSAT_Report.csv"
+        filename = f"{sanitize_filename(analytics.project_name)}.csv"
         return content, filename, "text/csv"
 
 # ── Surveys Registry Export ─────────────────────────────────────────────────
@@ -240,15 +252,33 @@ def export_surveys_registry(
     client_id: Optional[int] = None,
     project_id: Optional[int] = None,
     survey_id: Optional[int] = None,
-    format: str = "csv"
+    format: str = "csv",
+    user: Optional[Any] = None,
 ) -> Tuple[bytes, str, str]:
     """
     Exports all or filtered surveys from the surveys registry.
     Returns: (file_bytes, filename, media_type)
     """
-    surveys = get_surveys(db, status_filter=status_filter, client_id=client_id, project_id=project_id)
+    surveys = get_surveys(db, status_filter=status_filter, client_id=client_id, project_id=project_id, user=user)
+    target_project_name = None
     if survey_id is not None:
         surveys = [s for s in surveys if s.id == survey_id]
+        if surveys and surveys[0].project and surveys[0].project.name:
+            target_project_name = surveys[0].project.name
+    elif project_id is not None:
+        proj = db.query(Project).filter(Project.id == project_id).first()
+        if proj and proj.name:
+            target_project_name = proj.name
+    elif len(surveys) == 1 and surveys[0].project and surveys[0].project.name:
+        target_project_name = surveys[0].project.name
+
+    if target_project_name:
+        clean_name = sanitize_filename(target_project_name)
+        csv_filename = f"{clean_name}.csv"
+        xlsx_filename = f"{clean_name}.xlsx"
+    else:
+        csv_filename = "CSAT_Surveys_Registry.csv"
+        xlsx_filename = "CSAT_Surveys_Registry.xlsx"
 
     headers = [
         "Client Name",
@@ -298,7 +328,7 @@ def export_surveys_registry(
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
-        return output.getvalue(), "CSAT_Surveys_Registry.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        return output.getvalue(), xlsx_filename, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
     else:
         output = io.StringIO()
@@ -320,7 +350,7 @@ def export_surveys_registry(
                 s.followup_sent_at.strftime("%Y-%m-%d %H:%M") if s.followup_sent_at else "-",
             ])
 
-        return output.getvalue().encode("utf-8"), "CSAT_Surveys_Registry.csv", "text/csv"
+        return output.getvalue().encode("utf-8"), csv_filename, "text/csv"
 
 # ── Portfolio Overview Export ───────────────────────────────────────────────
 def export_portfolio_overview(db: Session, format: str = "csv") -> Tuple[bytes, str, str]:

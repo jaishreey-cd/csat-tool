@@ -47,6 +47,26 @@ export const authApi = {
     });
     return res.data;
   },
+
+  /** Get user project assignments */
+  getAssignments: async (userId) => {
+    const res = await axiosClient.get(`/auth/users/${userId}/assignments`);
+    return res.data;
+  },
+
+  /** Set user project assignments (Admin) */
+  setAssignments: async (userId, projectIds) => {
+    const res = await axiosClient.put(`/auth/users/${userId}/assignments`, {
+      project_ids: projectIds,
+    });
+    return res.data;
+  },
+
+  /** Delete user (Admin) */
+  deleteUser: async (userId) => {
+    const res = await axiosClient.delete(`/auth/users/${userId}`);
+    return res.data;
+  },
 };
 
 export default authApi;

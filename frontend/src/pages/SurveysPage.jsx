@@ -2,7 +2,10 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import surveysApi from "../api/surveysApi";
 import clientsApi from "../api/clientsApi";
-import analyticsApi from "../api/analyticsApi";
+import authApi from "../api/authApi";
+import dataSyncApi from "../api/dataSyncApi";
+import analyticsApi, { sanitizeFilename } from "../api/analyticsApi";
+import { useAuth } from "../context/AuthContext";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
 import Input from "../components/Input";
@@ -11,7 +14,23 @@ import Spinner from "../components/Spinner";
 import Toast from "../components/Toast";
 import { SURVEY_PHASES } from "../data/questionBank";
 
+const getSurveyStatus = (survey) => {
+  if (survey.status === "Completed") {
+    return { key: "Completed", label: "Completed", variant: "success" };
+  }
+  if (survey.followup_sent_at) {
+    return { key: "Follow-up Sent", label: "Follow-up Sent", variant: "warning" };
+  }
+  const sentTime = survey.sent_at ? new Date(survey.sent_at).getTime() : new Date(survey.created_at).getTime();
+  const hoursSince = (Date.now() - sentTime) / (1000 * 60 * 60);
+  if (hoursSince < 24) {
+    return { key: "Dispatched", label: "Dispatched", variant: "info" };
+  }
+  return { key: "Awaiting Response", label: "Awaiting Response", variant: "info" };
+};
+
 export default function SurveysPage() {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const cachedSurveys = surveysApi.getCachedSurveys();
   const cachedClients = clientsApi.getCachedClients();
@@ -26,14 +45,30 @@ export default function SurveysPage() {
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [selectedClientFilter, setSelectedClientFilter] = useState("ALL");
 
-  // Response Follow-up Modal State
-  const [followupModalSurvey, setFollowupModalSurvey] = useState(null);
-  const [followupMessage, setFollowupMessage] = useState("");
-  const [sendingFollowup, setSendingFollowup] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "info" });
+  const [copiedSurveyId, setCopiedSurveyId] = useState(null);
 
   // Export state per survey
   const [exportingSurveyId, setExportingSurveyId] = useState(null);
+
+  const isAdmin = user?.role === "Admin";
+  const [adminSummary, setAdminSummary] = useState({ pmoActive: 0, pmoMax: 3, lastImport: null });
+
+  useEffect(() => {
+    if (isAdmin) {
+      authApi.getUsers().then((res) => {
+        const pmos = (res || []).filter((u) => u.email.toLowerCase() !== "admin@csat.local");
+        const active = pmos.filter((u) => u.is_active).length;
+        setAdminSummary((prev) => ({ ...prev, pmoActive: active }));
+      }).catch(() => {});
+
+      dataSyncApi.getImports().then((res) => {
+        if (res && res.length > 0) {
+          setAdminSummary((prev) => ({ ...prev, lastImport: res[0] }));
+        }
+      }).catch(() => {});
+    }
+  }, [isAdmin]);
 
   // Fetch surveys and clients independently
   const fetchSurveys = async (force = false) => {
@@ -73,13 +108,16 @@ export default function SurveysPage() {
     fetchSurveys();
   }, []);
 
-  // Handle Export per individual survey
-  const handleExportSingleSurvey = async (survey, format = "xlsx") => {
+  // Handle Export per individual survey (CSV format named <projectName>.csv)
+  const handleExportSingleSurvey = async (survey, format = "csv") => {
     setExportingSurveyId(survey.id);
+    const projectName = survey.project?.name || "Survey";
+    const safeName = sanitizeFilename(projectName);
+    const downloadFilename = `${safeName}.csv`;
     try {
-      await analyticsApi.exportSurveysRegistry({ survey_id: survey.id }, format);
+      await analyticsApi.exportSurveysRegistry({ survey_id: survey.id }, "csv", downloadFilename);
       setToast({
-        message: `Successfully exported survey for ${survey.project?.name || "Project"} (${format.toUpperCase()})`,
+        message: `Successfully exported survey as ${downloadFilename}`,
         type: "success",
       });
     } catch (err) {
@@ -90,27 +128,26 @@ export default function SurveysPage() {
     }
   };
 
-  // Follow-up modal
-  const openFollowupModal = (survey) => {
-    setFollowupModalSurvey(survey);
-    setFollowupMessage(
-      `Dear ${survey.client_contact_name || "Client"},\n\nThank you for submitting your evaluation for ${survey.project?.name || "our engagement"} (${survey.phase}).\n\nOur delivery team has reviewed your feedback and is taking action on the insights provided.\n\nWarm regards,\nPMO Team`
-    );
-  };
-
-  const handleSendFollowup = async () => {
-    if (!followupModalSurvey) return;
-    setSendingFollowup(true);
+  // Copy full survey response URL to clipboard
+  const handleCopySurveyUrl = async (survey) => {
+    const fullUrl = `${window.location.origin}/s/${survey.unique_token}`;
     try {
-      await surveysApi.sendResponseFollowup(followupModalSurvey.id, followupMessage);
-      setToast({ message: "Response follow-up email sent successfully!", type: "success" });
-      setFollowupModalSurvey(null);
-      fetchSurveys(true);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(fullUrl);
+      } else {
+        const input = document.createElement("input");
+        input.value = fullUrl;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        document.body.removeChild(input);
+      }
+      setCopiedSurveyId(survey.id);
+      setTimeout(() => setCopiedSurveyId(null), 2500);
+      setToast({ message: "Survey link copied to clipboard!", type: "success" });
     } catch (err) {
-      console.error("Failed to send follow-up:", err);
-      setToast({ message: "Failed to send follow-up email. Please check network.", type: "danger" });
-    } finally {
-      setSendingFollowup(false);
+      console.error("Failed to copy link:", err);
+      setToast({ message: "Unable to copy link to clipboard.", type: "danger" });
     }
   };
 
@@ -139,8 +176,11 @@ export default function SurveysPage() {
   // Filtered surveys
   const filteredSurveys = useMemo(() => {
     return activeSurveys.filter((s) => {
-      if (selectedStatus !== "ALL" && s.status !== selectedStatus) {
-        return false;
+      if (selectedStatus !== "ALL") {
+        const sStatus = getSurveyStatus(s);
+        if (sStatus.key !== selectedStatus) {
+          return false;
+        }
       }
       if (selectedPhase !== "ALL" && s.phase !== selectedPhase) {
         return false;
@@ -276,6 +316,103 @@ export default function SurveysPage() {
         </div>
       </div>
 
+      {/* Admin Oversight Widgets: Data Import Status & PMO Access Summary */}
+      {isAdmin && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px" }}>
+          {/* Data Import Status Widget */}
+          <div
+            style={{
+              background: "var(--bg-surface, #0d1b2a)",
+              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
+              borderRadius: "12px",
+              padding: "18px 22px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase" }}>
+                Data Import & Sync Status
+              </div>
+              <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", marginTop: "4px" }}>
+                {adminSummary.lastImport ? (
+                  <span>
+                    Latest: {adminSummary.lastImport.filename}{" "}
+                    <span style={{ fontSize: "12px", color: "#34d399", fontWeight: 600 }}>({adminSummary.lastImport.status})</span>
+                  </span>
+                ) : (
+                  <span>No dataset uploaded yet</span>
+                )}
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", marginTop: "2px" }}>
+                {adminSummary.lastImport
+                  ? `Uploaded on ${new Date(adminSummary.lastImport.uploaded_at).toLocaleDateString()}`
+                  : "Upload datasets to refresh clients & projects portfolio"}
+              </div>
+            </div>
+            <Link to="/data-import">
+              <Button size="sm" variant="secondary">Import Data →</Button>
+            </Link>
+          </div>
+
+          {/* PMO Access Summary Widget */}
+          <div
+            style={{
+              background: "var(--bg-surface, #0d1b2a)",
+              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
+              borderRadius: "12px",
+              padding: "18px 22px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase" }}>
+                PMO User Access Summary
+              </div>
+              <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", marginTop: "4px" }}>
+                {adminSummary.pmoActive} of {adminSummary.pmoMax} PMO Seats Active
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", marginTop: "2px" }}>
+                Manage team authorizations and project allocations
+              </div>
+            </div>
+            <Link to="/permissions">
+              <Button size="sm" variant="secondary">Permissions →</Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* User Workspace Quick Actions Banner */}
+      {!isAdmin && (
+        <div
+          style={{
+            background: "linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(6, 182, 212, 0.12))",
+            border: "1px solid rgba(96, 165, 250, 0.25)",
+            borderRadius: "12px",
+            padding: "18px 22px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)" }}>
+              Ready to gather client feedback?
+            </div>
+            <div style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", marginTop: "2px" }}>
+              Configure and dispatch a CSAT survey for your assigned clients and projects.
+            </div>
+          </div>
+          <Link to="/surveys/new">
+            <Button size="md" variant="primary">+ Create Survey</Button>
+          </Link>
+        </div>
+      )}
+
       {/* Filter and Search Bar */}
       <div
         style={{
@@ -298,14 +435,16 @@ export default function SurveysPage() {
           />
         </div>
 
-        <div style={{ width: "160px" }}>
+        <div style={{ width: "175px" }}>
           <Select
             id="statusFilter"
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
             options={[
               { value: "ALL", label: "All Statuses" },
-              { value: "Sent", label: "Dispatched" },
+              { value: "Dispatched", label: "Dispatched" },
+              { value: "Awaiting Response", label: "Awaiting Response" },
+              { value: "Follow-up Sent", label: "Follow-up Sent" },
               { value: "Completed", label: "Completed" },
             ]}
           />
@@ -416,9 +555,11 @@ export default function SurveysPage() {
               </thead>
               <tbody>
                 {filteredSurveys.map((survey) => {
-                  const isSent = survey.status === "Sent";
                   const isCompleted = survey.status === "Completed";
                   const isExportingThis = exportingSurveyId === survey.id;
+                  const surveyStatus = getSurveyStatus(survey);
+                  const fullUrl = `${window.location.origin}/s/${survey.unique_token}`;
+                  const shortDisplayUrl = `.../s/${survey.unique_token.substring(0, 8)}...`;
 
                   return (
                     <tr
@@ -430,29 +571,35 @@ export default function SurveysPage() {
                       onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(14, 30, 50, 0.45)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
-                      {/* Client & Project with link to inside project analytics */}
+                      {/* Client & Project with role-guarded link to inside project analytics */}
                       <td style={{ padding: "14px 18px" }}>
                         <div style={{ fontWeight: 600, color: "var(--text-white, #ffffff)" }}>
                           {survey.client?.name || "Client"}
                         </div>
                         {survey.project ? (
-                          <Link
-                            to={`/projects/${survey.project.id}`}
-                            style={{
-                              fontSize: "12px",
-                              color: "var(--primary-lt, #60a5fa)",
-                              marginTop: "2px",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              textDecoration: "none",
-                              fontWeight: 500,
-                            }}
-                            title="View project analytics dashboard"
-                          >
-                            <span>{survey.project.name}</span>
-                            <span style={{ fontSize: "10px" }}>↗</span>
-                          </Link>
+                          user?.role === "Admin" ? (
+                            <Link
+                              to={`/projects/${survey.project.id}`}
+                              style={{
+                                fontSize: "12px",
+                                color: "var(--primary-lt, #60a5fa)",
+                                marginTop: "2px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                textDecoration: "none",
+                                fontWeight: 500,
+                              }}
+                              title="View project analytics dashboard"
+                            >
+                              <span>{survey.project.name}</span>
+                              <span style={{ fontSize: "10px" }}>↗</span>
+                            </Link>
+                          ) : (
+                            <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", marginTop: "2px" }}>
+                              {survey.project.name}
+                            </div>
+                          )
                         ) : (
                           <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)" }}>—</div>
                         )}
@@ -463,16 +610,11 @@ export default function SurveysPage() {
                         <Badge variant="count">{survey.phase}</Badge>
                       </td>
 
-                      {/* Status */}
+                      {/* Single Unified Status */}
                       <td style={{ padding: "14px 18px" }}>
-                        {isSent && (
-                          <Badge variant="info">
-                            Dispatched
-                          </Badge>
-                        )}
-                        {isCompleted && (
-                          <Badge variant="success">Completed</Badge>
-                        )}
+                        <Badge variant={surveyStatus.variant}>
+                          {surveyStatus.label}
+                        </Badge>
                       </td>
 
                       {/* Client Contact */}
@@ -510,37 +652,107 @@ export default function SurveysPage() {
                             </span>
                           </div>
                         ) : (
-                          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
-                            Awaiting response
+                          <span style={{ fontSize: "13px", color: "var(--text-dim, #64748b)" }}>
+                            —
                           </span>
                         )}
                       </td>
 
-                      {/* Actions: Export Survey & Follow-up */}
+                      {/* Actions: Shortened URL Link with copy/open + Matching Export CSV Button */}
                       <td style={{ padding: "14px 18px", textAlign: "right" }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
-                          {/* Export Button inside every survey row */}
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", justifyContent: "flex-end" }}>
+                          {/* Truncated URL with tooltip hover, copy and open actions */}
+                          <div
+                            title={fullUrl}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              background: "rgba(10, 22, 40, 0.7)",
+                              border: "1px solid rgba(96, 165, 250, 0.2)",
+                              borderRadius: "6px",
+                              padding: "4px 8px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontFamily: "monospace",
+                                fontSize: "11px",
+                                color: "#93c5fd",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {shortDisplayUrl}
+                            </span>
+
+                            {/* Copy full URL */}
+                            <button
+                              type="button"
+                              onClick={() => handleCopySurveyUrl(survey)}
+                              title={`Copy full URL: ${fullUrl}`}
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: copiedSurveyId === survey.id ? "#34d399" : "#60a5fa",
+                                cursor: "pointer",
+                                padding: "2px",
+                                display: "flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              {copiedSurveyId === survey.id ? (
+                                <span style={{ fontSize: "11px", fontWeight: 700, color: "#34d399" }}>✓</span>
+                              ) : (
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                              )}
+                            </button>
+
+                            {/* Open in new tab */}
+                            <a
+                              href={fullUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Open client response form in new tab"
+                              style={{
+                                color: "#94a3b8",
+                                display: "flex",
+                                alignItems: "center",
+                                textDecoration: "none",
+                                padding: "2px",
+                              }}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                              </svg>
+                            </a>
+                          </div>
+
+                          {/* Redesigned Export CSV Button */}
                           <Button
                             variant="secondary"
                             size="sm"
                             disabled={isExportingThis}
-                            onClick={() => handleExportSingleSurvey(survey, "xlsx")}
-                            title="Export survey data to Excel"
+                            onClick={() => handleExportSingleSurvey(survey, "csv")}
+                            title={`Export survey results for ${survey.project?.name || "Project"} as CSV`}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              whiteSpace: "nowrap",
+                            }}
                           >
-                            {isExportingThis ? "Exporting..." : "📥 Export"}
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                              <polyline points="7 10 12 15 17 10"></polyline>
+                              <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            <span>{isExportingThis ? "Exporting..." : "Export CSV"}</span>
                           </Button>
-
-                          {/* Follow-up email for completed surveys */}
-                          {isCompleted && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openFollowupModal(survey)}
-                              title="Send follow-up response email to client stakeholder"
-                            >
-                              ✉ Follow-up
-                            </Button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -551,82 +763,6 @@ export default function SurveysPage() {
           </div>
         )}
       </div>
-
-      {/* Response Follow-up Modal */}
-      {followupModalSurvey && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.75)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-            padding: "20px",
-          }}
-          onClick={() => setFollowupModalSurvey(null)}
-        >
-          <div
-            style={{
-              background: "#0d1b2a",
-              border: "1px solid rgba(96, 165, 250, 0.3)",
-              borderRadius: "12px",
-              padding: "26px",
-              maxWidth: "600px",
-              width: "100%",
-              boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-              <h3 style={{ color: "#ffffff", margin: 0, fontSize: "17px", fontWeight: 700 }}>
-                Send Follow-up Email
-              </h3>
-              <button
-                type="button"
-                onClick={() => setFollowupModalSurvey(null)}
-                style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}
-              >
-                &times;
-              </button>
-            </div>
-
-            <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 16px 0", lineHeight: 1.5 }}>
-              Send an acknowledgment email to <strong>{followupModalSurvey.client_contact_name}</strong> ({followupModalSurvey.client_contact_email}) regarding their {followupModalSurvey.phase} evaluation.
-            </p>
-
-            <textarea
-              value={followupMessage}
-              onChange={(e) => setFollowupMessage(e.target.value)}
-              rows={8}
-              style={{
-                width: "100%",
-                background: "rgba(10, 22, 40, 0.8)",
-                border: "1px solid rgba(96, 165, 250, 0.3)",
-                borderRadius: "8px",
-                color: "#e2e8f0",
-                fontSize: "13px",
-                padding: "12px",
-                outline: "none",
-                fontFamily: "inherit",
-                resize: "vertical",
-                boxSizing: "border-box",
-                marginBottom: "18px",
-              }}
-            />
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <Button variant="ghost" size="sm" onClick={() => setFollowupModalSurvey(null)}>
-                Cancel
-              </Button>
-              <Button variant="primary" size="sm" disabled={sendingFollowup} onClick={handleSendFollowup}>
-                {sendingFollowup ? "Sending..." : "Send Follow-up"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -16,7 +16,7 @@ from app.services.sync_service import confirm_sync
 
 def seed():
     """
-    Idempotently seed default admin user, reviewer user, and initial clients/projects dataset.
+    Idempotently seed default admin user and initial clients/projects dataset.
     Never logs or returns password hashes.
     """
     db = SessionLocal()
@@ -31,38 +31,26 @@ def seed():
                 email=admin_email,
                 full_name="Admin User",
                 hashed_password=hash_password(admin_password),
+                role="Admin",
                 is_active=True
             )
             db.add(admin_user)
             db.commit()
             db.refresh(admin_user)
-            print(f"[SEED] Created admin user: {admin_email}")
+            print(f"[SEED] Created initial admin user: {admin_email}")
         else:
-            # Update password hash if needed
+            admin_user.role = "Admin"
             admin_user.hashed_password = hash_password(admin_password)
             db.commit()
-            print(f"[SEED] Admin user verified: {admin_email}")
+            print(f"[SEED] Initial admin user verified: {admin_email}")
 
-        # 2. Seed Reviewer User (Maker-Checker workflow)
-        reviewer_email = settings.SEED_REVIEWER_EMAIL.strip().lower()
-        reviewer_password = settings.SEED_REVIEWER_PASSWORD
-        reviewer_user = db.query(User).filter(User.email == reviewer_email).first()
-
-        if not reviewer_user:
-            reviewer_user = User(
-                email=reviewer_email,
-                full_name="Reviewer User",
-                hashed_password=hash_password(reviewer_password),
-                is_active=True
-            )
-            db.add(reviewer_user)
+        # 2. Remove Reviewer user (Reviewer concept eliminated)
+        legacy_reviewers = db.query(User).filter(User.email.in_(["reviewer@csat.local"])).all()
+        for lr in legacy_reviewers:
+            db.delete(lr)
+        if legacy_reviewers:
             db.commit()
-            db.refresh(reviewer_user)
-            print(f"[SEED] Created reviewer user: {reviewer_email}")
-        else:
-            reviewer_user.hashed_password = hash_password(reviewer_password)
-            db.commit()
-            print(f"[SEED] Reviewer user verified: {reviewer_email}")
+            print("[SEED] Removed legacy reviewer account (reviewer@csat.local)")
 
         # 3. Soft-archive legacy dummy test data (CL-1001 to CL-1005) if present
         dummy_clients = db.query(Client).filter(
