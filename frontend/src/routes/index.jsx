@@ -5,6 +5,8 @@ import LoginPage from "../pages/LoginPage";
 import CreateSurveyPage from "../pages/CreateSurveyPage";
 import SurveysPage from "../pages/SurveysPage";
 import PermissionsPage from "../pages/PermissionsPage";
+import QuestionsPage from "../pages/QuestionsPage";
+import UserResultsPage from "../pages/UserResultsPage";
 import ProjectAnalyticsPage from "../pages/ProjectAnalyticsPage";
 import PublicSurveyPage from "../pages/PublicSurveyPage";
 import NotFoundPage from "../pages/NotFoundPage";
@@ -37,6 +39,17 @@ export default function AppRoutes() {
         <Route path="/dashboard" element={<SurveysPage />} />
         <Route path="/surveys" element={<Navigate to="/dashboard" replace />} />
 
+        {/* Question Bank Route (Admin Only) */}
+        <Route
+          path="/question-bank"
+          element={
+            <ProtectedRoute requiredRole="Admin">
+              <QuestionsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/questions" element={<Navigate to="/question-bank" replace />} />
+
         {/* Permissions & User Access Route (Admin Only) */}
         <Route
           path="/permissions"
@@ -46,6 +59,9 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        {/* User Survey Results Route */}
+        <Route path="/results" element={<UserResultsPage />} />
 
         {/* Inside Project Analytics Dashboard (Admin Only) */}
         <Route

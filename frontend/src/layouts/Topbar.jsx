@@ -7,7 +7,10 @@ export default function Topbar({ onToggleSidebar }) {
     "/dashboard": "CSAT Dashboard",
     "/surveys/new": "Create Survey",
     "/surveys": "CSAT Dashboard",
+    "/question-bank": "Question Bank",
+    "/questions": "Question Bank",
     "/permissions": "User Permissions",
+    "/results": "Survey Results",
   };
 
   let currentTitle = titleMap[location.pathname];

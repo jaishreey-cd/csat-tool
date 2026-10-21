@@ -27,14 +27,33 @@ const triggerDownload = (response, defaultFilename) => {
   window.URL.revokeObjectURL(url);
 };
 
+const _projectAnalyticsCache = new Map();
+const CACHE_TTL_MS = 60 * 1000;
+
 const analyticsApi = {
+  getCachedProjectAnalytics: (projectId) => {
+    const entry = _projectAnalyticsCache.get(String(projectId));
+    if (entry && Date.now() - entry.timestamp < CACHE_TTL_MS) {
+      return entry.data;
+    }
+    return null;
+  },
+
   getSystemOverview: async () => {
     const response = await axiosClient.get("/analytics/overview");
     return response.data;
   },
 
-  getProjectAnalytics: async (projectId) => {
+  getProjectAnalytics: async (projectId, forceRefresh = false) => {
+    const key = String(projectId);
+    if (!forceRefresh) {
+      const entry = _projectAnalyticsCache.get(key);
+      if (entry && Date.now() - entry.timestamp < CACHE_TTL_MS) {
+        return entry.data;
+      }
+    }
     const response = await axiosClient.get(`/analytics/projects/${projectId}`);
+    _projectAnalyticsCache.set(key, { data: response.data, timestamp: Date.now() });
     return response.data;
   },
 

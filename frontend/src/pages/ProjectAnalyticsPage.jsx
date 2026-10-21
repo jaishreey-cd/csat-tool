@@ -11,8 +11,9 @@ export default function ProjectAnalyticsPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const cachedData = analyticsApi.getCachedProjectAnalytics(projectId);
+  const [data, setData] = useState(() => cachedData);
+  const [loading, setLoading] = useState(() => !cachedData);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("phases"); // 'phases' | 'overview' | 'feedback' | 'timeline'
   const [commentSearch, setCommentSearch] = useState("");
@@ -32,14 +33,19 @@ export default function ProjectAnalyticsPage() {
     }
   };
 
-  const fetchAnalytics = async () => {
-    setLoading(true);
+  const fetchAnalytics = async (force = false) => {
+    const cached = analyticsApi.getCachedProjectAnalytics(projectId);
+    if (!cached || force) {
+      setLoading(true);
+    }
     setError("");
     try {
-      const res = await analyticsApi.getProjectAnalytics(projectId);
+      const res = await analyticsApi.getProjectAnalytics(projectId, force);
       setData(res);
     } catch (err) {
-      setError(err?.response?.data?.detail || "Failed to load project analytics.");
+      if (!data) {
+        setError(err?.response?.data?.detail || "Failed to load project analytics.");
+      }
     } finally {
       setLoading(false);
     }

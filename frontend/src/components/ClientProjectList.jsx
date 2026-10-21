@@ -402,7 +402,7 @@ export default function ClientProjectList({
                         <div
                           style={{
                             display: "grid",
-                            gridTemplateColumns: "minmax(200px, 2fr) 120px 140px 130px 110px",
+                            gridTemplateColumns: "minmax(220px, 2.5fr) 140px 130px 110px",
                             gap: "14px",
                             padding: "12px 20px",
                             background: "rgba(15, 23, 42, 0.85)",
@@ -415,7 +415,6 @@ export default function ClientProjectList({
                           }}
                         >
                           <span>Project</span>
-                          <span>Project Code</span>
                           <span>Status</span>
                           <span>Phases</span>
                           <span style={{ textAlign: "right" }}>Action</span>
@@ -435,8 +434,7 @@ export default function ClientProjectList({
                           const qLower = searchQuery?.trim().toLowerCase();
                           const isMatchedBySearch =
                             Boolean(qLower) &&
-                            (proj.name?.toLowerCase().includes(qLower) ||
-                              proj.project_code?.toLowerCase().includes(qLower));
+                            proj.name?.toLowerCase().includes(qLower);
 
                           return (
                             <div
@@ -444,7 +442,7 @@ export default function ClientProjectList({
                               className="project-directory-row"
                               style={{
                                 display: "grid",
-                                gridTemplateColumns: "minmax(200px, 2fr) 120px 140px 130px 110px",
+                                gridTemplateColumns: "minmax(220px, 2.5fr) 140px 130px 110px",
                                 gap: "14px",
                                 alignItems: "center",
                                 padding: "13px 20px",
@@ -494,23 +492,6 @@ export default function ClientProjectList({
                                 )}
                               </div>
 
-                              {/* Project Code */}
-                              <div>
-                                <code
-                                  style={{
-                                    color: "var(--accent, #06b6d4)",
-                                    fontSize: "11px",
-                                    fontWeight: 600,
-                                    background: "rgba(6, 182, 212, 0.1)",
-                                    border: "1px solid rgba(6, 182, 212, 0.25)",
-                                    padding: "3px 8px",
-                                    borderRadius: "4px",
-                                  }}
-                                >
-                                  {proj.project_code}
-                                </code>
-                              </div>
-
                               {/* Accurate Status Badge */}
                               <div>{renderStatusBadge(projectStatus)}</div>
 
@@ -537,7 +518,7 @@ export default function ClientProjectList({
                               <div style={{ textAlign: "right" }}>
                                 {hasSurvey ? (
                                   <Link
-                                    to={`/surveys?search=${encodeURIComponent(proj.project_code)}`}
+                                    to={`/surveys?search=${encodeURIComponent(proj.name)}`}
                                     onClick={(e) => e.stopPropagation()}
                                     style={{ textDecoration: "none" }}
                                   >

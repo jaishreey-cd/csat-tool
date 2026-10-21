@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import questionsApi from "../api/questionsApi";
 import Button from "../components/Button";
+import Spinner from "../components/Spinner";
 
 const SECTIONS = [
   { num: 1, title: "Project Management & Communication" },
@@ -17,6 +18,15 @@ const ALL_PHASES = [
   "Quarterly",
   "Closure",
 ];
+
+const parsePhases = (val) => {
+  if (Array.isArray(val)) return val;
+  if (!val || val === "ALL") return [...ALL_PHASES];
+  if (typeof val === "string") {
+    return val.split(",").map((p) => p.trim()).filter(Boolean);
+  }
+  return [...ALL_PHASES];
+};
 
 export default function QuestionsPage() {
   const [questions, setQuestions] = useState([]);
@@ -41,26 +51,41 @@ export default function QuestionsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async (force = false) => {
+    const params = {};
+    if (selectedSection !== "ALL") params.section = Number(selectedSection);
+    if (selectedPhase !== "ALL") params.phase = selectedPhase;
+
+    // Instant cached render
+    if (!force) {
+      const cached = questionsApi.getCachedQuestions(params);
+      if (cached) {
+        setQuestions(cached.questions || []);
+        setLoading(false);
+        // refresh in background silently
+        questionsApi.getQuestions(params, true).then((data) => {
+          setQuestions(data.questions || []);
+        }).catch(() => {});
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       setError(null);
-      const params = {};
-      if (selectedSection !== "ALL") params.section = Number(selectedSection);
-      if (selectedPhase !== "ALL") params.phase = selectedPhase;
-      const data = await questionsApi.getQuestions(params);
+      const data = await questionsApi.getQuestions(params, force);
       setQuestions(data.questions || []);
     } catch (err) {
       console.error("Failed to load questions:", err);
-      setError("Failed to load questions from database.");
+      setError("Failed to load questions from database. Please retry.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedSection, selectedPhase]);
 
   useEffect(() => {
     fetchQuestions();
-  }, [selectedSection, selectedPhase]);
+  }, [fetchQuestions]);
 
   const openCreateModal = () => {
     setEditingQuestion(null);
@@ -81,7 +106,7 @@ export default function QuestionsPage() {
       section_title: q.section_title,
       question_text: q.question_text,
       response_type: q.response_type,
-      applicable_phases: q.applicable_phases || [...ALL_PHASES],
+      applicable_phases: parsePhases(q.applicable_phases),
     });
     setIsModalOpen(true);
   };
@@ -98,10 +123,11 @@ export default function QuestionsPage() {
 
   const togglePhase = (phase) => {
     setFormData((prev) => {
-      const exists = prev.applicable_phases.includes(phase);
+      const current = Array.isArray(prev.applicable_phases) ? prev.applicable_phases : parsePhases(prev.applicable_phases);
+      const exists = current.includes(phase);
       const nextPhases = exists
-        ? prev.applicable_phases.filter((p) => p !== phase)
-        : [...prev.applicable_phases, phase];
+        ? current.filter((p) => p !== phase)
+        : [...current, phase];
       return { ...prev, applicable_phases: nextPhases };
     });
   };
@@ -112,22 +138,29 @@ export default function QuestionsPage() {
       alert("Please enter question text.");
       return;
     }
-    if (formData.applicable_phases.length === 0) {
+    if (!formData.applicable_phases || formData.applicable_phases.length === 0) {
       alert("Please select at least one applicable survey phase.");
       return;
     }
 
     try {
       setIsSubmitting(true);
+      const payload = {
+        ...formData,
+        applicable_phases: Array.isArray(formData.applicable_phases)
+          ? formData.applicable_phases.join(",")
+          : (formData.applicable_phases || "ALL"),
+      };
+
       if (editingQuestion) {
-        await questionsApi.updateQuestion(editingQuestion.id, formData);
+        await questionsApi.updateQuestion(editingQuestion.id, payload);
         setSuccessMsg("Question updated successfully!");
       } else {
-        await questionsApi.createQuestion(formData);
+        await questionsApi.createQuestion(payload);
         setSuccessMsg("Question added to bank successfully!");
       }
       setIsModalOpen(false);
-      fetchQuestions();
+      fetchQuestions(true);
       setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err) {
       console.error("Save question error:", err);
@@ -142,7 +175,7 @@ export default function QuestionsPage() {
       setDeleteConfirmId(null);
       await questionsApi.deleteQuestion(id);
       setSuccessMsg("Question permanently deleted from database.");
-      fetchQuestions();
+      fetchQuestions(true);
       setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err) {
       console.error("Delete question error:", err);
@@ -298,9 +331,10 @@ export default function QuestionsPage() {
       </div>
 
       {/* Questions List */}
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "48px 0", color: "var(--text-muted, #94a3b8)" }}>
-          Loading questions from database...
+      {loading && questions.length === 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 0", gap: "12px" }}>
+          <Spinner size="lg" />
+          <span style={{ color: "var(--text-muted, #94a3b8)", fontSize: "14px" }}>Loading questions from database...</span>
         </div>
       ) : questions.length === 0 ? (
         <div
@@ -321,117 +355,120 @@ export default function QuestionsPage() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          {questions.map((q) => (
-            <div
-              key={q.id}
-              style={{
-                background: "var(--bg-surface, #0d1b2a)",
-                border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
-                borderRadius: "10px",
-                padding: "18px 22px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                gap: "20px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                {/* Meta Badges */}
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
-                  <span
-                    style={{
-                      background: q.section_number === 6 ? "rgba(168, 85, 247, 0.2)" : "rgba(37, 99, 235, 0.2)",
-                      border: `1px solid ${q.section_number === 6 ? "rgba(168, 85, 247, 0.4)" : "rgba(37, 99, 235, 0.4)"}`,
-                      color: q.section_number === 6 ? "#c084fc" : "#93c5fd",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      padding: "2px 8px",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    Section {q.section_number}: {q.section_title}
-                  </span>
-
-                  <span
-                    style={{
-                      background: "rgba(100, 116, 139, 0.2)",
-                      color: "#cbd5e1",
-                      fontSize: "12px",
-                      padding: "2px 8px",
-                      borderRadius: "4px",
-                      border: "1px solid rgba(100, 116, 139, 0.3)",
-                    }}
-                  >
-                    Type: {q.response_type === "Text" ? "Text / Comment" : "1-5 Star Rating"}
-                  </span>
-
-                  {q.section_number === 6 && (
+          {questions.map((q) => {
+            const phases = parsePhases(q.applicable_phases);
+            return (
+              <div
+                key={q.id}
+                style={{
+                  background: "var(--bg-surface, #0d1b2a)",
+                  border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+                  borderRadius: "10px",
+                  padding: "18px 22px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: "20px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  {/* Meta Badges */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
                     <span
                       style={{
-                        background: "rgba(245, 158, 11, 0.15)",
-                        color: "#fde68a",
-                        fontSize: "11px",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                        border: "1px solid rgba(245, 158, 11, 0.3)",
-                      }}
-                    >
-                      Optional
-                    </span>
-                  )}
-                </div>
-
-                {/* Question Text */}
-                <div style={{ fontSize: "15px", fontWeight: 600, color: "#f8fafc", marginBottom: "12px", lineHeight: 1.5 }}>
-                  {q.question_text}
-                </div>
-
-                {/* Applicable Phases */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                  <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)" }}>Phases:</span>
-                  {(q.applicable_phases || []).map((ph) => (
-                    <span
-                      key={ph}
-                      style={{
-                        fontSize: "11px",
-                        background: "rgba(15, 23, 42, 0.6)",
-                        border: "1px solid rgba(96, 165, 250, 0.2)",
-                        color: "#93c5fd",
+                        background: q.section_number === 6 ? "rgba(168, 85, 247, 0.2)" : "rgba(37, 99, 235, 0.2)",
+                        border: `1px solid ${q.section_number === 6 ? "rgba(168, 85, 247, 0.4)" : "rgba(37, 99, 235, 0.4)"}`,
+                        color: q.section_number === 6 ? "#c084fc" : "#93c5fd",
+                        fontSize: "12px",
+                        fontWeight: 600,
                         padding: "2px 8px",
-                        borderRadius: "12px",
+                        borderRadius: "4px",
                       }}
                     >
-                      {ph}
+                      Section {q.section_number}: {q.section_title}
                     </span>
-                  ))}
+
+                    <span
+                      style={{
+                        background: "rgba(100, 116, 139, 0.2)",
+                        color: "#cbd5e1",
+                        fontSize: "12px",
+                        padding: "2px 8px",
+                        borderRadius: "4px",
+                        border: "1px solid rgba(100, 116, 139, 0.3)",
+                      }}
+                    >
+                      Type: {q.response_type === "Text" ? "Text / Comment" : "1-5 Star Rating"}
+                    </span>
+
+                    {q.section_number === 6 && (
+                      <span
+                        style={{
+                          background: "rgba(245, 158, 11, 0.15)",
+                          color: "#fde68a",
+                          fontSize: "11px",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          border: "1px solid rgba(245, 158, 11, 0.3)",
+                        }}
+                      >
+                        Optional
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Question Text */}
+                  <div style={{ fontSize: "15px", fontWeight: 600, color: "#f8fafc", marginBottom: "12px", lineHeight: 1.5 }}>
+                    {q.question_text}
+                  </div>
+
+                  {/* Applicable Phases */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)" }}>Phases:</span>
+                    {phases.map((ph) => (
+                      <span
+                        key={ph}
+                        style={{
+                          fontSize: "11px",
+                          background: "rgba(15, 23, 42, 0.6)",
+                          border: "1px solid rgba(96, 165, 250, 0.2)",
+                          color: "#93c5fd",
+                          padding: "2px 8px",
+                          borderRadius: "12px",
+                        }}
+                      >
+                        {ph}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <Button variant="secondary" size="sm" onClick={() => openEditModal(q)}>
+                    Edit
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirmId(q.id)}
+                    style={{
+                      background: "rgba(239, 68, 68, 0.15)",
+                      border: "1px solid rgba(239, 68, 68, 0.3)",
+                      color: "#fca5a5",
+                      borderRadius: "6px",
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
-
-              {/* Actions */}
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <Button variant="secondary" size="sm" onClick={() => openEditModal(q)}>
-                  Edit
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirmId(q.id)}
-                  style={{
-                    background: "rgba(239, 68, 68, 0.15)",
-                    border: "1px solid rgba(239, 68, 68, 0.3)",
-                    color: "#fca5a5",
-                    borderRadius: "6px",
-                    padding: "6px 12px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -614,7 +651,8 @@ export default function QuestionsPage() {
                 </label>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                   {ALL_PHASES.map((ph) => {
-                    const selected = formData.applicable_phases.includes(ph);
+                    const phases = Array.isArray(formData.applicable_phases) ? formData.applicable_phases : parsePhases(formData.applicable_phases);
+                    const selected = phases.includes(ph);
                     return (
                       <button
                         type="button"
