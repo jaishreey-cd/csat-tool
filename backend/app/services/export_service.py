@@ -15,7 +15,7 @@ from app.services.analytics_service import get_project_analytics, get_system_ove
 from app.services.survey_service import get_surveys
 
 def sanitize_filename(name: str) -> str:
-    """
+    r"""
     Sanitize a project name to be safe for filenames across Windows/Linux/macOS.
     Removes invalid characters: / \ : * ? " < > | and strips whitespace/dots.
     """

@@ -6,9 +6,10 @@ import Input from "../components/Input";
 import styles from "./LoginPage.module.css";
 
 export default function LoginPage() {
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const isSsoEnabled = import.meta.env.VITE_SSO_ENABLED === "true";
 
   // Form states
   const [email, setEmail] = useState("");
@@ -108,7 +109,7 @@ export default function LoginPage() {
   };
 
   // Integration stub: Microsoft Entra ID (MSAL) SSO
-  const handleMicrosoftSso = async () => {
+  const _handleMicrosoftSso = async () => {
     if (!isSsoEnabled) return;
     // INTEGRATION STUB: Entra ID / MSAL authentication flow
     // When VITE_SSO_ENABLED=true and organizational approval is granted:
