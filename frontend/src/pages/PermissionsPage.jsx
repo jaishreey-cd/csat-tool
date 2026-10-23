@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import authApi from "../api/authApi";
 import { useAuth } from "../context/AuthContext";
@@ -18,6 +18,7 @@ export default function PermissionsPage() {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userFilter, setUserFilter] = useState("current"); // "current" | "old"
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("User");
   const [granting, setGranting] = useState(false);
@@ -47,10 +48,14 @@ export default function PermissionsPage() {
     fetchUsers();
   }, []);
 
-  // Compute PMO limit metrics
+  // Compute PMO limit metrics and filtered user lists
   const grantedPmoUsers = users.filter((u) => u.email.toLowerCase() !== INITIAL_ADMIN_EMAIL);
   const activePmoCount = grantedPmoUsers.filter((u) => u.is_active).length;
   const isLimitReached = activePmoCount >= MAX_PMO_LIMIT;
+
+  const currentUsers = useMemo(() => users.filter((u) => u.is_active), [users]);
+  const oldUsers = useMemo(() => users.filter((u) => !u.is_active), [users]);
+  const displayedUsers = userFilter === "current" ? currentUsers : oldUsers;
 
   const handleGrantAccess = async (e) => {
     e.preventDefault();
@@ -106,15 +111,26 @@ export default function PermissionsPage() {
       return;
     }
 
+    const nextActive = !currentActive;
+
+    // Immediately update state optimistically so the user transitions between filters with zero delay
+    setUsers((prevUsers) =>
+      prevUsers.map((u) => (u.id === userId ? { ...u, is_active: nextActive } : u))
+    );
+
     try {
-      await authApi.updateUserRole(userId, userRole, !currentActive);
+      await authApi.updateUserRole(userId, userRole, nextActive);
       setToast({
-        message: !currentActive ? "PMO access activated." : "PMO access suspended.",
+        message: nextActive ? "User access restored." : "User access revoked.",
         type: "success",
       });
       fetchUsers();
     } catch (err) {
       console.error("Failed to toggle status:", err);
+      // Revert optimistic update on failure
+      setUsers((prevUsers) =>
+        prevUsers.map((u) => (u.id === userId ? { ...u, is_active: currentActive } : u))
+      );
       setToast({ message: err.response?.data?.detail || "Failed to update access status.", type: "danger" });
     }
   };
@@ -265,10 +281,93 @@ export default function PermissionsPage() {
           overflow: "hidden",
         }}
       >
-        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-            System Access Roster ({users.length} Users)
-          </h4>
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+              System Access Roster
+            </h4>
+
+            {/* User Filter Controls (Current Users vs Old Users) */}
+            <div
+              style={{
+                display: "inline-flex",
+                background: "rgba(10, 22, 40, 0.7)",
+                borderRadius: "8px",
+                padding: "3px",
+                border: "1px solid rgba(96, 165, 250, 0.2)",
+                gap: "4px",
+              }}
+            >
+              <button
+                type="button"
+                id="filter-current-users-btn"
+                onClick={() => setUserFilter("current")}
+                style={{
+                  padding: "5px 12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  borderRadius: "6px",
+                  border: "none",
+                  background: userFilter === "current" ? "rgba(37, 99, 235, 0.3)" : "transparent",
+                  color: userFilter === "current" ? "#93c5fd" : "var(--text-dim, #64748b)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>Current Users</span>
+                <span
+                  style={{
+                    background: userFilter === "current" ? "#2563eb" : "rgba(255, 255, 255, 0.1)",
+                    color: "#ffffff",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    padding: "1px 6px",
+                    borderRadius: "10px",
+                  }}
+                >
+                  {currentUsers.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                id="filter-old-users-btn"
+                onClick={() => setUserFilter("old")}
+                style={{
+                  padding: "5px 12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  borderRadius: "6px",
+                  border: "none",
+                  background: userFilter === "old" ? "rgba(239, 68, 68, 0.25)" : "transparent",
+                  color: userFilter === "old" ? "#fca5a5" : "var(--text-dim, #64748b)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>Old Users</span>
+                <span
+                  style={{
+                    background: userFilter === "old" ? "#ef4444" : "rgba(255, 255, 255, 0.1)",
+                    color: "#ffffff",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    padding: "1px 6px",
+                    borderRadius: "10px",
+                  }}
+                >
+                  {oldUsers.length}
+                </span>
+              </button>
+            </div>
+          </div>
+
           <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)" }}>
             Initial Admin: 1 | Allocated PMOs: {activePmoCount} / {MAX_PMO_LIMIT}
           </span>
@@ -279,9 +378,11 @@ export default function PermissionsPage() {
             <Spinner size="lg" />
             <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>Loading access roster...</span>
           </div>
-        ) : users.length === 0 ? (
-          <div style={{ padding: "40px", textAlign: "center", color: "var(--text-dim, #64748b)" }}>
-            No users found.
+        ) : displayedUsers.length === 0 ? (
+          <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--text-muted, #94a3b8)", fontSize: "14px" }}>
+            {userFilter === "current"
+              ? "No active users currently found."
+              : "No old or revoked users found."}
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
@@ -305,7 +406,7 @@ export default function PermissionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => {
+                {displayedUsers.map((u) => {
                   const isInitialAdmin = u.email.toLowerCase() === INITIAL_ADMIN_EMAIL;
 
                   return (

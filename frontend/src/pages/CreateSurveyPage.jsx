@@ -27,6 +27,24 @@ const RATING_LABELS = {
   5: "Excellent",
 };
 
+function GridBackButton({ onClick }) {
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      size="md"
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+      }}
+    >
+      ← Back
+    </Button>
+  );
+}
+
 export default function CreateSurveyPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -1097,21 +1115,16 @@ export default function CreateSurveyPage() {
                     alignItems: "center",
                   }}
                 >
-                  {/* Left: Back button (hidden on Section 1) */}
-                  {activeSectionTab > 1 ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="md"
+                  {/* Left: Inside-grid Back button (Section 1 returns to Phase; Sections 2 to 6 step back to previous section) */}
+                  {activeSectionTab === 1 ? (
+                    <GridBackButton onClick={() => setCurrentStep(1)} />
+                  ) : (
+                    <GridBackButton
                       onClick={() => {
                         setActiveSectionTab((p) => Math.max(1, p - 1));
                         setBankSelectValue("");
                       }}
-                    >
-                      ← Back
-                    </Button>
-                  ) : (
-                    <div />
+                    />
                   )}
 
                   {/* Right: Next Section on Sections 1-5, or Preview & Dispatch on Section 6 */}
@@ -1186,12 +1199,7 @@ export default function CreateSurveyPage() {
             </div>
           )}
 
-          {/* Step 3 Outer Actions: Back to Phase */}
-          <div style={{ display: "flex", justifyContent: "flex-start", marginTop: "12px" }}>
-            <Button variant="secondary" size="md" onClick={() => setCurrentStep(1)}>
-              ← Back to Phase
-            </Button>
-          </div>
+
         </div>
       )}
 

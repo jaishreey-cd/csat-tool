@@ -25,8 +25,8 @@ export const questionsApi = {
   },
 
   /**
-   * List questions with optional section or phase filter.
-   * @param {Object} params - { section: number, phase: string }
+   * List questions with optional section filter.
+   * @param {Object} params - { section: number }
    * @param {boolean} forceRefresh
    */
   getQuestions: async (params = {}, forceRefresh = false) => {

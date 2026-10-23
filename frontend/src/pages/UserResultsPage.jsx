@@ -5,6 +5,7 @@ import Button from "../components/Button";
 import Badge from "../components/Badge";
 import Spinner from "../components/Spinner";
 import Toast from "../components/Toast";
+import { ResendMailButton, ExportCsvButton } from "../components/SurveyActionButtons";
 
 export default function UserResultsPage() {
   const [surveys, setSurveys] = useState(() => {
@@ -15,7 +16,6 @@ export default function UserResultsPage() {
     return !surveysApi.getCachedSurveys();
   });
   const [exportingId, setExportingId] = useState(null);
-  const [copiedId, setCopiedId] = useState(null);
   const [sendingEmailId, setSendingEmailId] = useState(null);
   const [toast, setToast] = useState({ message: "", type: "info" });
   const [filterPhase, setFilterPhase] = useState("ALL");
@@ -84,14 +84,7 @@ export default function UserResultsPage() {
     }
   };
 
-  const copySurveyLink = (survey) => {
-    if (!survey.unique_token) return;
-    const url = `${window.location.origin}/s/${survey.unique_token}`;
-    navigator.clipboard.writeText(url);
-    setCopiedId(survey.id);
-    setToast({ message: "Shortened survey link copied to clipboard!", type: "success" });
-    setTimeout(() => setCopiedId(null), 2500);
-  };
+
 
   const filteredSurveys = useMemo(() => {
     return surveys.filter((s) => {
@@ -233,64 +226,17 @@ export default function UserResultsPage() {
                     <td style={{ padding: "12px", textAlign: "right" }}>
                       <div style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
                         {s.client_contact_email && s.status !== "Completed" && (
-                          <button
-                            type="button"
+                          <ResendMailButton
                             onClick={() => handleResendEmail(s)}
-                            disabled={sendingEmailId === s.id}
-                            style={{
-                              background: "rgba(37, 99, 235, 0.15)",
-                              border: "1px solid rgba(96, 165, 250, 0.3)",
-                              color: "#60a5fa",
-                              borderRadius: "6px",
-                              padding: "4px 8px",
-                              fontSize: "11px",
-                              cursor: sendingEmailId === s.id ? "not-allowed" : "pointer",
-                              fontWeight: 600,
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                            }}
+                            loading={sendingEmailId === s.id}
                             title={`Trigger/Resend survey invitation email to ${s.client_contact_email}`}
-                          >
-                            <span>✉</span>
-                            {sendingEmailId === s.id ? "Sending..." : "Resend Email"}
-                          </button>
+                          />
                         )}
-                        {s.unique_token && (
-                          <button
-                            type="button"
-                            onClick={() => copySurveyLink(s)}
-                            style={{
-                              background: "rgba(96, 165, 250, 0.12)",
-                              border: "1px solid rgba(96, 165, 250, 0.25)",
-                              color: "#93c5fd",
-                              borderRadius: "6px",
-                              padding: "4px 8px",
-                              fontSize: "11px",
-                              cursor: "pointer",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {copiedId === s.id ? "Copied!" : "Copy Link"}
-                          </button>
-                        )}
-                        <button
-                          type="button"
+                        <ExportCsvButton
                           onClick={() => handleExportCsv(s)}
-                          disabled={exportingId === s.id}
-                          style={{
-                            background: "rgba(16, 185, 129, 0.15)",
-                            border: "1px solid rgba(16, 185, 129, 0.3)",
-                            color: "#6ee7b7",
-                            borderRadius: "6px",
-                            padding: "4px 10px",
-                            fontSize: "12px",
-                            cursor: exportingId === s.id ? "not-allowed" : "pointer",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {exportingId === s.id ? "Exporting..." : "Export CSV"}
-                        </button>
+                          loading={exportingId === s.id}
+                          title={`Export survey results for ${s.project?.name || "Project"} as CSV`}
+                        />
                       </div>
                     </td>
                   </tr>

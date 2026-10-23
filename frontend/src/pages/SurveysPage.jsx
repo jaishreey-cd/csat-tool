@@ -10,6 +10,7 @@ import Input from "../components/Input";
 import Select from "../components/Select";
 import Spinner from "../components/Spinner";
 import Toast from "../components/Toast";
+import { ResendMailButton, ExportCsvButton } from "../components/SurveyActionButtons";
 import { SURVEY_PHASES } from "../data/questionBank";
 
 const getSurveyStatus = (survey) => {
@@ -567,124 +568,59 @@ export default function SurveysPage() {
 
                       {/* Actions: Shortened URL Link with copy/open + Matching Export CSV Button */}
                       <td style={{ padding: "14px 18px", textAlign: "right" }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", justifyContent: "flex-end" }}>
-                          {/* Truncated URL with tooltip hover, copy and open actions */}
-                          <div
-                            title={fullUrl}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              background: "rgba(10, 22, 40, 0.7)",
-                              border: "1px solid rgba(96, 165, 250, 0.2)",
-                              borderRadius: "6px",
-                              padding: "4px 8px",
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontFamily: "monospace",
-                                fontSize: "11px",
-                                color: "#93c5fd",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {shortDisplayUrl}
-                            </span>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
 
-                            {/* Copy full URL */}
-                            <button
-                              type="button"
-                              onClick={() => handleCopySurveyUrl(survey)}
-                              title={`Copy full URL: ${fullUrl}`}
-                              style={{
-                                background: "transparent",
-                                border: "none",
-                                color: copiedSurveyId === survey.id ? "#34d399" : "#60a5fa",
-                                cursor: "pointer",
-                                padding: "2px",
-                                display: "flex",
-                                alignItems: "center",
-                              }}
-                            >
-                              {copiedSurveyId === survey.id ? (
-                                <span style={{ fontSize: "11px", fontWeight: 700, color: "#34d399" }}>✓</span>
-                              ) : (
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                </svg>
-                              )}
-                            </button>
-
-                            {/* Open in new tab */}
-                            <a
-                              href={fullUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title="Open client response form in new tab"
-                              style={{
-                                color: "#94a3b8",
-                                display: "flex",
-                                alignItems: "center",
-                                textDecoration: "none",
-                                padding: "2px",
-                              }}
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                <polyline points="15 3 21 3 21 9"></polyline>
-                                <line x1="10" y1="14" x2="21" y2="3"></line>
-                              </svg>
-                            </a>
-                          </div>
 
                           {/* Trigger / Resend Email Button */}
                           {survey.client_contact_email && survey.status !== "Completed" && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              disabled={resendingSurveyId === survey.id}
+                            <ResendMailButton
                               onClick={() => handleResendEmail(survey)}
+                              loading={resendingSurveyId === survey.id}
                               title={`Trigger/Resend invitation email to ${survey.client_contact_email}`}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "6px",
-                                whiteSpace: "nowrap",
-                                color: "#60a5fa",
-                                borderColor: "rgba(96, 165, 250, 0.3)",
-                              }}
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                                <polyline points="22,6 12,13 2,6"></polyline>
-                              </svg>
-                              <span>{resendingSurveyId === survey.id ? "Sending..." : "Resend Email"}</span>
-                            </Button>
+                            />
                           )}
 
                           {/* Redesigned Export CSV Button */}
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={isExportingThis}
+                          <ExportCsvButton
                             onClick={() => handleExportSingleSurvey(survey, "csv")}
+                            loading={isExportingThis}
                             title={`Export survey results for ${survey.project?.name || "Project"} as CSV`}
+                          />
+
+                          {/* Quick preview open in new tab */}
+                          <a
+                            href={fullUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Open client response form in new tab"
                             style={{
+                              color: "var(--text-dim, #64748b)",
                               display: "inline-flex",
                               alignItems: "center",
-                              gap: "6px",
-                              whiteSpace: "nowrap",
+                              justifyContent: "center",
+                              width: "32px",
+                              height: "32px",
+                              borderRadius: "6px",
+                              border: "1px solid rgba(96, 165, 250, 0.15)",
+                              background: "rgba(10, 22, 40, 0.5)",
+                              textDecoration: "none",
+                              transition: "all 0.15s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = "#93c5fd";
+                              e.currentTarget.style.borderColor = "rgba(96, 165, 250, 0.4)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = "var(--text-dim, #64748b)";
+                              e.currentTarget.style.borderColor = "rgba(96, 165, 250, 0.15)";
                             }}
                           >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                              <polyline points="7 10 12 15 17 10"></polyline>
-                              <line x1="12" y1="15" x2="12" y2="3"></line>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                              <polyline points="15 3 21 3 21 9"></polyline>
+                              <line x1="10" y1="14" x2="21" y2="3"></line>
                             </svg>
-                            <span>{isExportingThis ? "Exporting..." : "Export CSV"}</span>
-                          </Button>
+                          </a>
                         </div>
                       </td>
                     </tr>

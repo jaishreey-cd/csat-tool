@@ -36,7 +36,6 @@ export default function QuestionsPage() {
 
   // Filters
   const [selectedSection, setSelectedSection] = useState("ALL");
-  const [selectedPhase, setSelectedPhase] = useState("ALL");
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -54,7 +53,6 @@ export default function QuestionsPage() {
   const fetchQuestions = useCallback(async (force = false) => {
     const params = {};
     if (selectedSection !== "ALL") params.section = Number(selectedSection);
-    if (selectedPhase !== "ALL") params.phase = selectedPhase;
 
     // Instant cached render
     if (!force) {
@@ -81,7 +79,7 @@ export default function QuestionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedSection, selectedPhase]);
+  }, [selectedSection]);
 
   useEffect(() => {
     fetchQuestions();
@@ -300,30 +298,7 @@ export default function QuestionsPage() {
           </select>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
-            Applicable Phase:
-          </label>
-          <select
-            value={selectedPhase}
-            onChange={(e) => setSelectedPhase(e.target.value)}
-            style={{
-              background: "var(--bg-card, rgba(14, 30, 50, 0.9))",
-              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
-              color: "#e2e8f0",
-              borderRadius: "6px",
-              padding: "6px 12px",
-              fontSize: "13px",
-            }}
-          >
-            <option value="ALL">All Survey Phases</option>
-            {ALL_PHASES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </div>
+
 
         <div style={{ marginLeft: "auto", fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>
           Total Questions: <strong style={{ color: "#60a5fa" }}>{questions.length}</strong>
