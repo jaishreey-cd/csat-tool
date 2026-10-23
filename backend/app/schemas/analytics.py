@@ -75,3 +75,41 @@ class SystemOverviewResponse(BaseModel):
     active_projects_count: int
     total_clients_count: int
     monthly_trends: List[MonthlyTrend]
+
+class CategoryScore(BaseModel):
+    section_number: int
+    category_name: str
+    average_rating: Optional[float] = None
+    total_ratings: int = 0
+    csat_percentage: Optional[float] = None
+    rating_distribution: Dict[str, int] = {}
+
+class ProjectMetric(BaseModel):
+    project_id: int
+    project_name: str
+    project_code: str
+    client_id: int
+    client_name: str
+    surveys_sent: int = 0
+    submitted_responses: int = 0
+    awaiting_responses: int = 0
+    response_rate: float = 0.0
+    average_csat: Optional[float] = None
+    csat_percentage: Optional[float] = None
+    has_low_rating: bool = False
+    has_pending: bool = False
+
+class DashboardAnalyticsResponse(BaseModel):
+    total_surveys: int
+    total_created_surveys: int
+    responded_surveys: int
+    awaiting_surveys: int
+    overall_csat: Optional[float] = None
+    overall_csat_percentage: Optional[float] = None
+    response_rate: float = 0.0
+    categories: List[CategoryScore] = []
+    projects: List[ProjectMetric] = []
+    definition_note: str = (
+        "CSAT percentage represents the share of valid submitted ratings that are 4 or 5 on a 5-point scale. "
+        "Pending surveys and unanswered questions are strictly excluded from rating averages."
+    )

@@ -89,6 +89,7 @@ def get_current_user(
             "full_name": user.full_name,
             "role": user.role,
             "hashed_password": user.hashed_password,
+            "role": user.role,
             "is_active": user.is_active,
             "created_at": user.created_at,
         },

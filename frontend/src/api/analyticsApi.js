@@ -31,12 +31,9 @@ const _projectAnalyticsCache = new Map();
 const CACHE_TTL_MS = 60 * 1000;
 
 const analyticsApi = {
-  getCachedProjectAnalytics: (projectId) => {
-    const entry = _projectAnalyticsCache.get(String(projectId));
-    if (entry && Date.now() - entry.timestamp < CACHE_TTL_MS) {
-      return entry.data;
-    }
-    return null;
+  getDashboardAnalytics: async (params = {}) => {
+    const response = await axiosClient.get("/analytics/dashboard", { params });
+    return response.data;
   },
 
   getSystemOverview: async () => {

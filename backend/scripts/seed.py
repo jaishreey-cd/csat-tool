@@ -44,13 +44,28 @@ def seed():
             db.commit()
             print(f"[SEED] Initial admin user verified: {admin_email}")
 
-        # 2. Remove Reviewer user (Reviewer concept eliminated)
-        legacy_reviewers = db.query(User).filter(User.email.in_(["reviewer@csat.local"])).all()
-        for lr in legacy_reviewers:
-            db.delete(lr)
-        if legacy_reviewers:
+        # 2. Seed Reviewer User (Maker-Checker workflow)
+        reviewer_email = settings.SEED_REVIEWER_EMAIL.strip().lower()
+        reviewer_password = settings.SEED_REVIEWER_PASSWORD
+        reviewer_user = db.query(User).filter(User.email == reviewer_email).first()
+
+        if not reviewer_user:
+            reviewer_user = User(
+                email=reviewer_email,
+                full_name="Reviewer User",
+                hashed_password=hash_password(reviewer_password),
+                role="PMO",
+                is_active=True
+            )
+            db.add(reviewer_user)
             db.commit()
-            print("[SEED] Removed legacy reviewer account (reviewer@csat.local)")
+            db.refresh(reviewer_user)
+            print(f"[SEED] Created reviewer user: {reviewer_email}")
+        else:
+            reviewer_user.hashed_password = hash_password(reviewer_password)
+            reviewer_user.role = "PMO"
+            db.commit()
+            print(f"[SEED] Reviewer user verified: {reviewer_email}")
 
         # 3. Soft-archive legacy dummy test data (CL-1001 to CL-1005) if present
         dummy_clients = db.query(Client).filter(

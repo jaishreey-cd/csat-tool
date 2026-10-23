@@ -121,6 +121,11 @@ export const surveysApi = {
     });
     return response.data;
   },
+
+  getClientResponse: async (id) => {
+    const response = await axiosClient.get(`/surveys/${id}/response`);
+    return response.data;
+  },
 };
 
 export default surveysApi;

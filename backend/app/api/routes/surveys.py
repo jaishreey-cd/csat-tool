@@ -11,6 +11,7 @@ from app.schemas.survey import (
     SurveyDispatch,
     PublicSurveyDetail,
     PublicSurveySubmission,
+    ClientResponseDetail,
 )
 from app.services.survey_service import (
     create_survey,
@@ -21,6 +22,7 @@ from app.services.survey_service import (
     get_public_survey_by_token,
     submit_public_survey_response,
     check_and_trigger_automated_followups,
+    get_client_response_detail,
 )
 
 router = APIRouter(prefix="/surveys", tags=["Surveys"])
@@ -42,11 +44,23 @@ def list_all_surveys(
     status: Optional[str] = Query(None, description="Filter by status (Draft, Ready, Sent, Completed, etc.)"),
     client_id: Optional[int] = Query(None, description="Filter by client ID"),
     project_id: Optional[int] = Query(None, description="Filter by project ID"),
+    phase: Optional[str] = Query(None, description="Filter by feedback phase"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List all surveys with optional filters."""
-    surveys = get_surveys(db, status_filter=status, client_id=client_id, project_id=project_id)
+    """List all surveys with optional filters, date range, and role-based scoping."""
+    surveys = get_surveys(
+        db,
+        status_filter=status,
+        client_id=client_id,
+        project_id=project_id,
+        phase=phase,
+        start_date=start_date,
+        end_date=end_date,
+        current_user=current_user,
+    )
     return SurveyListResponse(surveys=surveys, total=len(surveys))
 
 @router.get("/email-status")
@@ -69,6 +83,24 @@ def trigger_diagnostic_test_email(
     """Send a test email to verify live delivery to recipient."""
     from app.services.email_service import send_test_email
     return send_test_email(recipient_email=payload.recipient_email)
+
+@router.get("/responses/{response_id}", response_model=ClientResponseDetail)
+def get_survey_client_response_by_response_id(
+    response_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Protected endpoint to fetch submitted client feedback details by response ID."""
+    return get_client_response_detail(db, survey_id=response_id)
+
+@router.get("/{survey_id}/response", response_model=ClientResponseDetail)
+def get_survey_client_response_by_survey_id(
+    survey_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Protected endpoint to fetch submitted client feedback details by survey ID."""
+    return get_client_response_detail(db, survey_id=survey_id)
 
 @router.get("/{survey_id}", response_model=SurveyResponse)
 def get_survey_details(

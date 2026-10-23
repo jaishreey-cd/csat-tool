@@ -10,6 +10,7 @@ from sqlalchemy import desc
 from app.models.survey import Survey, SurveyQuestion
 from app.models.client import Client
 from app.models.project import Project
+from app.models.user import User
 from app.schemas.survey import SurveyCreate
 from app.services.email_service import send_survey_invitation_email
 
@@ -158,9 +159,14 @@ def get_surveys(
     status_filter: Optional[str] = None,
     client_id: Optional[int] = None,
     project_id: Optional[int] = None,
+    phase: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: Optional[User] = None,
 ) -> List[Survey]:
-    """List surveys with optional filters and eager loading to eliminate N+1 queries."""
-    cache_key = (status_filter, client_id, project_id)
+    """List surveys with optional filters, date range, and role-based data access."""
+    user_id_cache = current_user.id if current_user else None
+    cache_key = (status_filter, client_id, project_id, phase, start_date, end_date, user_id_cache)
     now = time.time()
     if cache_key in _surveys_cache:
         cached_time, cached_data = _surveys_cache[cache_key]
@@ -175,14 +181,38 @@ def get_surveys(
             joinedload(Survey.project),
             joinedload(Survey.creator),
             selectinload(Survey.questions),
+            selectinload(Survey.answers),
         )
     )
+
+    # Role-Based Access: PMO User only accesses permitted surveys
+    if current_user:
+        is_admin = bool(current_user.role and "admin" in current_user.role.lower())
+        if not is_admin:
+            query = query.filter(
+                (Survey.creator_id == current_user.id) | (Survey.reviewer_id == current_user.id)
+            )
+
     if status_filter:
         query = query.filter(Survey.status == status_filter)
     if client_id:
         query = query.filter(Survey.client_id == client_id)
     if project_id:
         query = query.filter(Survey.project_id == project_id)
+    if phase and phase.strip().upper() != "ALL":
+        query = query.filter(Survey.phase == phase.strip())
+    if start_date and start_date.strip():
+        try:
+            parsed_start = datetime.strptime(start_date.strip(), "%Y-%m-%d")
+            query = query.filter(Survey.created_at >= parsed_start)
+        except Exception:
+            pass
+    if end_date and end_date.strip():
+        try:
+            parsed_end = datetime.strptime(end_date.strip(), "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            query = query.filter(Survey.created_at <= parsed_end)
+        except Exception:
+            pass
 
     surveys = query.order_by(desc(Survey.created_at)).all()
     has_updates = False
@@ -344,7 +374,151 @@ def submit_public_survey_response(db: Session, token: str, answers: List[AnswerI
         "average_score": survey.average_score,
     }
 
-def check_and_trigger_automated_followups(db: Session, threshold_days: int = 15) -> dict:
+def get_client_response_detail(db: Session, survey_id: int) -> dict:
+    """
+    Fetch comprehensive client response details for a submitted survey.
+    Returns 404 if the survey does not exist or has not been submitted yet.
+    """
+    from sqlalchemy.orm import joinedload, selectinload
+    survey = (
+        db.query(Survey)
+        .options(
+            joinedload(Survey.client),
+            joinedload(Survey.project),
+            selectinload(Survey.questions),
+            selectinload(Survey.answers).joinedload(SurveyAnswer.question),
+        )
+        .filter(Survey.id == survey_id)
+        .first()
+    )
+    if not survey:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
+
+    if survey.status != "Completed" or not survey.completed_at or not survey.answers:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No submitted client response found for this survey. Survey is awaiting response."
+        )
+
+    answers_map = {a.question_id: a for a in survey.answers}
+
+    sections_dict = {}
+    additional_comments = []
+
+    for q in sorted(survey.questions, key=lambda x: (x.section_number, x.display_order)):
+        sec_num = q.section_number
+        if sec_num not in sections_dict:
+            sections_dict[sec_num] = {
+                "section_number": sec_num,
+                "section_title": q.section_title,
+                "star_scores": [],
+                "questions": [],
+            }
+
+        answer = answers_map.get(q.id)
+        rating_score = answer.rating_score if answer else None
+        text_answer = answer.text_answer if answer else None
+
+        if rating_score is not None and rating_score >= 1:
+            sections_dict[sec_num]["star_scores"].append(rating_score)
+
+        if text_answer and text_answer.strip():
+            additional_comments.append(text_answer.strip())
+
+        sections_dict[sec_num]["questions"].append({
+            "question_id": q.id,
+            "question_text": q.question_text,
+            "response_type": q.response_type,
+            "rating_score": rating_score,
+            "text_answer": text_answer,
+            "display_order": q.display_order,
+        })
+
+    sections_list = []
+    for sec_num in sorted(sections_dict.keys()):
+        sec_data = sections_dict[sec_num]
+        sec_scores = sec_data["star_scores"]
+        avg_sec_score = round(sum(sec_scores) / len(sec_scores), 2) if sec_scores else None
+        sections_list.append({
+            "section_number": sec_num,
+            "section_title": sec_data["section_title"],
+            "average_score": avg_sec_score,
+            "questions": sec_data["questions"],
+        })
+
+    overall_percentage = (
+        round((survey.average_score / 5.0) * 100) if survey.average_score is not None else None
+    )
+
+    return {
+        "response_id": survey.id,
+        "survey_id": survey.id,
+        "survey_code": survey.survey_code,
+        "client_name": survey.client.name if survey.client else "Client",
+        "client_contact_name": survey.client_contact_name,
+        "client_contact_email": survey.client_contact_email,
+        "project_name": survey.project.name if survey.project else "Project",
+        "project_code": survey.project.project_code if survey.project else "",
+        "phase": survey.phase,
+        "status": survey.status,
+        "submission_date": survey.completed_at,
+        "overall_score": survey.average_score,
+        "overall_percentage": overall_percentage,
+        "sections": sections_list,
+        "additional_comments": additional_comments,
+    }
+
+def send_survey_response_followup(db: Session, survey_id: int, custom_message: Optional[str] = None) -> dict:
+    """Manually send a follow-up email to a client regarding their completed survey response."""
+    survey = db.query(Survey).filter(Survey.id == survey_id).first()
+    if not survey:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
+
+    if not survey.client_contact_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No client contact email recorded for this survey.")
+
+    from app.services.email_service import send_response_followup_email
+    result = send_response_followup_email(
+        recipient_email=survey.client_contact_email,
+        recipient_name=survey.client_contact_name or "Client Stakeholder",
+        project_name=survey.project.name if survey.project else "Project",
+        client_name=survey.client.name if survey.client else "Client",
+        phase=survey.phase,
+        average_score=survey.average_score,
+        custom_message=custom_message,
+    )
+    return result
+
+def send_survey_reminder(db: Session, survey_id: int) -> Survey:
+    """Send follow-up reminder email for an unanswered survey."""
+    survey = db.query(Survey).filter(Survey.id == survey_id).first()
+    if not survey:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found")
+
+    if survey.status == "Completed":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Survey has already been completed by the client.")
+
+    if not survey.client_contact_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Survey has not been dispatched to a client contact yet.")
+
+    from app.services.email_service import send_survey_reminder_email
+    send_survey_reminder_email(
+        recipient_email=survey.client_contact_email,
+        recipient_name=survey.client_contact_name or "Client Stakeholder",
+        survey_code=survey.survey_code,
+        project_name=survey.project.name if survey.project else "Project",
+        client_name=survey.client.name if survey.client else "Client",
+        phase=survey.phase,
+        survey_token=survey.unique_token,
+    )
+
+    survey.followup_sent_at = datetime.utcnow()
+    db.commit()
+    db.refresh(survey)
+    invalidate_surveys_cache()
+    return survey
+
+def check_and_trigger_automated_followups(db: Session, threshold_days: int = 7) -> dict:
     """
     Scans all pending sent surveys. If days since sent_at >= threshold_days and
     no follow-up has been sent yet, automatically triggers one follow-up reminder email.

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy import func
+from typing import List, Optional, Dict, Any
 
 from app.api.deps import get_db, get_current_user, require_admin
 from app.core.config import settings
@@ -10,6 +11,41 @@ from app.schemas.auth import LoginRequest, TokenResponse, UserResponse, UpdateUs
 from app.services.auth_service import authenticate_user, build_token_response
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+MAX_ACTIVE_ADMINS = 3
+ADMIN_LIMIT_ERROR_DETAIL = (
+    "Maximum of 3 Admins reached. Revoke access from an existing Admin before granting Admin access to another user."
+)
+
+def is_admin_role(role: Optional[str]) -> bool:
+    """Helper to check if a given role string matches Admin."""
+    return bool(role and role.strip().lower() == "admin")
+
+def normalize_role(role: Optional[str]) -> str:
+    """Normalize role string to standardized capitalization."""
+    if not role:
+        return "PMO"
+    r = role.strip()
+    if r.lower() == "admin":
+        return "Admin"
+    if r.lower() == "pmo":
+        return "PMO"
+    return r
+
+def count_active_admins(db: Session, exclude_user_id: Optional[int] = None, for_update: bool = False) -> int:
+    """
+    Count the number of active, authorized Admin users.
+    Optionally applies row-level locking (with_for_update) for transaction concurrency protection.
+    """
+    query = db.query(User).filter(
+        func.lower(User.role) == "admin",
+        User.is_active.is_(True),
+    )
+    if exclude_user_id is not None:
+        query = query.filter(User.id != exclude_user_id)
+    if for_update:
+        query = query.with_for_update()
+    return query.count()
 
 @router.post("/login", response_model=TokenResponse)
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
@@ -42,6 +78,19 @@ def get_current_user_profile(current_user: User = Depends(get_current_user)):
     """
     return UserResponse.model_validate(current_user)
 
+@router.get("/admin-count")
+def get_active_admin_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Return current count of active authorized Admins and limit status."""
+    active_count = count_active_admins(db)
+    return {
+        "active_admin_count": active_count,
+        "max_admins": MAX_ACTIVE_ADMINS,
+        "is_limit_reached": active_count >= MAX_ACTIVE_ADMINS,
+    }
+
 @router.get("/users", response_model=List[UserResponse])
 def list_system_users(
     db: Session = Depends(get_db),
@@ -58,36 +107,37 @@ def create_authorized_user(
     admin_user: User = Depends(require_admin),
 ):
     """
-    Admin-only: Grant access to a PMO by entering their email and role (User or Admin).
-    Enforces a strict maximum of 3 PMO users in the system beyond the initial Admin.
+    Enable administrators to grant access to users by entering their email and role (PMO/Admin).
+    Enforces maximum of 3 active Admin users.
     """
-    initial_admin_email = settings.SEED_ADMIN_EMAIL.strip().lower()
     normalized_email = payload.email.strip().lower()
-    target_role = "Admin" if payload.role == "Admin" else "User"
-
-    if normalized_email == initial_admin_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Initial administrator account already exists with full Admin access."
-        )
+    target_role = normalize_role(payload.role)
+    target_is_active = payload.is_active
 
     existing = db.query(User).filter(User.email == normalized_email).first()
-    if existing:
-        # If activating a previously suspended user, verify the 3-PMO limit
-        if not existing.is_active:
-            active_pmos = db.query(User).filter(
-                User.email != initial_admin_email,
-                User.is_active == True,
-                User.id != existing.id
-            ).count()
-            if active_pmos >= 3:
+
+    # If the user will be an active Admin, enforce the 3-Admin ceiling
+    if is_admin_role(target_role) and target_is_active:
+        is_already_active_admin = (
+            existing is not None
+            and is_admin_role(existing.role)
+            and existing.is_active
+        )
+        if not is_already_active_admin:
+            active_count = count_active_admins(
+                db,
+                exclude_user_id=existing.id if existing else None,
+                for_update=True,
+            )
+            if active_count >= MAX_ACTIVE_ADMINS:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Maximum limit of 3 PMOs reached. Cannot grant access to more users."
+                    detail=ADMIN_LIMIT_ERROR_DETAIL,
                 )
 
+    if existing:
         existing.role = target_role
-        existing.is_active = True
+        existing.is_active = target_is_active
         db.commit()
         db.refresh(existing)
         return UserResponse.model_validate(existing)
@@ -108,7 +158,7 @@ def create_authorized_user(
         full_name=payload.full_name or normalized_email.split("@")[0].title(),
         hashed_password=hash_password(payload.password or "Password123!"),
         role=target_role,
-        is_active=True,
+        is_active=target_is_active,
     )
     db.add(new_user)
     db.commit()
@@ -123,36 +173,32 @@ def update_user_permissions(
     admin_user: User = Depends(require_admin),
 ):
     """
-    Admin-only: Grant/modify roles (User/Admin) and access status.
-    Enforces the 3-PMO limit and protects the initial Admin.
+    Enable administrators to grant/modify permissions and roles for users.
+    Enforces maximum of 3 active Admin users.
     """
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    initial_admin_email = settings.SEED_ADMIN_EMAIL.strip().lower()
-    target_role = "Admin" if payload.role == "Admin" else "User"
+    target_role = normalize_role(payload.role)
+    target_is_active = (
+        payload.is_active if payload.is_active is not None else target_user.is_active
+    )
 
-    # Protect initial Admin from demotion or deactivation
-    if target_user.email.lower() == initial_admin_email:
-        if payload.is_active is False or target_role != "Admin":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Initial administrator cannot be deactivated or have Admin role removed."
+    # If user will become an active Admin:
+    if is_admin_role(target_role) and target_is_active:
+        was_already_active_admin = is_admin_role(target_user.role) and target_user.is_active
+        if not was_already_active_admin:
+            active_count = count_active_admins(
+                db,
+                exclude_user_id=target_user.id,
+                for_update=True,
             )
-
-    # If activating a suspended user, enforce 3-PMO limit
-    if payload.is_active is True and not target_user.is_active:
-        active_pmos = db.query(User).filter(
-            User.email != initial_admin_email,
-            User.is_active == True,
-            User.id != target_user.id
-        ).count()
-        if active_pmos >= 3:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximum limit of 3 PMOs reached. Cannot activate additional users."
-            )
+            if active_count >= MAX_ACTIVE_ADMINS:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=ADMIN_LIMIT_ERROR_DETAIL,
+                )
 
     target_user.role = target_role
     if payload.is_active is not None:

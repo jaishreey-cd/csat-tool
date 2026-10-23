@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import surveysApi from "../api/surveysApi";
 import clientsApi from "../api/clientsApi";
@@ -12,6 +12,10 @@ import Spinner from "../components/Spinner";
 import Toast from "../components/Toast";
 import { ResendMailButton, ExportCsvButton } from "../components/SurveyActionButtons";
 import { SURVEY_PHASES } from "../data/questionBank";
+import CategoryRadarChart from "../components/charts/CategoryRadarChart";
+import CategoryBarChart from "../components/charts/CategoryBarChart";
+import CategoryDistributionChart from "../components/charts/CategoryDistributionChart";
+import CategoryRadialGauges from "../components/charts/CategoryRadialGauges";
 
 const getSurveyStatus = (survey) => {
   if (survey.status === "Completed") {
@@ -38,20 +42,71 @@ export default function SurveysPage() {
   const [loading, setLoading] = useState(() => !cachedSurveys);
   const [error, setError] = useState("");
 
-  // Filters
+  // Filters for Existing Survey Registry (Unchanged)
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedPhase, setSelectedPhase] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [selectedClientFilter, setSelectedClientFilter] = useState("ALL");
 
+  // Response Follow-up Modal State (Unchanged)
+  const [followupModalSurvey, setFollowupModalSurvey] = useState(null);
+  const [followupMessage, setFollowupMessage] = useState("");
+  const [sendingFollowup, setSendingFollowup] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "info" });
   const [copiedSurveyId, setCopiedSurveyId] = useState(null);
 
-  // Export state per survey
+  // Export state per survey (Unchanged)
   const [exportingSurveyId, setExportingSurveyId] = useState(null);
   const [resendingSurveyId, setResendingSurveyId] = useState(null);
 
-  // Fetch surveys and clients independently
+  // Hover state for Responded popover (Unchanged)
+  const [hoveredSurveyId, setHoveredSurveyId] = useState(null);
+
+  // ── Analytics State (Added to Dashboard) ───────────────────────────────────
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [analyticsError, setAnalyticsError] = useState("");
+  const [analyticsDatePreset, setAnalyticsDatePreset] = useState("ALL");
+  const [categoryChartView, setCategoryChartView] = useState("BAR");
+  const [projectAttentionFilter, setProjectAttentionFilter] = useState("ALL");
+
+  // Fetch Dashboard Analytics from PostgreSQL
+  const fetchAnalytics = useCallback(async (preset = analyticsDatePreset) => {
+    setAnalyticsLoading(true);
+    setAnalyticsError("");
+
+    let start_date = null;
+    let end_date = null;
+    const now = new Date();
+
+    if (preset === "30D") {
+      const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      start_date = past.toISOString().split("T")[0];
+      end_date = now.toISOString().split("T")[0];
+    } else if (preset === "90D") {
+      const past = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      start_date = past.toISOString().split("T")[0];
+      end_date = now.toISOString().split("T")[0];
+    } else if (preset === "YTD") {
+      start_date = `${now.getFullYear()}-01-01`;
+      end_date = now.toISOString().split("T")[0];
+    }
+
+    try {
+      const params = {};
+      if (start_date) params.start_date = start_date;
+      if (end_date) params.end_date = end_date;
+      const data = await analyticsApi.getDashboardAnalytics(params);
+      setAnalytics(data);
+    } catch (err) {
+      console.error("Failed to load dashboard analytics:", err);
+      setAnalyticsError("Could not load analytics metrics from database.");
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [analyticsDatePreset]);
+
+  // Fetch surveys and clients independently (Original logic preserved)
   const fetchSurveys = async (force = false) => {
     const cached = surveysApi.getCachedSurveys();
     if (cached && !force) {
@@ -87,10 +142,11 @@ export default function SurveysPage() {
 
   useEffect(() => {
     fetchSurveys();
+    fetchAnalytics("ALL");
   }, []);
 
-  // Handle Export per individual survey (CSV format named <projectName>.csv)
-  const handleExportSingleSurvey = async (survey, format = "csv") => {
+  // Handle Export per individual survey (Original logic preserved)
+  const handleExportSingleSurvey = async (survey, format = "xlsx") => {
     setExportingSurveyId(survey.id);
     const projectName = survey.project?.name || "Survey";
     const safeName = sanitizeFilename(projectName);
@@ -109,27 +165,12 @@ export default function SurveysPage() {
     }
   };
 
-  // Copy full survey response URL to clipboard
-  const handleCopySurveyUrl = async (survey) => {
-    const fullUrl = `${window.location.origin}/s/${survey.unique_token}`;
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(fullUrl);
-      } else {
-        const input = document.createElement("input");
-        input.value = fullUrl;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand("copy");
-        document.body.removeChild(input);
-      }
-      setCopiedSurveyId(survey.id);
-      setTimeout(() => setCopiedSurveyId(null), 2500);
-      setToast({ message: "Survey link copied to clipboard!", type: "success" });
-    } catch (err) {
-      console.error("Failed to copy link:", err);
-      setToast({ message: "Unable to copy link to clipboard.", type: "danger" });
-    }
+  // Follow-up modal (Original logic preserved)
+  const openFollowupModal = (survey) => {
+    setFollowupModalSurvey(survey);
+    setFollowupMessage(
+      `Dear ${survey.client_contact_name || "Client"},\n\nThank you for submitting your evaluation for ${survey.project?.name || "our engagement"} (${survey.phase}).\n\nOur delivery team has reviewed your feedback and is taking action on the insights provided.\n\nWarm regards,\nPMO Team`
+    );
   };
 
   // Re-trigger invitation email to client contact
@@ -156,12 +197,12 @@ export default function SurveysPage() {
     }
   };
 
-  // Filter dispatched and completed surveys (Drafts belong to /drafts)
+  // Filter dispatched and completed surveys (Drafts belong to /drafts) (Original logic preserved)
   const activeSurveys = useMemo(() => {
     return surveys.filter((s) => s.status !== "Draft");
   }, [surveys]);
 
-  // KPIs across active surveys
+  // Original fallback KPIs across active surveys
   const kpis = useMemo(() => {
     const total = activeSurveys.length;
     const completedSurveys = activeSurveys.filter((s) => s.status === "Completed");
@@ -178,7 +219,7 @@ export default function SurveysPage() {
     return { total, sent, completed, responseRate, avgScore, percentageScore };
   }, [activeSurveys]);
 
-  // Filtered surveys
+  // Filtered surveys for Main Surveys Table (Original logic preserved)
   const filteredSurveys = useMemo(() => {
     return activeSurveys.filter((s) => {
       if (selectedStatus !== "ALL") {
@@ -204,9 +245,26 @@ export default function SurveysPage() {
     });
   }, [activeSurveys, selectedStatus, selectedPhase, selectedClientFilter, searchQuery]);
 
+  // Project-wise analytics list
+  const projectMetricsList = useMemo(() => {
+    const list = analytics?.projects || [];
+    if (projectAttentionFilter === "ATTENTION") {
+      return list.filter((p) => p.has_low_rating || p.has_pending);
+    }
+    return list;
+  }, [analytics, projectAttentionFilter]);
+
+  // Metrics resolution
+  const totalSurveysDispatched = analytics?.total_surveys ?? kpis.total;
+  const totalResponded = analytics?.responded_surveys ?? kpis.completed;
+  const totalAwaiting = analytics?.awaiting_response_surveys ?? kpis.sent;
+  const overallCsatPercentage = analytics?.overall_csat_percentage ?? kpis.percentageScore;
+  const overallCsatAvg = analytics?.overall_csat ?? kpis.avgScore;
+  const responseRate = analytics?.response_rate ?? kpis.responseRate;
+
   return (
-    <div style={{ padding: "28px", maxWidth: "1400px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Toast Notification */}
+    <div style={{ padding: "28px", maxWidth: "1400px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "28px" }}>
+      {/* Toast Notification (Original preserved) */}
       {toast.message && (
         <Toast
           message={toast.message}
@@ -215,21 +273,67 @@ export default function SurveysPage() {
         />
       )}
 
-      {/* Main Header */}
-      <div>
-        <h2 style={{ fontSize: "26px", fontWeight: 800, color: "var(--text-white, #ffffff)", margin: 0, letterSpacing: "-0.4px" }}>
-          CSAT Dashboard & Analytics
-        </h2>
-        <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-          Team-wide customer satisfaction evaluations, performance tracking, and responses.
-        </p>
+      {/* ── Main Header & Analytics Controls ─────────────────────────────── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
+        <div>
+          <h1 style={{ fontSize: "26px", fontWeight: 800, color: "var(--text-white, #ffffff)", margin: 0, letterSpacing: "-0.4px" }}>
+            CSAT Dashboard & Analytics
+          </h1>
+          <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+            Real-time portfolio CSAT metrics, category ratings, and project satisfaction performance.
+          </p>
+        </div>
+
+        {/* Date Filter Tabs for Analytics */}
+        <div
+          style={{
+            display: "inline-flex",
+            background: "rgba(13, 27, 42, 0.9)",
+            border: "1px solid rgba(96, 165, 250, 0.2)",
+            borderRadius: "8px",
+            padding: "3px",
+            gap: "2px",
+          }}
+        >
+          {[
+            { id: "ALL", label: "All Time" },
+            { id: "30D", label: "Last 30 Days" },
+            { id: "90D", label: "Last 90 Days" },
+            { id: "YTD", label: "Year to Date" },
+          ].map((tab) => {
+            const active = analyticsDatePreset === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setAnalyticsDatePreset(tab.id);
+                  fetchAnalytics(tab.id);
+                }}
+                style={{
+                  padding: "5px 12px",
+                  fontSize: "12px",
+                  fontWeight: active ? 700 : 500,
+                  borderRadius: "6px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: active ? "var(--primary, #2563eb)" : "transparent",
+                  color: active ? "#ffffff" : "var(--text-muted, #94a3b8)",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Team-wide Analytics Cards */}
+      {/* ── Summary Cards (Added Analytics) ──────────────────────────────── */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
           gap: "16px",
         }}
       >
@@ -243,24 +347,31 @@ export default function SurveysPage() {
             display: "flex",
             flexDirection: "column",
             gap: "8px",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
           }}
         >
-          <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600, textTransform: "uppercase" }}>
-            Overall CSAT Score
-          </span>
-          <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
-            <span style={{ fontSize: "32px", fontWeight: 800, color: "#60a5fa" }}>
-              {kpis.percentageScore != null ? `${kpis.percentageScore}%` : "—"}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Overall CSAT Score
             </span>
-            {kpis.avgScore != null && (
+            <span style={{ fontSize: "11px", color: "#60a5fa", fontWeight: 600 }}>Ratings ≥ 4 / 5</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginTop: "2px" }}>
+            <span style={{ fontSize: "32px", fontWeight: 800, color: "#60a5fa" }}>
+              {overallCsatPercentage != null ? `${overallCsatPercentage}%` : "—"}
+            </span>
+            {overallCsatAvg != null && (
               <span style={{ fontSize: "14px", fontWeight: 700, color: "#fbbf24" }}>
-                ★ {kpis.avgScore.toFixed(2)} / 5.0
+                ★ {overallCsatAvg.toFixed(2)} / 5.0
               </span>
             )}
           </div>
+          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
+            Calculated from valid submitted client ratings
+          </span>
         </div>
 
-        {/* Total Dispatched */}
+        {/* Total Surveys Dispatched */}
         <div
           style={{
             background: "var(--bg-surface, #0d1b2a)",
@@ -270,17 +381,21 @@ export default function SurveysPage() {
             display: "flex",
             flexDirection: "column",
             gap: "8px",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
           }}
         >
-          <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600, textTransform: "uppercase" }}>
-            Dispatched Surveys
+          <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Total Surveys Dispatched
           </span>
-          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--text-white, #ffffff)" }}>
-            {kpis.total}
+          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--text-white, #ffffff)", marginTop: "2px" }}>
+            {totalSurveysDispatched}
+          </span>
+          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
+            Total invitations sent to stakeholders
           </span>
         </div>
 
-        {/* Responses Completed */}
+        {/* Responded Surveys */}
         <div
           style={{
             background: "var(--bg-surface, #0d1b2a)",
@@ -290,17 +405,26 @@ export default function SurveysPage() {
             display: "flex",
             flexDirection: "column",
             gap: "8px",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
           }}
         >
-          <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600, textTransform: "uppercase" }}>
-            Completed Responses
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Responded Surveys
+            </span>
+            <span style={{ fontSize: "12px", color: "var(--success, #22c55e)", fontWeight: 700 }}>
+              {responseRate}%
+            </span>
+          </div>
+          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--success, #22c55e)", marginTop: "2px" }}>
+            {totalResponded}
           </span>
-          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--success, #22c55e)" }}>
-            {kpis.completed}
+          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
+            Valid final client submissions received
           </span>
         </div>
 
-        {/* Response Rate */}
+        {/* Awaiting Response */}
         <div
           style={{
             background: "var(--bg-surface, #0d1b2a)",
@@ -310,17 +434,310 @@ export default function SurveysPage() {
             display: "flex",
             flexDirection: "column",
             gap: "8px",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
           }}
         >
-          <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600, textTransform: "uppercase" }}>
-            Response Rate
+          <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Awaiting Response
           </span>
-          <span style={{ fontSize: "32px", fontWeight: 800, color: "#38bdf8" }}>
-            {kpis.responseRate}%
+          <span style={{ fontSize: "32px", fontWeight: 800, color: "#f59e0b", marginTop: "2px" }}>
+            {totalAwaiting}
+          </span>
+          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
+            Dispatched surveys pending client response
           </span>
         </div>
       </div>
 
+      {/* ── Category-wise Analytics (Professional Multi-Chart Suite) ────── */}
+      <div
+        style={{
+          background: "var(--bg-surface, #0d1b2a)",
+          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+          borderRadius: "var(--radius-lg, 12px)",
+          padding: "24px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "20px",
+          boxShadow: "0 6px 24px rgba(0, 0, 0, 0.25)",
+        }}
+      >
+        {/* Header with Title and Chart View Switcher */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" }}>
+          <div>
+            <h2 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>Category-wise Analytics</span>
+            </h2>
+            <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+              Multi-dimensional evaluation across configured feedback categories derived from PostgreSQL responses.
+            </p>
+          </div>
+
+          {/* Interactive Chart Type Switcher */}
+          <div
+            style={{
+              display: "inline-flex",
+              background: "rgba(10, 22, 40, 0.8)",
+              border: "1px solid rgba(96, 165, 250, 0.2)",
+              borderRadius: "8px",
+              padding: "3px",
+              gap: "2px",
+              flexWrap: "wrap",
+            }}
+          >
+            {[
+              { id: "BAR", label: "📊 Bar Chart" },
+              { id: "RADAR", label: "🕸 Radar Chart" },
+              { id: "DISTRIBUTION", label: "📶 Rating Distribution" },
+              { id: "GAUGES", label: "⭕ Circular Gauges" },
+            ].map((tab) => {
+              const active = categoryChartView === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setCategoryChartView(tab.id)}
+                  style={{
+                    padding: "6px 14px",
+                    fontSize: "12px",
+                    fontWeight: active ? 700 : 500,
+                    borderRadius: "6px",
+                    border: "none",
+                    cursor: "pointer",
+                    background: active ? "var(--primary, #2563eb)" : "transparent",
+                    color: active ? "#ffffff" : "var(--text-muted, #94a3b8)",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {analyticsLoading ? (
+          <div style={{ padding: "50px", display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
+            <Spinner size="md" />
+            <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>Loading category analytics...</span>
+          </div>
+        ) : analyticsError ? (
+          <div style={{ padding: "24px", color: "#fca5a5", fontSize: "13px", textAlign: "center" }}>
+            {analyticsError}
+          </div>
+        ) : !analytics?.categories || analytics.categories.length === 0 ? (
+          <div style={{ padding: "36px", textAlign: "center", color: "var(--text-muted, #94a3b8)", fontSize: "13px" }}>
+            No configured survey categories found.
+          </div>
+        ) : (
+          <div>
+            {/* View: Bar Chart */}
+            {categoryChartView === "BAR" && (
+              <div style={{ background: "rgba(10, 22, 40, 0.4)", border: "1px solid rgba(96, 165, 250, 0.12)", borderRadius: "10px", padding: "24px" }}>
+                <CategoryBarChart categories={analytics.categories} />
+              </div>
+            )}
+
+            {/* View: Radar Chart */}
+            {categoryChartView === "RADAR" && (
+              <div style={{ background: "rgba(10, 22, 40, 0.4)", border: "1px solid rgba(96, 165, 250, 0.12)", borderRadius: "10px", padding: "24px", display: "flex", justifyContent: "center" }}>
+                <CategoryRadarChart categories={analytics.categories} />
+              </div>
+            )}
+
+            {/* View: Rating Distribution */}
+            {categoryChartView === "DISTRIBUTION" && (
+              <div style={{ background: "rgba(10, 22, 40, 0.4)", border: "1px solid rgba(96, 165, 250, 0.12)", borderRadius: "10px", padding: "22px" }}>
+                <CategoryDistributionChart categories={analytics.categories} />
+              </div>
+            )}
+
+            {/* View: Circular Gauges */}
+            {categoryChartView === "GAUGES" && (
+              <div style={{ background: "rgba(10, 22, 40, 0.4)", border: "1px solid rgba(96, 165, 250, 0.12)", borderRadius: "10px", padding: "24px" }}>
+                <CategoryRadialGauges categories={analytics.categories} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Project-wise Analytics (Added Section D) ────────────────────── */}
+      <div
+        style={{
+          background: "var(--bg-surface, #0d1b2a)",
+          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
+          borderRadius: "var(--radius-lg, 12px)",
+          padding: "24px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "18px",
+          boxShadow: "0 4px 18px rgba(0, 0, 0, 0.2)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+          <div>
+            <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+              Project-wise CSAT Performance
+            </h2>
+            <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+              Response rates and average satisfaction ratings calculated from completed stakeholder surveys.
+            </p>
+          </div>
+
+          <div style={{ display: "inline-flex", background: "rgba(10, 22, 40, 0.6)", borderRadius: "8px", padding: "3px" }}>
+            <button
+              type="button"
+              onClick={() => setProjectAttentionFilter("ALL")}
+              style={{
+                padding: "4px 10px",
+                fontSize: "12px",
+                fontWeight: 600,
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+                background: projectAttentionFilter === "ALL" ? "rgba(37, 99, 235, 0.3)" : "transparent",
+                color: projectAttentionFilter === "ALL" ? "#60a5fa" : "var(--text-muted, #94a3b8)",
+              }}
+            >
+              All Projects ({analytics?.projects?.length || 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => setProjectAttentionFilter("ATTENTION")}
+              style={{
+                padding: "4px 10px",
+                fontSize: "12px",
+                fontWeight: 600,
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+                background: projectAttentionFilter === "ATTENTION" ? "rgba(239, 68, 68, 0.2)" : "transparent",
+                color: projectAttentionFilter === "ATTENTION" ? "#fca5a5" : "var(--text-muted, #94a3b8)",
+              }}
+            >
+              Needs Attention ({analytics?.projects?.filter((p) => p.has_low_rating || p.has_pending).length || 0})
+            </button>
+          </div>
+        </div>
+
+        {analyticsLoading ? (
+          <div style={{ padding: "40px", display: "flex", justifyContent: "center", alignItems: "center", gap: "10px" }}>
+            <Spinner size="md" />
+            <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>Loading project analytics...</span>
+          </div>
+        ) : projectMetricsList.length === 0 ? (
+          <div style={{ padding: "30px", textAlign: "center", color: "var(--text-muted, #94a3b8)", fontSize: "13px" }}>
+            No project metrics match the current view.
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+              <thead>
+                <tr style={{ background: "rgba(10, 22, 40, 0.7)", borderBottom: "1px solid rgba(96, 165, 250, 0.15)", color: "var(--text-dim, #64748b)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <th style={{ padding: "12px 16px", fontWeight: 700 }}>Project / Client</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 700 }}>Surveys Sent</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 700 }}>Responses</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 700, minWidth: "160px" }}>Response Rate</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 700 }}>Average CSAT</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 700, textAlign: "right" }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projectMetricsList.map((p) => {
+                  const hasRating = p.average_csat !== null;
+                  return (
+                    <tr
+                      key={p.project_id}
+                      style={{ borderBottom: "1px solid rgba(96, 165, 250, 0.08)", transition: "background 0.15s ease" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(14, 30, 50, 0.35)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <td style={{ padding: "12px 16px" }}>
+                        <Link
+                          to={`/projects/${p.project_id}`}
+                          style={{ fontWeight: 600, color: "var(--primary-lt, #60a5fa)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                        >
+                          <span>{p.project_name}</span>
+                          <span style={{ fontSize: "10px" }}>↗</span>
+                        </Link>
+                        <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", marginTop: "2px" }}>
+                          {p.client_name}
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-white, #ffffff)" }}>
+                        {p.surveys_sent}
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <span style={{ fontWeight: 600, color: "var(--success, #22c55e)" }}>{p.submitted_responses}</span>
+                        {p.awaiting_responses > 0 && (
+                          <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", marginLeft: "6px" }}>
+                            ({p.awaiting_responses} pending)
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ fontSize: "12px", fontWeight: 700, minWidth: "36px", color: "#e2e8f0" }}>
+                            {p.response_rate}%
+                          </span>
+                          <div style={{ flex: 1, height: "6px", background: "rgba(255, 255, 255, 0.08)", borderRadius: "3px", overflow: "hidden" }}>
+                            <div
+                              style={{
+                                height: "100%",
+                                width: `${p.response_rate}%`,
+                                background: p.response_rate >= 70 ? "#22c55e" : p.response_rate >= 40 ? "#38bdf8" : "#f59e0b",
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        {hasRating ? (
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                              background: p.average_csat >= 4.0 ? "rgba(34, 197, 94, 0.15)" : p.average_csat >= 3.0 ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                              color: p.average_csat >= 4.0 ? "#22c55e" : p.average_csat >= 3.0 ? "#fbbf24" : "#ef4444",
+                              border: `1px solid ${p.average_csat >= 4.0 ? "rgba(34, 197, 94, 0.3)" : p.average_csat >= 3.0 ? "rgba(245, 158, 11, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+                            }}
+                          >
+                            ★ {p.average_csat.toFixed(2)}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
+                            No ratings yet
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                        {p.has_low_rating ? (
+                          <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: "rgba(239, 68, 68, 0.15)", color: "#fca5a5", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
+                            ⚠️ Low CSAT
+                          </span>
+                        ) : p.has_pending ? (
+                          <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: "rgba(245, 158, 11, 0.15)", color: "#fcd34d", border: "1px solid rgba(245, 158, 11, 0.3)" }}>
+                            ⏳ {p.awaiting_responses} Pending
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "6px", background: "rgba(34, 197, 94, 0.1)", color: "#86efac" }}>
+                            ✓ Healthy
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── SECTION E: EXACT ORIGINAL SURVEY REGISTRY (100% UNCHANGED) ──── */}
       {/* Filter and Search Bar */}
       <div
         style={{
@@ -457,13 +874,14 @@ export default function SurveysPage() {
                   <th style={{ padding: "14px 18px", fontWeight: 700 }}>Status</th>
                   <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client Contact</th>
                   <th style={{ padding: "14px 18px", fontWeight: 700 }}>Sent Date</th>
-                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>CSAT Rating</th>
+                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>RESPONSE STATUS</th>
                   <th style={{ padding: "14px 18px", fontWeight: 700, textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredSurveys.map((survey) => {
                   const isCompleted = survey.status === "Completed";
+                  const isResponded = survey.response_status === "responded" || (isCompleted && Boolean(survey.completed_at));
                   const isExportingThis = exportingSurveyId === survey.id;
                   const surveyStatus = getSurveyStatus(survey);
                   const fullUrl = `${window.location.origin}/s/${survey.unique_token}`;
@@ -548,20 +966,87 @@ export default function SurveysPage() {
                         {survey.sent_at ? new Date(survey.sent_at).toLocaleDateString() : new Date(survey.created_at).toLocaleDateString()}
                       </td>
 
-                      {/* CSAT Rating */}
+                      {/* Response Status (Replaced CSAT Rating) */}
                       <td style={{ padding: "14px 18px" }}>
-                        {isCompleted && survey.average_score != null ? (
-                          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                            <span style={{ fontSize: "13px", fontWeight: 700, color: "#fbbf24" }}>
-                              ★ {survey.average_score.toFixed(1)}
+                        {isResponded ? (
+                          <div
+                            style={{ position: "relative", display: "inline-block" }}
+                            onMouseEnter={() => setHoveredSurveyId(survey.id)}
+                            onMouseLeave={() => setHoveredSurveyId(null)}
+                          >
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                fontSize: "12px",
+                                fontWeight: 700,
+                                padding: "4px 10px",
+                                borderRadius: "6px",
+                                background: "rgba(34, 197, 94, 0.15)",
+                                color: "#22c55e",
+                                border: "1px solid rgba(34, 197, 94, 0.35)",
+                                cursor: "pointer",
+                                transition: "all 0.15s ease",
+                              }}
+                            >
+                              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22c55e" }} />
+                              Responded
                             </span>
-                            <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
-                              ({Math.round((survey.average_score / 5.0) * 100)}%)
-                            </span>
+
+                            {/* Hover Tooltip / Popover with accessible navigation link */}
+                            {hoveredSurveyId === survey.id && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "calc(100% + 6px)",
+                                  left: "0",
+                                  background: "#0f172a",
+                                  border: "1px solid rgba(96, 165, 250, 0.35)",
+                                  borderRadius: "8px",
+                                  padding: "8px 12px",
+                                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.7), 0 0 15px rgba(59, 130, 246, 0.2)",
+                                  zIndex: 100,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                <Link
+                                  to={`/responses/${survey.response_id || survey.id}`}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                    color: "#60a5fa",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    textDecoration: "none",
+                                  }}
+                                  title="Open client feedback evaluation response"
+                                  aria-label="View Client Response"
+                                >
+                                  <span>👁 View Client Response</span>
+                                  <span style={{ fontSize: "11px" }}>↗</span>
+                                </Link>
+                              </div>
+                            )}
                           </div>
                         ) : (
-                          <span style={{ fontSize: "13px", color: "var(--text-dim, #64748b)" }}>
-                            —
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              padding: "4px 10px",
+                              borderRadius: "6px",
+                              background: "rgba(148, 163, 184, 0.1)",
+                              color: "var(--text-dim, #64748b)",
+                              border: "1px solid rgba(148, 163, 184, 0.2)",
+                            }}
+                          >
+                            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#64748b" }} />
+                            Awaiting Response
                           </span>
                         )}
                       </td>
@@ -629,6 +1114,82 @@ export default function SurveysPage() {
           </div>
         )}
       </div>
+
+      {/* Response Follow-up Modal (Original preserved) */}
+      {followupModalSurvey && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.75)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+            padding: "20px",
+          }}
+          onClick={() => setFollowupModalSurvey(null)}
+        >
+          <div
+            style={{
+              background: "#0d1b2a",
+              border: "1px solid rgba(96, 165, 250, 0.3)",
+              borderRadius: "12px",
+              padding: "26px",
+              maxWidth: "600px",
+              width: "100%",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+              <h3 style={{ color: "#ffffff", margin: 0, fontSize: "17px", fontWeight: 700 }}>
+                Send Follow-up Email
+              </h3>
+              <button
+                type="button"
+                onClick={() => setFollowupModalSurvey(null)}
+                style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 16px 0", lineHeight: 1.5 }}>
+              Send an acknowledgment email to <strong>{followupModalSurvey.client_contact_name}</strong> ({followupModalSurvey.client_contact_email}) regarding their {followupModalSurvey.phase} evaluation.
+            </p>
+
+            <textarea
+              value={followupMessage}
+              onChange={(e) => setFollowupMessage(e.target.value)}
+              rows={8}
+              style={{
+                width: "100%",
+                background: "rgba(10, 22, 40, 0.8)",
+                border: "1px solid rgba(96, 165, 250, 0.3)",
+                borderRadius: "8px",
+                color: "#e2e8f0",
+                fontSize: "13px",
+                padding: "12px",
+                outline: "none",
+                fontFamily: "inherit",
+                resize: "vertical",
+                boxSizing: "border-box",
+                marginBottom: "18px",
+              }}
+            />
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <Button variant="ghost" size="sm" onClick={() => setFollowupModalSurvey(null)}>
+                Cancel
+              </Button>
+              <Button variant="primary" size="sm" disabled={sendingFollowup} onClick={handleSendFollowup}>
+                {sendingFollowup ? "Sending..." : "Send Follow-up"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

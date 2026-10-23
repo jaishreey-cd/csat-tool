@@ -23,19 +23,39 @@ export default function PermissionsPage() {
   const [role, setRole] = useState("User");
   const [granting, setGranting] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "info" });
+  const [adminCountInfo, setAdminCountInfo] = useState({
+    active_admin_count: 0,
+    max_admins: 3,
+    is_limit_reached: false,
+  });
 
-  // Guard: Admin only
-  useEffect(() => {
-    if (currentUser && currentUser.role !== "Admin") {
-      navigate("/dashboard", { replace: true });
-    }
-  }, [currentUser, navigate]);
+  const calculateActiveAdmins = (userList) => {
+    return (userList || []).filter(
+      (u) => (u.role || "").trim().toLowerCase() === "admin" && Boolean(u.is_active)
+    ).length;
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const data = await authApi.getUsers();
-      setUsers(data || []);
+      const [usersResult, countResult] = await Promise.allSettled([
+        authApi.getUsers(),
+        authApi.getAdminCount(),
+      ]);
+
+      const resolvedUsers = usersResult.status === "fulfilled" ? usersResult.value || [] : [];
+      setUsers(resolvedUsers);
+
+      if (countResult.status === "fulfilled" && countResult.value) {
+        setAdminCountInfo(countResult.value);
+      } else {
+        const count = calculateActiveAdmins(resolvedUsers);
+        setAdminCountInfo({
+          active_admin_count: count,
+          max_admins: 3,
+          is_limit_reached: count >= 3,
+        });
+      }
     } catch (err) {
       console.error("Failed to fetch users:", err);
       setToast({ message: "Failed to load users list.", type: "danger" });
@@ -61,13 +81,22 @@ export default function PermissionsPage() {
     e.preventDefault();
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) {
-      setToast({ message: "Please enter a valid PMO email address.", type: "warning" });
+      setToast({ message: "Please enter a valid user email address.", type: "warning" });
       return;
     }
 
-    if (isLimitReached) {
+    const currentAdmins = calculateActiveAdmins(users);
+    const existingUser = users.find((u) => u.email?.trim().toLowerCase() === trimmedEmail);
+    const isAlreadyActiveAdmin =
+      existingUser &&
+      (existingUser.role || "").trim().toLowerCase() === "admin" &&
+      Boolean(existingUser.is_active);
+
+    // Enforce 3-Admin limit on granting access
+    if (role.trim().toLowerCase() === "admin" && !isAlreadyActiveAdmin && currentAdmins >= 3) {
       setToast({
-        message: `Maximum limit of ${MAX_PMO_LIMIT} PMOs reached. Cannot grant access to more users.`,
+        message:
+          "Maximum of 3 Admins reached. Revoke access from an existing Admin before granting Admin access to another user.",
         type: "danger",
       });
       return;
@@ -78,8 +107,8 @@ export default function PermissionsPage() {
       await authApi.grantUserAccess({ email: trimmedEmail, role });
       setToast({ message: `Access successfully granted to ${trimmedEmail} (${role})!`, type: "success" });
       setEmail("");
-      setRole("User");
-      fetchUsers();
+      setRole("PMO");
+      await fetchUsers();
     } catch (err) {
       console.error("Failed to grant access:", err);
       setToast({
@@ -91,47 +120,34 @@ export default function PermissionsPage() {
     }
   };
 
-  const handleRoleChange = async (userId, newRole) => {
-    try {
-      await authApi.updateUserRole(userId, newRole);
-      setToast({ message: `User role updated to ${newRole}!`, type: "success" });
-      fetchUsers();
-    } catch (err) {
-      console.error("Failed to update role:", err);
-      setToast({ message: err.response?.data?.detail || "Failed to update role.", type: "danger" });
-    }
-  };
 
   const handleToggleStatus = async (userId, currentActive, userRole) => {
-    if (!currentActive && isLimitReached) {
+    const isActivatingAdmin =
+      !currentActive && (userRole || "").trim().toLowerCase() === "admin";
+    const currentAdmins = calculateActiveAdmins(users);
+
+    if (isActivatingAdmin && currentAdmins >= 3) {
       setToast({
-        message: `Cannot activate user: Maximum limit of ${MAX_PMO_LIMIT} active PMOs is already reached.`,
+        message:
+          "Maximum of 3 Admins reached. Revoke access from an existing Admin before granting Admin access to another user.",
         type: "danger",
       });
       return;
     }
 
-    const nextActive = !currentActive;
-
-    // Immediately update state optimistically so the user transitions between filters with zero delay
-    setUsers((prevUsers) =>
-      prevUsers.map((u) => (u.id === userId ? { ...u, is_active: nextActive } : u))
-    );
-
     try {
-      await authApi.updateUserRole(userId, userRole, nextActive);
+      await authApi.updateUserRole(userId, userRole, !currentActive);
       setToast({
-        message: nextActive ? "User access restored." : "User access revoked.",
+        message: !currentActive ? "User access activated." : "User access suspended/revoked.",
         type: "success",
       });
-      fetchUsers();
+      await fetchUsers();
     } catch (err) {
       console.error("Failed to toggle status:", err);
-      // Revert optimistic update on failure
-      setUsers((prevUsers) =>
-        prevUsers.map((u) => (u.id === userId ? { ...u, is_active: currentActive } : u))
-      );
-      setToast({ message: err.response?.data?.detail || "Failed to update access status.", type: "danger" });
+      setToast({
+        message: err.response?.data?.detail || "Failed to update access status.",
+        type: "danger",
+      });
     }
   };
 
@@ -145,41 +161,72 @@ export default function PermissionsPage() {
         />
       )}
 
-      {/* Header with 3-PMO Limit Allocation Tracker */}
+      {/* Header with Active Admin count badge */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
         <div>
           <h2 style={{ fontSize: "26px", fontWeight: 800, color: "var(--text-white, #ffffff)", margin: 0, letterSpacing: "-0.4px" }}>
             User Permissions & Access Control
           </h2>
           <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-            The initial Admin uses this route to grant access to up to 3 PMOs as either User or Admin.
+            Administrators can allow users by entering their email address and assigning their permission role.
           </p>
         </div>
 
-        {/* 3-PMO Limit Counter Badge */}
+        {/* Live Admin Slot Counter Badge */}
         <div
+          id="adminSlotCounter"
           style={{
-            background: isLimitReached ? "rgba(239, 68, 68, 0.15)" : "rgba(37, 99, 235, 0.15)",
-            border: `1px solid ${isLimitReached ? "rgba(239, 68, 68, 0.4)" : "rgba(96, 165, 250, 0.35)"}`,
-            borderRadius: "10px",
-            padding: "8px 16px",
-            display: "flex",
+            display: "inline-flex",
             alignItems: "center",
             gap: "10px",
+            background: adminCountInfo.active_admin_count >= 3 ? "rgba(239, 68, 68, 0.12)" : "rgba(37, 99, 235, 0.12)",
+            border: `1px solid ${adminCountInfo.active_admin_count >= 3 ? "rgba(239, 68, 68, 0.35)" : "rgba(59, 130, 246, 0.35)"}`,
+            borderRadius: "24px",
+            padding: "8px 16px",
+            boxShadow: "0 4px 14px rgba(0, 0, 0, 0.25)",
           }}
         >
-          <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600 }}>
-            PMO Allocation:
-          </span>
           <span
             style={{
-              fontSize: "15px",
-              fontWeight: 800,
-              color: isLimitReached ? "#f87171" : "#60a5fa",
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              background: adminCountInfo.active_admin_count >= 3 ? "#ef4444" : "#22c55e",
+              boxShadow: `0 0 8px ${adminCountInfo.active_admin_count >= 3 ? "#ef4444" : "#22c55e"}`,
             }}
-          >
-            {activePmoCount} / {MAX_PMO_LIMIT} PMOs Used
+          />
+          <span style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.2px" }}>
+            Active Admins: <span style={{ color: adminCountInfo.active_admin_count >= 3 ? "#f87171" : "#60a5fa" }}>{adminCountInfo.active_admin_count}</span> / 3
           </span>
+          {adminCountInfo.active_admin_count >= 3 ? (
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: "12px",
+                background: "rgba(239, 68, 68, 0.25)",
+                color: "#fca5a5",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
+              Limit Reached
+            </span>
+          ) : (
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 600,
+                padding: "2px 8px",
+                borderRadius: "12px",
+                background: "rgba(34, 197, 94, 0.15)",
+                color: "#86efac",
+              }}
+            >
+              {3 - adminCountInfo.active_admin_count} slot{3 - adminCountInfo.active_admin_count !== 1 ? "s" : ""} open
+            </span>
+          )}
         </div>
       </div>
 
@@ -270,6 +317,30 @@ export default function PermissionsPage() {
             </Button>
           </div>
         </form>
+
+        {/* Warning banner if Admin role selected while limit is reached */}
+        {role === "Admin" && adminCountInfo.active_admin_count >= 3 && (
+          <div
+            id="adminLimitAlert"
+            style={{
+              marginTop: "16px",
+              padding: "12px 16px",
+              borderRadius: "8px",
+              background: "rgba(239, 68, 68, 0.12)",
+              border: "1px solid rgba(239, 68, 68, 0.35)",
+              color: "#fca5a5",
+              fontSize: "13px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <span style={{ fontSize: "16px" }}>⚠️</span>
+            <span>
+              <strong>Maximum of 3 Admins reached.</strong> Revoke access from an existing Admin before granting Admin access to another user.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Authorized PMOs & Users Table */}
@@ -281,95 +352,12 @@ export default function PermissionsPage() {
           overflow: "hidden",
         }}
       >
-        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-              System Access Roster
-            </h4>
-
-            {/* User Filter Controls (Current Users vs Old Users) */}
-            <div
-              style={{
-                display: "inline-flex",
-                background: "rgba(10, 22, 40, 0.7)",
-                borderRadius: "8px",
-                padding: "3px",
-                border: "1px solid rgba(96, 165, 250, 0.2)",
-                gap: "4px",
-              }}
-            >
-              <button
-                type="button"
-                id="filter-current-users-btn"
-                onClick={() => setUserFilter("current")}
-                style={{
-                  padding: "5px 12px",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  borderRadius: "6px",
-                  border: "none",
-                  background: userFilter === "current" ? "rgba(37, 99, 235, 0.3)" : "transparent",
-                  color: userFilter === "current" ? "#93c5fd" : "var(--text-dim, #64748b)",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                <span>Current Users</span>
-                <span
-                  style={{
-                    background: userFilter === "current" ? "#2563eb" : "rgba(255, 255, 255, 0.1)",
-                    color: "#ffffff",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    padding: "1px 6px",
-                    borderRadius: "10px",
-                  }}
-                >
-                  {currentUsers.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                id="filter-old-users-btn"
-                onClick={() => setUserFilter("old")}
-                style={{
-                  padding: "5px 12px",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  borderRadius: "6px",
-                  border: "none",
-                  background: userFilter === "old" ? "rgba(239, 68, 68, 0.25)" : "transparent",
-                  color: userFilter === "old" ? "#fca5a5" : "var(--text-dim, #64748b)",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                <span>Old Users</span>
-                <span
-                  style={{
-                    background: userFilter === "old" ? "#ef4444" : "rgba(255, 255, 255, 0.1)",
-                    color: "#ffffff",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    padding: "1px 6px",
-                    borderRadius: "10px",
-                  }}
-                >
-                  {oldUsers.length}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)" }}>
-            Initial Admin: 1 | Allocated PMOs: {activePmoCount} / {MAX_PMO_LIMIT}
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+          <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+            Authorized Users ({users.length})
+          </h4>
+          <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>
+            Active Admins: <strong style={{ color: adminCountInfo.active_admin_count >= 3 ? "#f87171" : "#60a5fa" }}>{adminCountInfo.active_admin_count}/3</strong> • PMO: <strong style={{ color: "#ffffff" }}>{users.filter(u => (u.role || "").toLowerCase() === "pmo" && u.is_active).length}</strong>
           </span>
         </div>
 
@@ -427,29 +415,23 @@ export default function PermissionsPage() {
                         {u.full_name || "—"}
                       </td>
 
-                      <td style={{ padding: "14px 20px" }}>
-                        {isInitialAdmin ? (
-                          <Badge variant="active">Initial Admin</Badge>
-                        ) : (
-                          <select
-                            value={u.role === "Admin" ? "Admin" : "User"}
-                            onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                            style={{
-                              background: "var(--bg-surface, #0b1329)",
-                              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.3))",
-                              color: "var(--primary-lt, #60a5fa)",
-                              borderRadius: "4px",
-                              padding: "4px 8px",
-                              fontSize: "12px",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                            }}
-                          >
-                            <option value="User">User</option>
-                            <option value="Admin">Admin</option>
-                          </select>
-                        )}
-                      </td>
+                    <td style={{ padding: "14px 20px" }}>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          padding: "3px 10px",
+                          borderRadius: "4px",
+                          background: (u.role || "").toLowerCase() === "admin" ? "rgba(245, 158, 11, 0.15)" : "rgba(59, 130, 246, 0.15)",
+                          color: (u.role || "").toLowerCase() === "admin" ? "#f59e0b" : "#60a5fa",
+                          border: `1px solid ${(u.role || "").toLowerCase() === "admin" ? "rgba(245, 158, 11, 0.35)" : "rgba(59, 130, 246, 0.3)"}`,
+                          letterSpacing: "0.3px",
+                        }}
+                      >
+                        {u.role || "PMO"}
+                      </span>
+                    </td>
 
                       <td style={{ padding: "14px 20px" }}>
                         <span

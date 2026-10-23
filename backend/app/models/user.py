@@ -9,7 +9,7 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     full_name = Column(String(255), nullable=True)
     hashed_password = Column(String(255), nullable=False)
-    role = Column(String(50), default="Admin", nullable=False)  # 'Admin' | 'User'
+    role = Column(String(50), default="PMO", nullable=False)  # 'Admin' | 'PMO' | 'Viewer'
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
