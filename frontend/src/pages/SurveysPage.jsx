@@ -288,11 +288,13 @@ export default function SurveysPage() {
         <div
           style={{
             display: "inline-flex",
-            background: "rgba(13, 27, 42, 0.9)",
+            background: "rgba(13, 27, 42, 0.85)",
             border: "1px solid rgba(96, 165, 250, 0.2)",
-            borderRadius: "8px",
-            padding: "3px",
-            gap: "2px",
+            borderRadius: "10px",
+            padding: "4px",
+            gap: "4px",
+            backdropFilter: "blur(8px)",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
           }}
         >
           {[
@@ -311,15 +313,16 @@ export default function SurveysPage() {
                   fetchAnalytics(tab.id);
                 }}
                 style={{
-                  padding: "5px 12px",
+                  padding: "6px 14px",
                   fontSize: "12px",
                   fontWeight: active ? 700 : 500,
-                  borderRadius: "6px",
+                  borderRadius: "7px",
                   border: "none",
                   cursor: "pointer",
-                  background: active ? "var(--primary, #2563eb)" : "transparent",
+                  background: active ? "linear-gradient(135deg, #2563eb, #1d4ed8)" : "transparent",
                   color: active ? "#ffffff" : "var(--text-muted, #94a3b8)",
-                  transition: "all 0.15s ease",
+                  boxShadow: active ? "0 2px 8px rgba(37, 99, 235, 0.4)" : "none",
+                  transition: "all 0.18s ease",
                 }}
               >
                 {tab.label}
@@ -339,17 +342,30 @@ export default function SurveysPage() {
       >
         {/* Overall CSAT Score */}
         <div
+          className="interactive-card"
           style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
-            borderRadius: "var(--radius-lg, 12px)",
-            padding: "20px",
+            position: "relative",
+            background: "linear-gradient(180deg, rgba(14, 28, 48, 0.85) 0%, rgba(10, 20, 36, 0.95) 100%)",
+            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.22))",
+            borderRadius: "var(--radius-lg, 14px)",
+            padding: "22px 20px 20px 20px",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            overflow: "hidden",
           }}
         >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "3px",
+              background: "linear-gradient(90deg, #2563eb 0%, #60a5fa 100%)",
+            }}
+          />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
               Overall CSAT Score
@@ -357,7 +373,7 @@ export default function SurveysPage() {
             <span style={{ fontSize: "11px", color: "#60a5fa", fontWeight: 600 }}>Ratings ≥ 4 / 5</span>
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginTop: "2px" }}>
-            <span style={{ fontSize: "32px", fontWeight: 800, color: "#60a5fa" }}>
+            <span style={{ fontSize: "32px", fontWeight: 800, color: "#60a5fa", letterSpacing: "-0.5px" }}>
               {overallCsatPercentage != null ? `${overallCsatPercentage}%` : "—"}
             </span>
             {overallCsatAvg != null && (
@@ -373,21 +389,34 @@ export default function SurveysPage() {
 
         {/* Total Surveys Dispatched */}
         <div
+          className="interactive-card"
           style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
-            borderRadius: "var(--radius-lg, 12px)",
-            padding: "20px",
+            position: "relative",
+            background: "linear-gradient(180deg, rgba(14, 28, 48, 0.85) 0%, rgba(10, 20, 36, 0.95) 100%)",
+            border: "1px solid var(--border, rgba(96, 165, 250, 0.16))",
+            borderRadius: "var(--radius-lg, 14px)",
+            padding: "22px 20px 20px 20px",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            overflow: "hidden",
           }}
         >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "3px",
+              background: "linear-gradient(90deg, #06b6d4 0%, #38bdf8 100%)",
+            }}
+          />
           <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
             Total Surveys Dispatched
           </span>
-          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--text-white, #ffffff)", marginTop: "2px" }}>
+          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--text-white, #ffffff)", marginTop: "2px", letterSpacing: "-0.5px" }}>
             {totalSurveysDispatched}
           </span>
           <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
@@ -397,17 +426,30 @@ export default function SurveysPage() {
 
         {/* Responded Surveys */}
         <div
+          className="interactive-card"
           style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
-            borderRadius: "var(--radius-lg, 12px)",
-            padding: "20px",
+            position: "relative",
+            background: "linear-gradient(180deg, rgba(14, 28, 48, 0.85) 0%, rgba(10, 20, 36, 0.95) 100%)",
+            border: "1px solid var(--border, rgba(96, 165, 250, 0.16))",
+            borderRadius: "var(--radius-lg, 14px)",
+            padding: "22px 20px 20px 20px",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            overflow: "hidden",
           }}
         >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "3px",
+              background: "linear-gradient(90deg, #10b981 0%, #34d399 100%)",
+            }}
+          />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
               Responded Surveys
@@ -416,7 +458,7 @@ export default function SurveysPage() {
               {responseRate}%
             </span>
           </div>
-          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--success, #22c55e)", marginTop: "2px" }}>
+          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--success, #22c55e)", marginTop: "2px", letterSpacing: "-0.5px" }}>
             {totalResponded}
           </span>
           <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
@@ -426,21 +468,34 @@ export default function SurveysPage() {
 
         {/* Awaiting Response */}
         <div
+          className="interactive-card"
           style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
-            borderRadius: "var(--radius-lg, 12px)",
-            padding: "20px",
+            position: "relative",
+            background: "linear-gradient(180deg, rgba(14, 28, 48, 0.85) 0%, rgba(10, 20, 36, 0.95) 100%)",
+            border: "1px solid var(--border, rgba(96, 165, 250, 0.16))",
+            borderRadius: "var(--radius-lg, 14px)",
+            padding: "22px 20px 20px 20px",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            overflow: "hidden",
           }}
         >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "3px",
+              background: "linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)",
+            }}
+          />
           <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
             Awaiting Response
           </span>
-          <span style={{ fontSize: "32px", fontWeight: 800, color: "#f59e0b", marginTop: "2px" }}>
+          <span style={{ fontSize: "32px", fontWeight: 800, color: "#f59e0b", marginTop: "2px", letterSpacing: "-0.5px" }}>
             {totalAwaiting}
           </span>
           <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
@@ -741,14 +796,15 @@ export default function SurveysPage() {
       {/* Filter and Search Bar */}
       <div
         style={{
-          background: "var(--bg-surface, #0d1b2a)",
-          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
-          borderRadius: "var(--radius-lg, 12px)",
+          background: "linear-gradient(180deg, rgba(14, 28, 48, 0.8) 0%, rgba(10, 20, 36, 0.9) 100%)",
+          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.22))",
+          borderRadius: "var(--radius-lg, 14px)",
           padding: "16px 20px",
           display: "flex",
           gap: "14px",
           alignItems: "center",
           flexWrap: "wrap",
+          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
         }}
       >
         <div style={{ flex: 1, minWidth: "220px" }}>
@@ -818,10 +874,11 @@ export default function SurveysPage() {
       {/* Main Surveys Table */}
       <div
         style={{
-          background: "var(--bg-surface, #0d1b2a)",
-          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
-          borderRadius: "var(--radius-lg, 12px)",
+          background: "linear-gradient(180deg, rgba(13, 27, 42, 0.95) 0%, rgba(10, 20, 36, 0.98) 100%)",
+          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.22))",
+          borderRadius: "var(--radius-lg, 14px)",
           overflow: "hidden",
+          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
         }}
       >
         {loading ? (
@@ -861,8 +918,8 @@ export default function SurveysPage() {
               <thead>
                 <tr
                   style={{
-                    background: "var(--bg-hover, rgba(10, 22, 40, 0.8))",
-                    borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+                    background: "rgba(10, 22, 40, 0.95)",
+                    borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.18))",
                     color: "var(--text-dim, #64748b)",
                     fontSize: "11px",
                     textTransform: "uppercase",
@@ -894,7 +951,7 @@ export default function SurveysPage() {
                         borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.08))",
                         transition: "background 0.15s ease",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover, rgba(14, 30, 50, 0.45))")}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(96, 165, 250, 0.05)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
                       {/* Client & Project with role-guarded link to inside project analytics */}

@@ -320,21 +320,24 @@ export default function ProjectAnalyticsPage() {
       >
         {/* Phase Lifecycle Card */}
         <div
+          className="glass-panel interactive-card"
           style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid rgba(59, 130, 246, 0.25)",
+            position: "relative",
             borderRadius: "var(--radius-lg, 12px)",
-            padding: "18px 22px",
+            padding: "20px 22px",
             display: "flex",
             alignItems: "center",
             gap: "16px",
+            overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.25)",
           }}
         >
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #3b82f6, #60a5fa)" }} />
           <div
             style={{
-              width: "42px",
-              height: "42px",
-              borderRadius: "10px",
+              width: "44px",
+              height: "44px",
+              borderRadius: "12px",
               background: "rgba(59, 130, 246, 0.18)",
               display: "flex",
               alignItems: "center",
@@ -359,21 +362,24 @@ export default function ProjectAnalyticsPage() {
 
         {/* Total Surveys Card */}
         <div
+          className="glass-panel interactive-card"
           style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+            position: "relative",
             borderRadius: "var(--radius-lg, 12px)",
-            padding: "18px 22px",
+            padding: "20px 22px",
             display: "flex",
             alignItems: "center",
             gap: "16px",
+            overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.25)",
           }}
         >
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #2563eb, #38bdf8)" }} />
           <div
             style={{
-              width: "42px",
-              height: "42px",
-              borderRadius: "10px",
+              width: "44px",
+              height: "44px",
+              borderRadius: "12px",
               background: "rgba(37, 99, 235, 0.15)",
               display: "flex",
               alignItems: "center",
@@ -395,21 +401,24 @@ export default function ProjectAnalyticsPage() {
 
         {/* Completed Responses Card */}
         <div
+          className="glass-panel interactive-card"
           style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+            position: "relative",
             borderRadius: "var(--radius-lg, 12px)",
-            padding: "18px 22px",
+            padding: "20px 22px",
             display: "flex",
             alignItems: "center",
             gap: "16px",
+            overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.25)",
           }}
         >
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #10b981, #34d399)" }} />
           <div
             style={{
-              width: "42px",
-              height: "42px",
-              borderRadius: "10px",
+              width: "44px",
+              height: "44px",
+              borderRadius: "12px",
               background: "rgba(34, 197, 94, 0.15)",
               display: "flex",
               alignItems: "center",
@@ -431,21 +440,24 @@ export default function ProjectAnalyticsPage() {
 
         {/* Response Rate Card */}
         <div
+          className="glass-panel interactive-card"
           style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+            position: "relative",
             borderRadius: "var(--radius-lg, 12px)",
-            padding: "18px 22px",
+            padding: "20px 22px",
             display: "flex",
             alignItems: "center",
             gap: "16px",
+            overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.25)",
           }}
         >
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #06b6d4, #67e8f9)" }} />
           <div
             style={{
-              width: "42px",
-              height: "42px",
-              borderRadius: "10px",
+              width: "44px",
+              height: "44px",
+              borderRadius: "12px",
               background: "rgba(6, 182, 212, 0.15)",
               display: "flex",
               alignItems: "center",
@@ -467,21 +479,24 @@ export default function ProjectAnalyticsPage() {
 
         {/* Latest Evaluation Date Card */}
         <div
+          className="glass-panel interactive-card"
           style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+            position: "relative",
             borderRadius: "var(--radius-lg, 12px)",
-            padding: "18px 22px",
+            padding: "20px 22px",
             display: "flex",
             alignItems: "center",
             gap: "16px",
+            overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.25)",
           }}
         >
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #8b5cf6, #c084fc)" }} />
           <div
             style={{
-              width: "42px",
-              height: "42px",
-              borderRadius: "10px",
+              width: "44px",
+              height: "44px",
+              borderRadius: "12px",
               background: "rgba(148, 163, 184, 0.15)",
               display: "flex",
               alignItems: "center",

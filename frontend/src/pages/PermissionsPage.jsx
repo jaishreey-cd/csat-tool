@@ -243,12 +243,12 @@ export default function PermissionsPage() {
 
       {/* Grant Access Card */}
       <div
+        className="glass-panel"
         style={{
-          background: "var(--bg-surface, #0d1b2a)",
-          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
           borderRadius: "var(--radius-lg, 12px)",
-          padding: "24px 28px",
-          boxShadow: "0 8px 30px rgba(0, 0, 0, 0.3)",
+          padding: "26px 28px",
+          boxShadow: "0 12px 30px rgba(0, 0, 0, 0.25)",
+          border: "1px solid rgba(96, 165, 250, 0.22)",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
@@ -356,11 +356,11 @@ export default function PermissionsPage() {
 
       {/* Authorized PMOs & Users Table */}
       <div
+        className="glass-panel"
         style={{
-          background: "var(--bg-surface, #0d1b2a)",
-          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
           borderRadius: "var(--radius-lg, 12px)",
           overflow: "hidden",
+          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.2)",
         }}
       >
         <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" }}>

@@ -39,8 +39,8 @@ export default function Topbar({ onToggleSidebar }) {
     <header
       style={{
         height: "var(--topbar-h, 68px)",
-        background: "var(--bg-surface, #0d1b2a)",
-        borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
+        background: "rgba(13, 27, 42, 0.85)",
+        borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.12))",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -48,7 +48,8 @@ export default function Topbar({ onToggleSidebar }) {
         position: "sticky",
         top: 0,
         zIndex: 30,
-        backdropFilter: "blur(8px)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
       }}
     >
       {/* Left: Mobile hamburger & Page Title */}
@@ -73,13 +74,26 @@ export default function Topbar({ onToggleSidebar }) {
 
         <h1
           style={{
-            fontSize: "18px",
+            fontSize: "17px",
             fontWeight: 700,
             color: "var(--text-white, #ffffff)",
             margin: 0,
-            letterSpacing: "-0.2px",
+            letterSpacing: "-0.3px",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
           }}
         >
+          <span
+            style={{
+              width: "7px",
+              height: "7px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, var(--accent, #06b6d4), var(--primary, #2563eb))",
+              boxShadow: "0 0 8px rgba(37, 99, 235, 0.6)",
+              flexShrink: 0,
+            }}
+          />
           {currentTitle}
         </h1>
       </div>

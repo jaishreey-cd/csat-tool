@@ -265,16 +265,16 @@ export default function QuestionsPage() {
 
       {/* Filters Bar */}
       <div
+        className="glass-panel"
         style={{
-          background: "var(--bg-surface, #0d1b2a)",
-          border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
           borderRadius: "12px",
-          padding: "18px 22px",
+          padding: "16px 22px",
           marginBottom: "24px",
           display: "flex",
           gap: "20px",
           flexWrap: "wrap",
           alignItems: "center",
+          boxShadow: "0 6px 20px rgba(0, 0, 0, 0.2)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -337,16 +337,16 @@ export default function QuestionsPage() {
             return (
               <div
                 key={q.id}
+                className="glass-panel interactive-card"
                 style={{
-                  background: "var(--bg-surface, #0d1b2a)",
-                  border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                   borderRadius: "10px",
                   padding: "18px 22px",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "flex-start",
                   gap: "20px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+                  borderLeft: q.section_number === 6 ? "3px solid #a855f7" : "3px solid #3b82f6",
                 }}
               >
                 <div style={{ flex: 1 }}>

@@ -188,24 +188,43 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
                 alignItems: "center",
                 gap: "12px",
                 padding: "10px 14px",
-                borderRadius: "var(--radius-md, 9px)",
+                borderRadius: "var(--radius-md, 10px)",
                 fontSize: "14px",
-                fontWeight: isActive ? 600 : 500,
+                fontWeight: isActive ? 700 : 500,
                 color: isActive
                   ? "var(--text-white, #ffffff)"
                   : "var(--text-muted, #94a3b8)",
                 background: isActive
-                  ? "var(--bg-active, rgba(37, 99, 235, 0.15))"
+                  ? "linear-gradient(90deg, rgba(37, 99, 235, 0.22) 0%, rgba(37, 99, 235, 0.06) 100%)"
                   : "transparent",
                 border: isActive
-                  ? "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))"
+                  ? "1px solid var(--border-strong, rgba(96, 165, 250, 0.35))"
                   : "1px solid transparent",
+                borderLeft: isActive
+                  ? "3px solid var(--primary-lt, #60a5fa)"
+                  : "3px solid transparent",
+                boxShadow: isActive
+                  ? "0 2px 12px rgba(37, 99, 235, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08)"
+                  : "none",
                 textDecoration: "none",
-                transition: "all 0.15s ease",
+                transition: "all 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
               })}
             >
-              <span style={{ display: "flex", alignItems: "center" }}>{item.icon}</span>
-              <span>{item.label}</span>
+              {({ isActive }) => (
+                <>
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      color: isActive ? "var(--primary-lt, #60a5fa)" : "currentColor",
+                      transition: "color 0.15s ease",
+                    }}
+                  >
+                    {item.icon}
+                  </span>
+                  <span>{item.label}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -215,14 +234,24 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
           style={{
             padding: "16px",
             borderTop: "1px solid var(--border, rgba(96, 165, 250, 0.12))",
-            background: "var(--bg-hover, rgba(10, 20, 35, 0.6))",
+            background: "linear-gradient(180deg, rgba(13, 27, 42, 0.6) 0%, rgba(10, 20, 36, 0.95) 100%)",
             display: "flex",
             flexDirection: "column",
             gap: "12px",
           }}
         >
           {/* User Profile Card */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              padding: "10px 12px",
+              borderRadius: "10px",
+              background: "rgba(14, 28, 48, 0.6)",
+              border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+            }}
+          >
             <div
               style={{
                 width: "36px",
@@ -236,6 +265,7 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
                 fontSize: "13px",
                 fontWeight: 700,
                 flexShrink: 0,
+                boxShadow: "0 2px 8px rgba(37, 99, 235, 0.3)",
               }}
             >
               {getInitials(user?.full_name, user?.email)}
@@ -253,18 +283,32 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
               >
                 {user?.full_name || "Authorized User"}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px" }}>
                 <span
                   style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
                     fontSize: "10px",
                     fontWeight: 700,
-                    background: user?.role === "Admin" ? "rgba(16, 185, 129, 0.15)" : "rgba(37, 99, 235, 0.15)",
-                    color: user?.role === "Admin" ? "var(--success, #10b981)" : "var(--primary-lt, #2563eb)",
+                    background: user?.role === "Admin" ? "rgba(34, 197, 94, 0.15)" : "rgba(37, 99, 235, 0.15)",
+                    color: user?.role === "Admin" ? "var(--success, #22c55e)" : "var(--primary-lt, #60a5fa)",
                     padding: "1px 6px",
-                    borderRadius: "4px",
+                    borderRadius: "9999px",
+                    border: `1px solid ${user?.role === "Admin" ? "rgba(34, 197, 94, 0.3)" : "rgba(37, 99, 235, 0.3)"}`,
                     textTransform: "uppercase",
+                    letterSpacing: "0.3px",
                   }}
                 >
+                  <span
+                    style={{
+                      width: "4px",
+                      height: "4px",
+                      borderRadius: "50%",
+                      backgroundColor: "currentColor",
+                      boxShadow: "0 0 4px currentColor",
+                    }}
+                  />
                   {user?.role || "Admin"}
                 </span>
                 <span
@@ -289,17 +333,36 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
             style={{
               width: "100%",
               padding: "8px 12px",
-              borderRadius: "6px",
-              border: "1px solid rgba(239, 68, 68, 0.25)",
-              background: "rgba(239, 68, 68, 0.08)",
+              borderRadius: "8px",
+              border: "1px solid rgba(239, 68, 68, 0.22)",
+              background: "rgba(239, 68, 68, 0.06)",
               color: "var(--danger, #ef4444)",
               fontSize: "12px",
               fontWeight: 600,
               cursor: "pointer",
-              transition: "all 0.15s ease",
+              transition: "all 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(239, 68, 68, 0.16)";
+              e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.45)";
+              e.currentTarget.style.boxShadow = "0 2px 10px rgba(239, 68, 68, 0.2)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(239, 68, 68, 0.06)";
+              e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.22)";
+              e.currentTarget.style.boxShadow = "none";
             }}
             title="Sign out of CSAT"
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
             Sign Out
           </button>
         </div>

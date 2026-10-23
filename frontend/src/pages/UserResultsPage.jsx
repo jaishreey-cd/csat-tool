@@ -121,21 +121,57 @@ export default function UserResultsPage() {
 
       {/* KPI Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "28px" }}>
-        <div style={{ background: "var(--bg-surface, #0d1b2a)", padding: "20px", borderRadius: "12px", border: "1px solid var(--border, rgba(96, 165, 250, 0.12))" }}>
-          <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase" }}>Authorized Surveys</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "var(--text-white, #ffffff)", marginTop: "6px" }}>{stats.total}</div>
+        <div
+          className="interactive-card"
+          style={{
+            position: "relative",
+            background: "linear-gradient(180deg, rgba(14, 28, 48, 0.85) 0%, rgba(10, 20, 36, 0.95) 100%)",
+            padding: "22px 20px 20px 20px",
+            borderRadius: "14px",
+            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #2563eb, #60a5fa)" }} />
+          <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Authorized Surveys</div>
+          <div style={{ fontSize: "30px", fontWeight: 800, color: "var(--text-white, #ffffff)", marginTop: "4px", letterSpacing: "-0.5px" }}>{stats.total}</div>
         </div>
 
-        <div style={{ background: "var(--bg-surface, #0d1b2a)", padding: "20px", borderRadius: "12px", border: "1px solid var(--border, rgba(96, 165, 250, 0.12))" }}>
-          <div style={{ fontSize: "12px", fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase" }}>Completed Responses</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#34d399", marginTop: "6px" }}>
+        <div
+          className="interactive-card"
+          style={{
+            position: "relative",
+            background: "linear-gradient(180deg, rgba(14, 28, 48, 0.85) 0%, rgba(10, 20, 36, 0.95) 100%)",
+            padding: "22px 20px 20px 20px",
+            borderRadius: "14px",
+            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #10b981, #34d399)" }} />
+          <div style={{ fontSize: "11px", fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: "0.5px" }}>Completed Responses</div>
+          <div style={{ fontSize: "30px", fontWeight: 800, color: "#34d399", marginTop: "4px", letterSpacing: "-0.5px" }}>
             {stats.completed}
           </div>
         </div>
 
-        <div style={{ background: "var(--bg-surface, #0d1b2a)", padding: "20px", borderRadius: "12px", border: "1px solid var(--border, rgba(96, 165, 250, 0.12))" }}>
-          <div style={{ fontSize: "12px", fontWeight: 700, color: "#93c5fd", textTransform: "uppercase" }}>Awaiting Client Feedback</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#60a5fa", marginTop: "6px" }}>
+        <div
+          className="interactive-card"
+          style={{
+            position: "relative",
+            background: "linear-gradient(180deg, rgba(14, 28, 48, 0.85) 0%, rgba(10, 20, 36, 0.95) 100%)",
+            padding: "22px 20px 20px 20px",
+            borderRadius: "14px",
+            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #f59e0b, #fbbf24)" }} />
+          <div style={{ fontSize: "11px", fontWeight: 700, color: "#93c5fd", textTransform: "uppercase", letterSpacing: "0.5px" }}>Awaiting Client Feedback</div>
+          <div style={{ fontSize: "30px", fontWeight: 800, color: "#60a5fa", marginTop: "4px", letterSpacing: "-0.5px" }}>
             {stats.pending}
           </div>
         </div>
@@ -144,28 +180,31 @@ export default function UserResultsPage() {
       {/* Survey Results Table */}
       <div
         style={{
-          background: "var(--bg-surface, #0d1b2a)",
-          border: "1px solid var(--border, rgba(96, 165, 250, 0.12))",
-          borderRadius: "12px",
-          padding: "20px",
+          background: "linear-gradient(180deg, rgba(13, 27, 42, 0.95) 0%, rgba(10, 20, 36, 0.98) 100%)",
+          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.22))",
+          borderRadius: "14px",
+          padding: "22px",
+          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-white, #ffffff)", margin: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+          <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0, letterSpacing: "-0.2px" }}>
             Survey Registry
           </h2>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <label style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)" }}>Filter Phase:</label>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <label style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600 }}>Filter Phase:</label>
             <select
               value={filterPhase}
               onChange={(e) => setFilterPhase(e.target.value)}
               style={{
-                padding: "6px 10px",
-                borderRadius: "6px",
-                background: "var(--bg-surface, #0d1b2a)",
-                border: "1px solid var(--border, rgba(96, 165, 250, 0.2))",
+                padding: "7px 12px",
+                borderRadius: "8px",
+                background: "rgba(14, 28, 48, 0.8)",
+                border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
                 color: "var(--text-main, #e2e8f0)",
                 fontSize: "12px",
+                fontWeight: 500,
+                outline: "none",
               }}
             >
               <option value="ALL">All Phases</option>
@@ -186,14 +225,14 @@ export default function UserResultsPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))", textAlign: "left", color: "var(--text-muted, #94a3b8)" }}>
-                  <th style={{ padding: "10px 12px" }}>Client</th>
-                  <th style={{ padding: "10px 12px" }}>Project</th>
-                  <th style={{ padding: "10px 12px" }}>Phase</th>
-                  <th style={{ padding: "10px 12px" }}>Status</th>
-                  <th style={{ padding: "10px 12px" }}>Average CSAT</th>
-                  <th style={{ padding: "10px 12px" }}>Client Contact</th>
-                  <th style={{ padding: "10px 12px", textAlign: "right" }}>Actions</th>
+                <tr style={{ background: "rgba(10, 22, 40, 0.95)", borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.18))", textAlign: "left", color: "var(--text-dim, #64748b)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Client</th>
+                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Project</th>
+                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Phase</th>
+                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Status</th>
+                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Average CSAT</th>
+                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Client Contact</th>
+                  <th style={{ padding: "12px 14px", textAlign: "right", fontWeight: 700 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -201,9 +240,12 @@ export default function UserResultsPage() {
                   <tr
                     key={s.id}
                     style={{
-                      borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
+                      borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.08))",
                       color: "var(--text-main, #e2e8f0)",
+                      transition: "background 0.15s ease",
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(96, 165, 250, 0.05)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
                     <td style={{ padding: "12px", fontWeight: 600, color: "var(--text-white, #ffffff)" }}>{s.client?.name || "—"}</td>
                     <td style={{ padding: "12px" }}>{s.project?.name || "—"}</td>
