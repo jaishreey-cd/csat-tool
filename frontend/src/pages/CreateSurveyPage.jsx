@@ -264,13 +264,15 @@ export default function CreateSurveyPage() {
       return;
     }
 
+    const trimmedEmail = contactEmail.trim();
+
     const payload = {
       client_id: parseInt(selectedClientId, 10),
       project_id: parseInt(selectedProjectId, 10),
       phase: selectedPhase,
       questions: flatQuestions,
       client_contact_name: contactName.trim(),
-      client_contact_email: contactEmail.trim().toLowerCase(),
+      client_contact_email: trimmedEmail,
     };
 
     try {
@@ -298,6 +300,7 @@ export default function CreateSurveyPage() {
   if (createdSurvey) {
     const clientName = currentClient?.name || createdSurvey.client?.name || createdSurvey.client_contact_name || "Client";
     const surveyUrl = `${window.location.origin}/s/${createdSurvey.unique_token || ""}`;
+    const emailResult = createdSurvey.email_dispatch_result;
 
     return (
       <div
@@ -346,6 +349,44 @@ export default function CreateSurveyPage() {
         >
           Survey link dispatched to {clientName}
         </h2>
+
+        {createdSurvey.client_contact_email && (
+          <div
+            style={{
+              padding: "10px 18px",
+              borderRadius: "8px",
+              background: emailResult?.success
+                ? "rgba(34, 197, 94, 0.12)"
+                : emailResult?.mode === "error"
+                ? "rgba(239, 68, 68, 0.12)"
+                : "rgba(37, 99, 235, 0.12)",
+              border: `1px solid ${
+                emailResult?.success
+                  ? "rgba(34, 197, 94, 0.3)"
+                  : emailResult?.mode === "error"
+                  ? "rgba(239, 68, 68, 0.3)"
+                  : "rgba(96, 165, 250, 0.3)"
+              }`,
+              fontSize: "13px",
+              lineHeight: 1.5,
+              marginTop: "-8px",
+            }}
+          >
+            {emailResult?.success ? (
+              <span style={{ color: "#34d399", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <span>✉</span> Invitation email successfully sent to <strong>{createdSurvey.client_contact_email}</strong>
+              </span>
+            ) : emailResult?.mode === "error" ? (
+              <span style={{ color: "#f87171", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <span>⚠</span> Email dispatch notice: {emailResult.message}
+              </span>
+            ) : (
+              <span style={{ color: "#93c5fd", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <span>✉</span> Invitation email triggered for <strong>{createdSurvey.client_contact_email}</strong>
+              </span>
+            )}
+          </div>
+        )}
 
         <div
           style={{

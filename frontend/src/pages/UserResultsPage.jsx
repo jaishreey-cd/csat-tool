@@ -16,6 +16,7 @@ export default function UserResultsPage() {
   });
   const [exportingId, setExportingId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  const [sendingEmailId, setSendingEmailId] = useState(null);
   const [toast, setToast] = useState({ message: "", type: "info" });
   const [filterPhase, setFilterPhase] = useState("ALL");
 
@@ -44,6 +45,28 @@ export default function UserResultsPage() {
   useEffect(() => {
     loadSurveys();
   }, []);
+
+  const handleResendEmail = async (survey) => {
+    if (!survey.client_contact_email) return;
+    try {
+      setSendingEmailId(survey.id);
+      await surveysApi.dispatchSurvey(survey.id, {
+        client_contact_name: survey.client_contact_name || "Client Stakeholder",
+        client_contact_email: survey.client_contact_email,
+      });
+      setToast({
+        message: `Survey invitation email successfully triggered to ${survey.client_contact_email}!`,
+        type: "success",
+      });
+    } catch (err) {
+      setToast({
+        message: err?.response?.data?.detail || "Failed to trigger email to client.",
+        type: "error",
+      });
+    } finally {
+      setSendingEmailId(null);
+    }
+  };
 
   const handleExportCsv = async (survey) => {
     try {
@@ -209,6 +232,30 @@ export default function UserResultsPage() {
                     </td>
                     <td style={{ padding: "12px", textAlign: "right" }}>
                       <div style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
+                        {s.client_contact_email && s.status !== "Completed" && (
+                          <button
+                            type="button"
+                            onClick={() => handleResendEmail(s)}
+                            disabled={sendingEmailId === s.id}
+                            style={{
+                              background: "rgba(37, 99, 235, 0.15)",
+                              border: "1px solid rgba(96, 165, 250, 0.3)",
+                              color: "#60a5fa",
+                              borderRadius: "6px",
+                              padding: "4px 8px",
+                              fontSize: "11px",
+                              cursor: sendingEmailId === s.id ? "not-allowed" : "pointer",
+                              fontWeight: 600,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                            title={`Trigger/Resend survey invitation email to ${s.client_contact_email}`}
+                          >
+                            <span>✉</span>
+                            {sendingEmailId === s.id ? "Sending..." : "Resend Email"}
+                          </button>
+                        )}
                         {s.unique_token && (
                           <button
                             type="button"

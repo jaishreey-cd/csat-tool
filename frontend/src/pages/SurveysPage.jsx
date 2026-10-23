@@ -48,6 +48,7 @@ export default function SurveysPage() {
 
   // Export state per survey
   const [exportingSurveyId, setExportingSurveyId] = useState(null);
+  const [resendingSurveyId, setResendingSurveyId] = useState(null);
 
   // Fetch surveys and clients independently
   const fetchSurveys = async (force = false) => {
@@ -127,6 +128,30 @@ export default function SurveysPage() {
     } catch (err) {
       console.error("Failed to copy link:", err);
       setToast({ message: "Unable to copy link to clipboard.", type: "danger" });
+    }
+  };
+
+  // Re-trigger invitation email to client contact
+  const handleResendEmail = async (survey) => {
+    if (!survey.client_contact_email) return;
+    try {
+      setResendingSurveyId(survey.id);
+      await surveysApi.dispatchSurvey(survey.id, {
+        client_contact_name: survey.client_contact_name || "Client Stakeholder",
+        client_contact_email: survey.client_contact_email,
+      });
+      setToast({
+        message: `Survey invitation email successfully sent to ${survey.client_contact_email}!`,
+        type: "success",
+      });
+    } catch (err) {
+      console.error("Resend email failed:", err);
+      setToast({
+        message: err?.response?.data?.detail || "Failed to trigger email to client.",
+        type: "danger",
+      });
+    } finally {
+      setResendingSurveyId(null);
     }
   };
 
@@ -613,6 +638,31 @@ export default function SurveysPage() {
                               </svg>
                             </a>
                           </div>
+
+                          {/* Trigger / Resend Email Button */}
+                          {survey.client_contact_email && survey.status !== "Completed" && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={resendingSurveyId === survey.id}
+                              onClick={() => handleResendEmail(survey)}
+                              title={`Trigger/Resend invitation email to ${survey.client_contact_email}`}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                whiteSpace: "nowrap",
+                                color: "#60a5fa",
+                                borderColor: "rgba(96, 165, 250, 0.3)",
+                              }}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
+                              </svg>
+                              <span>{resendingSurveyId === survey.id ? "Sending..." : "Resend Email"}</span>
+                            </Button>
+                          )}
 
                           {/* Redesigned Export CSV Button */}
                           <Button

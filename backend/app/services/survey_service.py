@@ -115,8 +115,9 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
     db.commit()
     db.refresh(survey)
 
+    email_res = None
     if is_dispatched:
-        send_survey_invitation_email(
+        email_res = send_survey_invitation_email(
             recipient_email=survey_in.client_contact_email,
             recipient_name=survey_in.client_contact_name,
             survey_code=survey.survey_code,
@@ -129,6 +130,7 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
     invalidate_surveys_cache()
     from app.services.client_service import invalidate_clients_cache
     invalidate_clients_cache()
+    survey.email_dispatch_result = email_res
     return survey
 
 def submit_survey_for_approval(db: Session, survey_id: int, user_id: int) -> Survey:
@@ -232,7 +234,7 @@ def dispatch_survey(db: Session, survey_id: int, client_contact_name: str, clien
     # Dispatch email invitation with unique survey link to the client contact email
     client_name = survey.client.name if survey.client else "Client"
     project_name = survey.project.name if survey.project else "Project"
-    send_survey_invitation_email(
+    email_res = send_survey_invitation_email(
         recipient_email=client_contact_email,
         recipient_name=client_contact_name,
         survey_code=survey.survey_code,
@@ -245,6 +247,7 @@ def dispatch_survey(db: Session, survey_id: int, client_contact_name: str, clien
     invalidate_surveys_cache()
     from app.services.client_service import invalidate_clients_cache
     invalidate_clients_cache()
+    survey.email_dispatch_result = email_res
     return survey
 
 def get_public_survey_by_token(db: Session, token: str) -> PublicSurveyDetail:

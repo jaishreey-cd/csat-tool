@@ -1,6 +1,7 @@
+import re
 from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class QuestionCreate(BaseModel):
     section_number: int = Field(..., ge=1, le=6)
@@ -17,6 +18,13 @@ class SurveyCreate(BaseModel):
     questions: List[QuestionCreate]
     client_contact_name: Optional[str] = None
     client_contact_email: Optional[str] = None
+
+    @field_validator("client_contact_email")
+    @classmethod
+    def validate_contact_email(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v.strip():
+            return v.strip()
+        return v
 
 class SurveyQuestionResponse(BaseModel):
     id: int
@@ -56,6 +64,13 @@ class SurveyDispatch(BaseModel):
     client_contact_name: str
     client_contact_email: str
 
+    @field_validator("client_contact_email")
+    @classmethod
+    def validate_contact_email(cls, v: str) -> str:
+        if v:
+            return v.strip()
+        return v
+
 class SurveyResponse(BaseModel):
     id: int
     survey_code: str
@@ -78,6 +93,7 @@ class SurveyResponse(BaseModel):
     project: Optional[ProjectSimple] = None
     creator: Optional[UserSimple] = None
     questions: List[SurveyQuestionResponse] = []
+    email_dispatch_result: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
