@@ -575,8 +575,8 @@ export default function SurveysPage() {
                               display: "inline-flex",
                               alignItems: "center",
                               gap: "6px",
-                              background: "rgba(10, 22, 40, 0.7)",
-                              border: "1px solid rgba(96, 165, 250, 0.2)",
+                              background: "var(--bg-hover, rgba(10, 22, 40, 0.7))",
+                              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
                               borderRadius: "6px",
                               padding: "4px 8px",
                             }}
@@ -585,7 +585,7 @@ export default function SurveysPage() {
                               style={{
                                 fontFamily: "monospace",
                                 fontSize: "11px",
-                                color: "#93c5fd",
+                                color: "var(--primary-lt, #93c5fd)",
                                 whiteSpace: "nowrap",
                               }}
                             >
@@ -600,7 +600,7 @@ export default function SurveysPage() {
                               style={{
                                 background: "transparent",
                                 border: "none",
-                                color: copiedSurveyId === survey.id ? "#34d399" : "#60a5fa",
+                                color: copiedSurveyId === survey.id ? "var(--success, #34d399)" : "var(--primary-lt, #60a5fa)",
                                 cursor: "pointer",
                                 padding: "2px",
                                 display: "flex",
@@ -608,7 +608,7 @@ export default function SurveysPage() {
                               }}
                             >
                               {copiedSurveyId === survey.id ? (
-                                <span style={{ fontSize: "11px", fontWeight: 700, color: "#34d399" }}>✓</span>
+                                <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--success, #34d399)" }}>✓</span>
                               ) : (
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
@@ -624,7 +624,7 @@ export default function SurveysPage() {
                               rel="noopener noreferrer"
                               title="Open client response form in new tab"
                               style={{
-                                color: "#94a3b8",
+                                color: "var(--text-dim, #94a3b8)",
                                 display: "flex",
                                 alignItems: "center",
                                 textDecoration: "none",
@@ -652,8 +652,8 @@ export default function SurveysPage() {
                                 alignItems: "center",
                                 gap: "6px",
                                 whiteSpace: "nowrap",
-                                color: "#60a5fa",
-                                borderColor: "rgba(96, 165, 250, 0.3)",
+                                color: "var(--primary-lt, #60a5fa)",
+                                borderColor: "var(--border-strong, rgba(96, 165, 250, 0.3))",
                               }}
                             >
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

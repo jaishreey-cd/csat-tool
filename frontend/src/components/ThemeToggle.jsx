@@ -1,128 +1,90 @@
 import { useTheme } from "../context/ThemeContext";
 
-export default function ThemeToggle({ className = "", compact = false }) {
-  const { theme, isDark, setTheme, toggleTheme } = useTheme();
+export default function ThemeToggle({ className = "" }) {
+  const { isDark, toggleTheme } = useTheme();
 
   return (
-    <div
-      className={`theme-toggle-container ${className}`}
-      role="group"
-      aria-label="Theme mode selector"
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={isDark ? "Switch to Bright Mode" : "Switch to Dark Mode"}
+      title={isDark ? "Switch to Bright Mode" : "Switch to Dark Mode"}
+      className={`theme-toggle-btn ${className}`}
       style={{
+        width: "36px",
+        height: "36px",
+        borderRadius: "50%",
         display: "inline-flex",
         alignItems: "center",
-        background: isDark ? "rgba(10, 22, 40, 0.85)" : "#e2e8f0",
-        border: `1px solid ${isDark ? "rgba(96, 165, 250, 0.2)" : "rgba(203, 213, 225, 0.8)"}`,
-        borderRadius: "9999px",
-        padding: "3px",
-        gap: "3px",
-        boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.3)" : "0 1px 3px rgba(0,0,0,0.06)",
-        transition: "all 0.2s ease",
+        justifyContent: "center",
+        background: isDark ? "rgba(15, 23, 42, 0.75)" : "#ffffff",
+        border: `1.5px solid ${isDark ? "rgba(96, 165, 250, 0.25)" : "var(--border-strong, #cbd5e1)"}`,
+        boxShadow: isDark
+          ? "0 2px 8px rgba(0, 0, 0, 0.4)"
+          : "0 2px 8px rgba(0, 0, 0, 0.08)",
+        cursor: "pointer",
+        padding: 0,
+        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+        outline: "none",
+        flexShrink: 0,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "scale(1.08)";
+        if (isDark) {
+          e.currentTarget.style.borderColor = "rgba(251, 191, 36, 0.6)";
+          e.currentTarget.style.boxShadow = "0 0 12px rgba(251, 191, 36, 0.35)";
+        } else {
+          e.currentTarget.style.borderColor = "var(--primary, #1d4ed8)";
+          e.currentTarget.style.boxShadow = "0 0 12px rgba(29, 78, 216, 0.25)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "scale(1)";
+        e.currentTarget.style.borderColor = isDark ? "rgba(96, 165, 250, 0.25)" : "var(--border-strong, #cbd5e1)";
+        e.currentTarget.style.boxShadow = isDark
+          ? "0 2px 8px rgba(0, 0, 0, 0.4)"
+          : "0 2px 8px rgba(0, 0, 0, 0.08)";
       }}
     >
-      {/* Bright / Light Mode Button */}
-      <button
-        type="button"
-        onClick={() => setTheme("light")}
-        aria-label="Switch to Bright (Light) Mode"
-        aria-pressed={!isDark}
-        title="Switch to Bright (Light) Mode"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "6px",
-          padding: compact ? "5px 8px" : "5px 11px",
-          borderRadius: "9999px",
-          border: "none",
-          background: !isDark ? "#ffffff" : "transparent",
-          color: !isDark ? "#b45309" : "var(--text-muted, #94a3b8)",
-          boxShadow: !isDark ? "0 2px 6px rgba(0, 0, 0, 0.12)" : "none",
-          fontWeight: !isDark ? 700 : 500,
-          fontSize: "12px",
-          cursor: "pointer",
-          outline: "none",
-          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-        }}
-      >
+      {isDark ? (
+        /* Sun Icon for Dark Mode (click to switch to Bright) */
         <svg
-          width="15"
-          height="15"
+          width="18"
+          height="18"
           viewBox="0 0 24 24"
           fill="none"
-          stroke={!isDark ? "#f59e0b" : "currentColor"}
+          stroke="#f59e0b"
           strokeWidth="2.2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{
-            transform: !isDark ? "rotate(90deg)" : "rotate(0deg)",
-            transition: "transform 0.3s ease",
-            flexShrink: 0,
-          }}
+          style={{ transition: "transform 0.3s ease", flexShrink: 0 }}
         >
-          <circle cx="12" cy="12" r="5" fill={!isDark ? "rgba(245, 158, 11, 0.2)" : "none"}></circle>
-          <line x1="12" y1="1" x2="12" y2="3"></line>
-          <line x1="12" y1="21" x2="12" y2="23"></line>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-          <line x1="1" y1="12" x2="3" y2="12"></line>
-          <line x1="21" y1="12" x2="23" y2="12"></line>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          <circle cx="12" cy="12" r="5" fill="rgba(245, 158, 11, 0.25)" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
-        <span className="theme-toggle-text">Bright</span>
-      </button>
-
-      {/* Dark Mode Button */}
-      <button
-        type="button"
-        onClick={() => setTheme("dark")}
-        aria-label="Switch to Dark Mode"
-        aria-pressed={isDark}
-        title="Switch to Dark Mode"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "6px",
-          padding: compact ? "5px 8px" : "5px 11px",
-          borderRadius: "9999px",
-          border: "none",
-          background: isDark ? "rgba(37, 99, 235, 0.3)" : "transparent",
-          color: isDark ? "#93c5fd" : "var(--text-muted, #94a3b8)",
-          boxShadow: isDark ? "0 0 10px rgba(37, 99, 235, 0.35)" : "none",
-          fontWeight: isDark ? 700 : 500,
-          fontSize: "12px",
-          cursor: "pointer",
-          outline: "none",
-          transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-        }}
-      >
+      ) : (
+        /* Moon Icon for Bright Mode (click to switch to Dark) */
         <svg
-          width="14"
-          height="14"
+          width="17"
+          height="17"
           viewBox="0 0 24 24"
-          fill={isDark ? "rgba(96, 165, 250, 0.2)" : "none"}
-          stroke={isDark ? "#60a5fa" : "currentColor"}
+          fill="rgba(30, 41, 59, 0.15)"
+          stroke="#0f172a"
           strokeWidth="2.2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{
-            transform: isDark ? "rotate(-15deg)" : "rotate(0deg)",
-            transition: "transform 0.3s ease",
-            flexShrink: 0,
-          }}
+          style={{ transition: "transform 0.3s ease", flexShrink: 0 }}
         >
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
-        <span className="theme-toggle-text">Dark</span>
-      </button>
-
-      <style>{`
-        @media (max-width: 500px) {
-          .theme-toggle-text {
-            display: none !important;
-          }
-        }
-      `}</style>
-    </div>
+      )}
+    </button>
   );
 }
