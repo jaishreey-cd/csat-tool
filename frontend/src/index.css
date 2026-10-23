@@ -8,6 +8,7 @@
 }
 
 :root {
+  color-scheme: dark;
   /* Brand palette from existing PMO theme */
   --bg-deep:       #0a1628;
   --bg-surface:    #0d1b2a;
@@ -49,6 +50,7 @@
 
 /* Light / Bright Theme Overrides - High Visibility Palette */
 [data-theme="light"] {
+  color-scheme: light;
   --bg-deep:       #f1f5f9;
   --bg-surface:    #ffffff;
   --bg-card:       #ffffff;
@@ -93,6 +95,22 @@
 
 [data-theme="light"] tbody tr:hover {
   background-color: #f8fafc !important;
+}
+
+[data-theme="light"] select,
+[data-theme="light"] input,
+[data-theme="light"] textarea {
+  color-scheme: light;
+}
+
+[data-theme="light"] select option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+[data-theme="dark"] select option {
+  background: #0d1b2a;
+  color: #e2e8f0;
 }
 
 [data-theme="light"] .app-sidebar nav a {

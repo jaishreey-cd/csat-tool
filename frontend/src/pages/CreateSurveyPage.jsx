@@ -394,8 +394,8 @@ export default function CreateSurveyPage() {
             alignItems: "center",
             gap: "8px",
             width: "100%",
-            background: "rgba(10, 22, 40, 0.8)",
-            border: "1px solid rgba(96, 165, 250, 0.25)",
+            background: "var(--bg-hover, rgba(10, 22, 40, 0.8))",
+            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
             borderRadius: "8px",
             padding: "8px 10px 8px 14px",
             boxSizing: "border-box",
@@ -409,7 +409,7 @@ export default function CreateSurveyPage() {
               flex: 1,
               background: "transparent",
               border: "none",
-              color: "#93c5fd",
+              color: "var(--primary-lt, #1d4ed8)",
               fontSize: "13px",
               fontFamily: "monospace",
               outline: "none",
@@ -606,7 +606,7 @@ export default function CreateSurveyPage() {
                   key={phase.value}
                   onClick={() => setSelectedPhase(phase.value)}
                   style={{
-                    background: isSelected ? "rgba(37, 99, 235, 0.2)" : "var(--bg-card, rgba(14, 30, 50, 0.6))",
+                    background: isSelected ? "var(--bg-active, rgba(37, 99, 235, 0.2))" : "var(--bg-card, rgba(14, 30, 50, 0.6))",
                     border: `1.5px solid ${isSelected ? "var(--primary-lt, #60a5fa)" : "var(--border, rgba(96, 165, 250, 0.15))"}`,
                     borderRadius: "var(--radius-md, 9px)",
                     padding: "16px",
@@ -620,7 +620,7 @@ export default function CreateSurveyPage() {
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: isSelected ? "#93c5fd" : "#64748b", textTransform: "uppercase" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: isSelected ? "var(--primary, #1d4ed8)" : "var(--text-dim, #64748b)", textTransform: "uppercase" }}>
                         Phase {phase.order} of 4
                       </span>
                       <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)" }}>
@@ -995,7 +995,7 @@ export default function CreateSurveyPage() {
                           + Add Question from Bank ({availableBank.length} Available of 25)
                         </span>
                         {atLimit && (
-                          <span style={{ fontSize: "11px", color: "#fbbf24" }}>
+                          <span style={{ fontSize: "11px", color: "var(--warning, #b45309)", fontWeight: 600 }}>
                             Limit of 5 questions reached in this section
                           </span>
                         )}
@@ -1008,8 +1008,8 @@ export default function CreateSurveyPage() {
                           disabled={atLimit || availableBank.length === 0}
                           style={{
                             flex: 1,
-                            background: "rgba(10, 22, 40, 0.8)",
-                            border: "1px solid rgba(96, 165, 250, 0.2)",
+                            background: "var(--bg-surface, #0d1b2a)",
+                            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
                             borderRadius: "var(--radius-md, 8px)",
                             color: bankSelectValue ? "var(--text-white, #ffffff)" : "var(--text-dim, #64748b)",
                             fontSize: "13px",
@@ -1313,8 +1313,8 @@ export default function CreateSurveyPage() {
                 {/* Form Title & Context Card */}
                 <div
                   style={{
-                    background: "rgba(14, 30, 55, 0.6)",
-                    border: "1px solid rgba(96, 165, 250, 0.15)",
+                    background: "var(--bg-hover, rgba(14, 30, 55, 0.6))",
+                    border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                     borderRadius: "var(--radius-md, 10px)",
                     padding: "20px 24px",
                     display: "flex",
@@ -1342,9 +1342,9 @@ export default function CreateSurveyPage() {
                     style={{
                       marginTop: "6px",
                       padding: "10px 14px",
-                      background: "rgba(10, 20, 36, 0.7)",
+                      background: "var(--bg-surface, rgba(10, 20, 36, 0.7))",
                       borderRadius: "var(--radius-sm, 8px)",
-                      border: "1px solid rgba(96, 165, 250, 0.1)",
+                      border: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
                       display: "flex",
                       alignItems: "center",
                       gap: "14px",
@@ -1372,8 +1372,8 @@ export default function CreateSurveyPage() {
                 {/* Overall Survey Evaluation Progress */}
                 <div
                   style={{
-                    background: "rgba(11, 23, 42, 0.85)",
-                    border: "1px solid rgba(96, 165, 250, 0.2)",
+                    background: "var(--bg-hover, rgba(11, 23, 42, 0.85))",
+                    border: "1px solid var(--border, rgba(96, 165, 250, 0.2))",
                     borderRadius: "var(--radius-md, 12px)",
                     padding: "16px 22px",
                     display: "flex",
@@ -1399,7 +1399,7 @@ export default function CreateSurveyPage() {
                     style={{
                       height: "6px",
                       width: "100%",
-                      background: "rgba(96, 165, 250, 0.15)",
+                      background: "var(--border, rgba(96, 165, 250, 0.15))",
                       borderRadius: "3px",
                       overflow: "hidden",
                     }}
@@ -1431,14 +1431,14 @@ export default function CreateSurveyPage() {
                   return (
                     <div
                       style={{
-                        background: "rgba(11, 23, 42, 0.85)",
-                        border: "1.5px solid rgba(96, 165, 250, 0.22)",
+                        background: "var(--bg-card, rgba(11, 23, 42, 0.85))",
+                        border: "1.5px solid var(--border-strong, rgba(96, 165, 250, 0.22))",
                         borderRadius: "var(--radius-md, 14px)",
                         padding: "24px 26px",
                         display: "flex",
                         flexDirection: "column",
                         gap: "18px",
-                        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+                        boxShadow: "var(--shadow-md, 0 4px 20px rgba(0, 0, 0, 0.3))",
                       }}
                     >
                       {/* Category Header */}
@@ -1449,7 +1449,7 @@ export default function CreateSurveyPage() {
                           alignItems: "center",
                           flexWrap: "wrap",
                           gap: "10px",
-                          borderBottom: "1px solid rgba(96, 165, 250, 0.15)",
+                          borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                           paddingBottom: "14px",
                         }}
                       >
@@ -1485,8 +1485,8 @@ export default function CreateSurveyPage() {
                             <div
                               key={qKey}
                               style={{
-                                background: currentRating > 0 ? "rgba(34, 197, 94, 0.05)" : "rgba(14, 28, 48, 0.6)",
-                                border: currentRating > 0 ? "1px solid rgba(34, 197, 94, 0.25)" : "1px solid rgba(96, 165, 250, 0.12)",
+                                background: currentRating > 0 ? "rgba(34, 197, 94, 0.08)" : "var(--bg-hover, rgba(14, 28, 48, 0.6))",
+                                border: currentRating > 0 ? "1px solid rgba(34, 197, 94, 0.3)" : "1px solid var(--border, rgba(96, 165, 250, 0.12))",
                                 borderRadius: "var(--radius-md, 9px)",
                                 padding: "16px 20px",
                                 display: "flex",
@@ -1623,8 +1623,8 @@ export default function CreateSurveyPage() {
                                     }
                                     style={{
                                       width: "100%",
-                                      background: "rgba(10, 20, 36, 0.6)",
-                                      border: "1px solid rgba(96, 165, 250, 0.2)",
+                                      background: "var(--bg-surface, rgba(10, 20, 36, 0.6))",
+                                      border: "1px solid var(--border, rgba(96, 165, 250, 0.2))",
                                       borderRadius: "var(--radius-md, 8px)",
                                       padding: "10px 14px",
                                       color: "var(--text-main, #e2e8f0)",

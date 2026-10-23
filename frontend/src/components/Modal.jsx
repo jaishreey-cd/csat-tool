@@ -119,7 +119,7 @@ export default function Modal({
             style={{
               padding: "16px 24px",
               borderTop: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
-              background: "rgba(10, 22, 40, 0.4)",
+              background: "var(--bg-hover, rgba(10, 22, 40, 0.4))",
               display: "flex",
               alignItems: "center",
               justifyContent: "flex-end",

@@ -224,7 +224,7 @@ export default function UserResultsPage() {
                         {s.status}
                       </Badge>
                     </td>
-                    <td style={{ padding: "12px", fontWeight: 700, color: s.average_score ? "#34d399" : "var(--text-dim, #64748b)" }}>
+                    <td style={{ padding: "12px", fontWeight: 700, color: s.average_score ? "var(--success, #15803d)" : "var(--text-dim, #64748b)" }}>
                       {s.average_score ? `${Number(s.average_score).toFixed(2)} ★` : "—"}
                     </td>
                     <td style={{ padding: "12px", color: "var(--text-muted, #94a3b8)" }}>
@@ -240,7 +240,7 @@ export default function UserResultsPage() {
                             style={{
                               background: "rgba(37, 99, 235, 0.15)",
                               border: "1px solid rgba(96, 165, 250, 0.3)",
-                              color: "#60a5fa",
+                              color: "var(--primary, #1d4ed8)",
                               borderRadius: "6px",
                               padding: "4px 8px",
                               fontSize: "11px",
@@ -263,7 +263,7 @@ export default function UserResultsPage() {
                             style={{
                               background: "rgba(96, 165, 250, 0.12)",
                               border: "1px solid rgba(96, 165, 250, 0.25)",
-                              color: "#93c5fd",
+                              color: "var(--primary-lt, #1d4ed8)",
                               borderRadius: "6px",
                               padding: "4px 8px",
                               fontSize: "11px",
@@ -281,7 +281,7 @@ export default function UserResultsPage() {
                           style={{
                             background: "rgba(16, 185, 129, 0.15)",
                             border: "1px solid rgba(16, 185, 129, 0.3)",
-                            color: "#6ee7b7",
+                            color: "var(--success, #15803d)",
                             borderRadius: "6px",
                             padding: "4px 10px",
                             fontSize: "12px",

@@ -554,7 +554,7 @@ function ModeCard({ title, subtitle, badge = null, active = false, onClick }) {
         border: `1px solid ${
           active ? "var(--primary-lt, #60a5fa)" : "var(--border, rgba(96, 165, 250, 0.1))"
         }`,
-        background: active ? "var(--bg-active, rgba(37, 99, 235, 0.15))" : "rgba(13, 27, 42, 0.4)",
+        background: active ? "var(--bg-active, rgba(37, 99, 235, 0.15))" : "var(--bg-hover, rgba(13, 27, 42, 0.4))",
         cursor: "pointer",
         transition: "all 0.15s ease",
         display: "flex",
@@ -604,7 +604,7 @@ function DiffExpandList({ title, items = [], showChanges = false }) {
   return (
     <div
       style={{
-        background: "rgba(10, 22, 40, 0.6)",
+        background: "var(--bg-hover, rgba(10, 22, 40, 0.6))",
         border: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
         borderRadius: "var(--radius-md, 9px)",
         padding: "12px 16px",
