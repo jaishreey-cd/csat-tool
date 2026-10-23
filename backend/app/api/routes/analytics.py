@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, get_current_user
+from app.api.deps import get_db, get_current_user, require_admin
 from app.models.user import User
 from app.schemas.analytics import ProjectAnalyticsResponse, SystemOverviewResponse, DashboardAnalyticsResponse
 from app.services.analytics_service import get_project_analytics, get_system_overview, get_dashboard_analytics
@@ -41,10 +41,10 @@ def fetch_dashboard_analytics(
 @router.get("/overview", response_model=SystemOverviewResponse)
 def fetch_system_overview(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
 ):
     """
-    Fetch system-wide aggregated CSAT metrics, response rates, and trends.
+    Fetch system-wide aggregated CSAT metrics, response rates, and trends (Admin only).
     """
     return get_system_overview(db)
 
@@ -52,7 +52,7 @@ def fetch_system_overview(
 def download_portfolio_overview_export(
     format: str = Query("csv", description="Export format: 'csv' or 'xlsx'"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
 ):
     """
     Export executive portfolio CSAT overview to CSV or Excel (XLSX).
@@ -96,11 +96,11 @@ def download_surveys_registry_export(
 def fetch_project_analytics(
     project_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
 ):
     """
     Fetch comprehensive CSAT analytics, section breakdown, qualitative comments,
-    and survey timeline for an individual project.
+    and survey timeline for an individual project (Admin only).
     """
     return get_project_analytics(db, project_id=project_id)
 
@@ -109,7 +109,7 @@ def download_project_analytics_export(
     project_id: int,
     format: str = Query("csv", description="Export format: 'csv' or 'xlsx'"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
 ):
     """
     Export project analytics report (KPIs, Section scores, Question distributions, Comments) to CSV or Excel (XLSX).

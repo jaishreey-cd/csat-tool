@@ -1,16 +1,26 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import authApi from "../api/authApi";
+import { useAuth } from "../context/AuthContext";
 import Button from "../components/Button";
+import Badge from "../components/Badge";
 import Input from "../components/Input";
 import Select from "../components/Select";
 import Spinner from "../components/Spinner";
 import Toast from "../components/Toast";
 
+const INITIAL_ADMIN_EMAIL = "admin@csat.local";
+const MAX_PMO_LIMIT = 3;
+
 export default function PermissionsPage() {
+  const { user: currentUser } = useAuth();
+  const navigate = useNavigate();
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userFilter, setUserFilter] = useState("current"); // "current" | "old"
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("PMO");
+  const [role, setRole] = useState("User");
   const [granting, setGranting] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "info" });
   const [adminCountInfo, setAdminCountInfo] = useState({
@@ -57,6 +67,15 @@ export default function PermissionsPage() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  // Compute PMO limit metrics and filtered user lists
+  const grantedPmoUsers = users.filter((u) => u.email.toLowerCase() !== INITIAL_ADMIN_EMAIL);
+  const activePmoCount = grantedPmoUsers.filter((u) => u.is_active).length;
+  const isLimitReached = activePmoCount >= MAX_PMO_LIMIT;
+
+  const currentUsers = useMemo(() => users.filter((u) => u.is_active), [users]);
+  const oldUsers = useMemo(() => users.filter((u) => !u.is_active), [users]);
+  const displayedUsers = userFilter === "current" ? currentUsers : oldUsers;
 
   const handleGrantAccess = async (e) => {
     e.preventDefault();
@@ -211,7 +230,7 @@ export default function PermissionsPage() {
         </div>
       </div>
 
-      {/* Grant Access Card (Email + Role + Grant Access) */}
+      {/* Grant Access Card */}
       <div
         style={{
           background: "var(--bg-surface, #0d1b2a)",
@@ -221,41 +240,79 @@ export default function PermissionsPage() {
           boxShadow: "0 8px 30px rgba(0, 0, 0, 0.3)",
         }}
       >
-        <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: "0 0 6px 0" }}>
-          Grant Access to User
-        </h3>
-        <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "0 0 18px 0" }}>
-          Enter the colleague's organization email and choose their permission role (PMO or Admin) to grant access.
-        </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+          <div>
+            <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+              Grant Access to PMO
+            </h3>
+            <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+              Assign a role (User or Admin) to an organization PMO colleague (maximum of 3 PMOs).
+            </p>
+          </div>
+          {isLimitReached && (
+            <Badge variant="warning">
+              3-PMO Limit Reached
+            </Badge>
+          )}
+        </div>
+
+        {isLimitReached && (
+          <div
+            style={{
+              background: "rgba(245, 158, 11, 0.12)",
+              border: "1px solid rgba(245, 158, 11, 0.35)",
+              borderRadius: "8px",
+              padding: "10px 14px",
+              marginBottom: "16px",
+              fontSize: "13px",
+              color: "#fbbf24",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <span>⚠</span>
+            <span>
+              All 3 PMO slots are currently active. To grant access to a different PMO, suspend or modify an existing PMO in the table below.
+            </span>
+          </div>
+        )}
 
         <form onSubmit={handleGrantAccess} style={{ display: "flex", gap: "16px", alignItems: "flex-end", flexWrap: "wrap" }}>
           <div style={{ flex: 2, minWidth: "260px" }}>
             <Input
               id="userEmailInput"
-              label="User Email *"
+              label="PMO Email *"
               type="email"
-              placeholder="colleague@organization.com"
+              placeholder="pmo.colleague@organization.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              disabled={isLimitReached || granting}
               required
             />
           </div>
 
-          <div style={{ flex: 1, minWidth: "180px" }}>
+          <div style={{ flex: 1, minWidth: "200px" }}>
             <Select
               id="userRoleSelect"
-              label="Role *"
+              label="Role Assignment *"
               value={role}
               onChange={(e) => setRole(e.target.value)}
+              disabled={isLimitReached || granting}
               options={[
-                { value: "PMO", label: "PMO (Surveys & Analytics)" },
-                { value: "Admin", label: "Admin (Full Control)" },
+                { value: "User", label: "User (Surveys & Dashboard only)" },
+                { value: "Admin", label: "Admin (Full system access)" },
               ]}
             />
           </div>
 
           <div style={{ paddingBottom: "2px" }}>
-            <Button variant="primary" size="md" type="submit" disabled={granting || !email.trim()}>
+            <Button
+              variant="primary"
+              size="md"
+              type="submit"
+              disabled={isLimitReached || granting || !email.trim()}
+            >
               {granting ? "Granting Access..." : "Grant Access"}
             </Button>
           </div>
@@ -286,7 +343,7 @@ export default function PermissionsPage() {
         )}
       </div>
 
-      {/* Authorized Users List Table */}
+      {/* Authorized PMOs & Users Table */}
       <div
         style={{
           background: "var(--bg-surface, #0d1b2a)",
@@ -307,11 +364,13 @@ export default function PermissionsPage() {
         {loading ? (
           <div style={{ padding: "50px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px" }}>
             <Spinner size="lg" />
-            <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>Loading authorized users...</span>
+            <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>Loading access roster...</span>
           </div>
-        ) : users.length === 0 ? (
-          <div style={{ padding: "40px", textAlign: "center", color: "var(--text-dim, #64748b)" }}>
-            No users found.
+        ) : displayedUsers.length === 0 ? (
+          <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--text-muted, #94a3b8)", fontSize: "14px" }}>
+            {userFilter === "current"
+              ? "No active users currently found."
+              : "No old or revoked users found."}
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
@@ -319,7 +378,7 @@ export default function PermissionsPage() {
               <thead>
                 <tr
                   style={{
-                    background: "rgba(10, 22, 40, 0.8)",
+                    background: "var(--bg-hover, rgba(10, 22, 40, 0.8))",
                     borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                     color: "var(--text-dim, #64748b)",
                     fontSize: "11px",
@@ -330,28 +389,31 @@ export default function PermissionsPage() {
                   <th style={{ padding: "14px 20px", fontWeight: 700 }}>Email Address</th>
                   <th style={{ padding: "14px 20px", fontWeight: 700 }}>Full Name</th>
                   <th style={{ padding: "14px 20px", fontWeight: 700 }}>Role</th>
-                  <th style={{ padding: "14px 20px", fontWeight: 700 }}>Access Status</th>
+                  <th style={{ padding: "14px 20px", fontWeight: 700 }}>Status</th>
                   <th style={{ padding: "14px 20px", fontWeight: 700, textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
-                  <tr
-                    key={u.id}
-                    style={{
-                      borderBottom: "1px solid rgba(96, 165, 250, 0.08)",
-                      transition: "background 0.15s ease",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(14, 30, 50, 0.45)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <td style={{ padding: "14px 20px", color: "#93c5fd", fontFamily: "monospace", fontWeight: 600 }}>
-                      {u.email}
-                    </td>
+                {displayedUsers.map((u) => {
+                  const isInitialAdmin = u.email.toLowerCase() === INITIAL_ADMIN_EMAIL;
 
-                    <td style={{ padding: "14px 20px", color: "var(--text-white, #ffffff)", fontWeight: 500 }}>
-                      {u.full_name || "—"}
-                    </td>
+                  return (
+                    <tr
+                      key={u.id}
+                      style={{
+                        borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.08))",
+                        transition: "background 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover, rgba(14, 30, 50, 0.45))")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <td style={{ padding: "14px 20px", color: "var(--primary-lt, #1d4ed8)", fontFamily: "monospace", fontWeight: 600 }}>
+                        {u.email}
+                      </td>
+
+                      <td style={{ padding: "14px 20px", color: "var(--text-white, #ffffff)", fontWeight: 500 }}>
+                        {u.full_name || "—"}
+                      </td>
 
                     <td style={{ padding: "14px 20px" }}>
                       <span
@@ -371,42 +433,53 @@ export default function PermissionsPage() {
                       </span>
                     </td>
 
-                    <td style={{ padding: "14px 20px" }}>
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          padding: "3px 8px",
-                          borderRadius: "4px",
-                          background: u.is_active ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                          color: u.is_active ? "#22c55e" : "#ef4444",
-                          border: `1px solid ${u.is_active ? "rgba(34, 197, 94, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
-                        }}
-                      >
-                        {u.is_active ? "● Authorized" : "✕ Suspended"}
-                      </span>
-                    </td>
+                      <td style={{ padding: "14px 20px" }}>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            padding: "3px 8px",
+                            borderRadius: "4px",
+                            background: u.is_active ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                            color: u.is_active ? "#22c55e" : "#ef4444",
+                            border: `1px solid ${u.is_active ? "rgba(34, 197, 94, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+                          }}
+                        >
+                          {u.is_active ? "● Authorized" : "✕ Suspended"}
+                        </span>
+                      </td>
 
-                    <td style={{ padding: "14px 20px", textAlign: "right" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStatus(u.id, u.is_active, u.role)}
-                        style={{
-                          background: "transparent",
-                          border: "1px solid rgba(148, 163, 184, 0.2)",
-                          color: u.is_active ? "#f87171" : "#4ade80",
-                          padding: "4px 10px",
-                          borderRadius: "4px",
-                          fontSize: "12px",
-                          cursor: "pointer",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {u.is_active ? "Revoke Access" : "Grant Access"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td style={{ padding: "14px 20px", textAlign: "right" }}>
+                        {isInitialAdmin ? (
+                          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
+                            Permanent Owner
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(u.id, u.is_active, u.role)}
+                            disabled={!u.is_active && isLimitReached}
+                            title={!u.is_active && isLimitReached ? "3-PMO limit reached. Suspend another user first." : undefined}
+                            style={{
+                              background: "transparent",
+                              border: `1px solid ${u.is_active ? "rgba(248, 113, 113, 0.3)" : "rgba(74, 222, 128, 0.3)"}`,
+                              color: u.is_active ? "#f87171" : "#4ade80",
+                              opacity: !u.is_active && isLimitReached ? 0.5 : 1,
+                              padding: "4px 10px",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                              cursor: !u.is_active && isLimitReached ? "not-allowed" : "pointer",
+                              fontWeight: 600,
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            {u.is_active ? "Revoke Access" : "Restore Access"}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

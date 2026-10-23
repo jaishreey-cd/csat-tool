@@ -116,8 +116,9 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
     db.commit()
     db.refresh(survey)
 
+    email_res = None
     if is_dispatched:
-        send_survey_invitation_email(
+        email_res = send_survey_invitation_email(
             recipient_email=survey_in.client_contact_email,
             recipient_name=survey_in.client_contact_name,
             survey_code=survey.survey_code,
@@ -130,6 +131,7 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
     invalidate_surveys_cache()
     from app.services.client_service import invalidate_clients_cache
     invalidate_clients_cache()
+    survey.email_dispatch_result = email_res
     return survey
 
 def submit_survey_for_approval(db: Session, survey_id: int, user_id: int) -> Survey:
@@ -178,7 +180,6 @@ def get_surveys(
             joinedload(Survey.client),
             joinedload(Survey.project),
             joinedload(Survey.creator),
-            joinedload(Survey.reviewer),
             selectinload(Survey.questions),
             selectinload(Survey.answers),
         )
@@ -263,7 +264,7 @@ def dispatch_survey(db: Session, survey_id: int, client_contact_name: str, clien
     # Dispatch email invitation with unique survey link to the client contact email
     client_name = survey.client.name if survey.client else "Client"
     project_name = survey.project.name if survey.project else "Project"
-    send_survey_invitation_email(
+    email_res = send_survey_invitation_email(
         recipient_email=client_contact_email,
         recipient_name=client_contact_name,
         survey_code=survey.survey_code,
@@ -276,6 +277,7 @@ def dispatch_survey(db: Session, survey_id: int, client_contact_name: str, clien
     invalidate_surveys_cache()
     from app.services.client_service import invalidate_clients_cache
     invalidate_clients_cache()
+    survey.email_dispatch_result = email_res
     return survey
 
 def get_public_survey_by_token(db: Session, token: str) -> PublicSurveyDetail:
@@ -519,7 +521,7 @@ def send_survey_reminder(db: Session, survey_id: int) -> Survey:
 def check_and_trigger_automated_followups(db: Session, threshold_days: int = 7) -> dict:
     """
     Scans all pending sent surveys. If days since sent_at >= threshold_days and
-    no reminder has been sent in the last 7 days, automatically triggers a reminder.
+    no follow-up has been sent yet, automatically triggers one follow-up reminder email.
     """
     now = datetime.utcnow()
     pending_surveys = (
@@ -541,10 +543,9 @@ def check_and_trigger_automated_followups(db: Session, threshold_days: int = 7) 
 
         days_since_sent = (now - survey.sent_at).days
         if days_since_sent >= threshold_days:
+            # If a follow-up email has already been sent, do not send another.
             if survey.followup_sent_at:
-                days_since_last_followup = (now - survey.followup_sent_at).days
-                if days_since_last_followup < 7:
-                    continue
+                continue
 
             send_survey_reminder_email(
                 recipient_email=survey.client_contact_email,

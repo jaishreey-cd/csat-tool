@@ -2,20 +2,38 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import surveysApi from "../api/surveysApi";
 import clientsApi from "../api/clientsApi";
-import analyticsApi from "../api/analyticsApi";
+import analyticsApi, { sanitizeFilename } from "../api/analyticsApi";
+import { useAuth } from "../context/AuthContext";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
 import Input from "../components/Input";
 import Select from "../components/Select";
 import Spinner from "../components/Spinner";
 import Toast from "../components/Toast";
+import { ResendMailButton, ExportCsvButton } from "../components/SurveyActionButtons";
 import { SURVEY_PHASES } from "../data/questionBank";
 import CategoryRadarChart from "../components/charts/CategoryRadarChart";
 import CategoryBarChart from "../components/charts/CategoryBarChart";
 import CategoryDistributionChart from "../components/charts/CategoryDistributionChart";
 import CategoryRadialGauges from "../components/charts/CategoryRadialGauges";
 
+const getSurveyStatus = (survey) => {
+  if (survey.status === "Completed") {
+    return { key: "Completed", label: "Completed", variant: "success" };
+  }
+  if (survey.followup_sent_at) {
+    return { key: "Follow-up Sent", label: "Follow-up Sent", variant: "warning" };
+  }
+  const sentTime = survey.sent_at ? new Date(survey.sent_at).getTime() : new Date(survey.created_at).getTime();
+  const hoursSince = (Date.now() - sentTime) / (1000 * 60 * 60);
+  if (hoursSince < 24) {
+    return { key: "Dispatched", label: "Dispatched", variant: "info" };
+  }
+  return { key: "Awaiting Response", label: "Awaiting Response", variant: "info" };
+};
+
 export default function SurveysPage() {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const cachedSurveys = surveysApi.getCachedSurveys();
   const cachedClients = clientsApi.getCachedClients();
@@ -35,9 +53,11 @@ export default function SurveysPage() {
   const [followupMessage, setFollowupMessage] = useState("");
   const [sendingFollowup, setSendingFollowup] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "info" });
+  const [copiedSurveyId, setCopiedSurveyId] = useState(null);
 
   // Export state per survey (Unchanged)
   const [exportingSurveyId, setExportingSurveyId] = useState(null);
+  const [resendingSurveyId, setResendingSurveyId] = useState(null);
 
   // Hover state for Responded popover (Unchanged)
   const [hoveredSurveyId, setHoveredSurveyId] = useState(null);
@@ -128,10 +148,13 @@ export default function SurveysPage() {
   // Handle Export per individual survey (Original logic preserved)
   const handleExportSingleSurvey = async (survey, format = "xlsx") => {
     setExportingSurveyId(survey.id);
+    const projectName = survey.project?.name || "Survey";
+    const safeName = sanitizeFilename(projectName);
+    const downloadFilename = `${safeName}.csv`;
     try {
-      await analyticsApi.exportSurveysRegistry({ survey_id: survey.id }, format);
+      await analyticsApi.exportSurveysRegistry({ survey_id: survey.id }, "csv", downloadFilename);
       setToast({
-        message: `Successfully exported survey for ${survey.project?.name || "Project"} (${format.toUpperCase()})`,
+        message: `Successfully exported survey as ${downloadFilename}`,
         type: "success",
       });
     } catch (err) {
@@ -150,19 +173,27 @@ export default function SurveysPage() {
     );
   };
 
-  const handleSendFollowup = async () => {
-    if (!followupModalSurvey) return;
-    setSendingFollowup(true);
+  // Re-trigger invitation email to client contact
+  const handleResendEmail = async (survey) => {
+    if (!survey.client_contact_email) return;
     try {
-      await surveysApi.sendResponseFollowup(followupModalSurvey.id, followupMessage);
-      setToast({ message: "Response follow-up email sent successfully!", type: "success" });
-      setFollowupModalSurvey(null);
-      fetchSurveys(true);
+      setResendingSurveyId(survey.id);
+      await surveysApi.dispatchSurvey(survey.id, {
+        client_contact_name: survey.client_contact_name || "Client Stakeholder",
+        client_contact_email: survey.client_contact_email,
+      });
+      setToast({
+        message: `Survey invitation email successfully sent to ${survey.client_contact_email}!`,
+        type: "success",
+      });
     } catch (err) {
-      console.error("Failed to send follow-up:", err);
-      setToast({ message: "Failed to send follow-up email. Please check network.", type: "danger" });
+      console.error("Resend email failed:", err);
+      setToast({
+        message: err?.response?.data?.detail || "Failed to trigger email to client.",
+        type: "danger",
+      });
     } finally {
-      setSendingFollowup(false);
+      setResendingSurveyId(null);
     }
   };
 
@@ -191,8 +222,11 @@ export default function SurveysPage() {
   // Filtered surveys for Main Surveys Table (Original logic preserved)
   const filteredSurveys = useMemo(() => {
     return activeSurveys.filter((s) => {
-      if (selectedStatus !== "ALL" && s.status !== selectedStatus) {
-        return false;
+      if (selectedStatus !== "ALL") {
+        const sStatus = getSurveyStatus(s);
+        if (sStatus.key !== selectedStatus) {
+          return false;
+        }
       }
       if (selectedPhase !== "ALL" && s.phase !== selectedPhase) {
         return false;
@@ -726,14 +760,16 @@ export default function SurveysPage() {
           />
         </div>
 
-        <div style={{ width: "160px" }}>
+        <div style={{ width: "175px" }}>
           <Select
             id="statusFilter"
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
             options={[
               { value: "ALL", label: "All Statuses" },
-              { value: "Sent", label: "Dispatched" },
+              { value: "Dispatched", label: "Dispatched" },
+              { value: "Awaiting Response", label: "Awaiting Response" },
+              { value: "Follow-up Sent", label: "Follow-up Sent" },
               { value: "Completed", label: "Completed" },
             ]}
           />
@@ -825,7 +861,7 @@ export default function SurveysPage() {
               <thead>
                 <tr
                   style={{
-                    background: "rgba(10, 22, 40, 0.8)",
+                    background: "var(--bg-hover, rgba(10, 22, 40, 0.8))",
                     borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                     color: "var(--text-dim, #64748b)",
                     fontSize: "11px",
@@ -844,44 +880,52 @@ export default function SurveysPage() {
               </thead>
               <tbody>
                 {filteredSurveys.map((survey) => {
-                  const isSent = survey.status === "Sent";
                   const isCompleted = survey.status === "Completed";
                   const isResponded = survey.response_status === "responded" || (isCompleted && Boolean(survey.completed_at));
                   const isExportingThis = exportingSurveyId === survey.id;
+                  const surveyStatus = getSurveyStatus(survey);
+                  const fullUrl = `${window.location.origin}/s/${survey.unique_token}`;
+                  const shortDisplayUrl = `.../s/${survey.unique_token.substring(0, 8)}...`;
 
                   return (
                     <tr
                       key={survey.id}
                       style={{
-                        borderBottom: "1px solid rgba(96, 165, 250, 0.08)",
+                        borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.08))",
                         transition: "background 0.15s ease",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(14, 30, 50, 0.45)")}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover, rgba(14, 30, 50, 0.45))")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
-                      {/* Client & Project with link to inside project analytics */}
+                      {/* Client & Project with role-guarded link to inside project analytics */}
                       <td style={{ padding: "14px 18px" }}>
                         <div style={{ fontWeight: 600, color: "var(--text-white, #ffffff)" }}>
                           {survey.client?.name || "Client"}
                         </div>
                         {survey.project ? (
-                          <Link
-                            to={`/projects/${survey.project.id}`}
-                            style={{
-                              fontSize: "12px",
-                              color: "var(--primary-lt, #60a5fa)",
-                              marginTop: "2px",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              textDecoration: "none",
-                              fontWeight: 500,
-                            }}
-                            title="View project analytics dashboard"
-                          >
-                            <span>{survey.project.name}</span>
-                            <span style={{ fontSize: "10px" }}>↗</span>
-                          </Link>
+                          user?.role === "Admin" ? (
+                            <Link
+                              to={`/projects/${survey.project.id}`}
+                              style={{
+                                fontSize: "12px",
+                                color: "var(--primary-lt, #60a5fa)",
+                                marginTop: "2px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                textDecoration: "none",
+                                fontWeight: 500,
+                              }}
+                              title="View project analytics dashboard"
+                            >
+                              <span>{survey.project.name}</span>
+                              <span style={{ fontSize: "10px" }}>↗</span>
+                            </Link>
+                          ) : (
+                            <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", marginTop: "2px" }}>
+                              {survey.project.name}
+                            </div>
+                          )
                         ) : (
                           <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)" }}>—</div>
                         )}
@@ -892,16 +936,11 @@ export default function SurveysPage() {
                         <Badge variant="count">{survey.phase}</Badge>
                       </td>
 
-                      {/* Status */}
+                      {/* Single Unified Status */}
                       <td style={{ padding: "14px 18px" }}>
-                        {isSent && (
-                          <Badge variant="info">
-                            Dispatched
-                          </Badge>
-                        )}
-                        {isCompleted && (
-                          <Badge variant="success">Completed</Badge>
-                        )}
+                        <Badge variant={surveyStatus.variant}>
+                          {surveyStatus.label}
+                        </Badge>
                       </td>
 
                       {/* Client Contact */}
@@ -1012,31 +1051,59 @@ export default function SurveysPage() {
                         )}
                       </td>
 
-                      {/* Actions: Export Survey & Follow-up */}
+                      {/* Actions: Shortened URL Link with copy/open + Matching Export CSV Button */}
                       <td style={{ padding: "14px 18px", textAlign: "right" }}>
                         <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
-                          {/* Export Button inside every survey row */}
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={isExportingThis}
-                            onClick={() => handleExportSingleSurvey(survey, "xlsx")}
-                            title="Export survey data to Excel"
-                          >
-                            {isExportingThis ? "Exporting..." : "📥 Export"}
-                          </Button>
-
-                          {/* Follow-up email for completed surveys */}
-                          {isCompleted && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openFollowupModal(survey)}
-                              title="Send follow-up response email to client stakeholder"
-                            >
-                              ✉ Follow-up
-                            </Button>
+                          {/* Trigger / Resend Email Button */}
+                          {survey.client_contact_email && survey.status !== "Completed" && (
+                            <ResendMailButton
+                              onClick={() => handleResendEmail(survey)}
+                              loading={resendingSurveyId === survey.id}
+                              title={`Trigger/Resend invitation email to ${survey.client_contact_email}`}
+                            />
                           )}
+
+                          {/* Redesigned Export CSV Button */}
+                          <ExportCsvButton
+                            onClick={() => handleExportSingleSurvey(survey, "csv")}
+                            loading={isExportingThis}
+                            title={`Export survey results for ${survey.project?.name || "Project"} as CSV`}
+                          />
+
+                          {/* Quick preview open in new tab */}
+                          <a
+                            href={fullUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Open client response form in new tab"
+                            style={{
+                              color: "var(--text-dim, #64748b)",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: "32px",
+                              height: "32px",
+                              borderRadius: "6px",
+                              border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+                              background: "var(--bg-hover, rgba(10, 22, 40, 0.5))",
+                              textDecoration: "none",
+                              transition: "all 0.15s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = "var(--primary-lt, #93c5fd)";
+                              e.currentTarget.style.borderColor = "var(--border-strong, rgba(96, 165, 250, 0.4))";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = "var(--text-dim, #64748b)";
+                              e.currentTarget.style.borderColor = "var(--border, rgba(96, 165, 250, 0.15))";
+                            }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                              <polyline points="15 3 21 3 21 9"></polyline>
+                              <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                          </a>
                         </div>
                       </td>
                     </tr>

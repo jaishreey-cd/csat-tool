@@ -27,6 +27,24 @@ const RATING_LABELS = {
   5: "Excellent",
 };
 
+function GridBackButton({ onClick }) {
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      size="md"
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+      }}
+    >
+      ← Back
+    </Button>
+  );
+}
+
 export default function CreateSurveyPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -85,12 +103,9 @@ export default function CreateSurveyPage() {
   const [submitError, setSubmitError] = useState("");
   const [createdSurvey, setCreatedSurvey] = useState(null);
 
-  // Client Contact Dispatch State
+  // Client Contact State
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
-  const [dispatching, setDispatching] = useState(false);
-  const [dispatchSuccess, setDispatchSuccess] = useState("");
-  const [dispatchError, setDispatchError] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Fetch clients on mount
@@ -267,22 +282,21 @@ export default function CreateSurveyPage() {
       return;
     }
 
+    const trimmedEmail = contactEmail.trim();
+
     const payload = {
       client_id: parseInt(selectedClientId, 10),
       project_id: parseInt(selectedProjectId, 10),
       phase: selectedPhase,
       questions: flatQuestions,
       client_contact_name: contactName.trim(),
-      client_contact_email: contactEmail.trim().toLowerCase(),
+      client_contact_email: trimmedEmail,
     };
 
     try {
       // Create survey directly - no approval state
       const survey = await surveysApi.createSurvey(payload);
       setCreatedSurvey(survey);
-      if (survey.client_contact_email) {
-        setDispatchSuccess(`Survey link automatically dispatched to ${survey.client_contact_email}!`);
-      }
     } catch (err) {
       setSubmitError(
         err?.response?.data?.detail || "Failed to create survey. Please check requirements and retry."
@@ -300,318 +314,149 @@ export default function CreateSurveyPage() {
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
-  // Dispatch survey from success view
-  const handleDispatchFromSuccess = async (e) => {
-    e.preventDefault();
-    if (!contactName.trim() || !contactEmail.trim()) {
-      setDispatchError("Please provide both contact name and a valid email address.");
-      return;
-    }
-
-    setDispatching(true);
-    setDispatchError("");
-    setDispatchSuccess("");
-
-    try {
-      const updated = await surveysApi.dispatchSurvey(createdSurvey.id, {
-        client_contact_name: contactName.trim(),
-        client_contact_email: contactEmail.trim(),
-      });
-      setCreatedSurvey(updated);
-      setDispatchSuccess(`Survey link successfully dispatched to ${contactEmail.trim()}!`);
-    } catch (err) {
-      setDispatchError(err?.response?.data?.detail || "Failed to dispatch survey. Please retry.");
-    } finally {
-      setDispatching(false);
-    }
-  };
-
-  // SUCCESS STATE
+  // CONFIRMATION PAGE (Requirement 3: Show only message and link with copy button)
   if (createdSurvey) {
+    const clientName = currentClient?.name || createdSurvey.client?.name || createdSurvey.client_contact_name || "Client";
     const surveyUrl = `${window.location.origin}/s/${createdSurvey.unique_token || ""}`;
-    const isSent = createdSurvey.status === "Sent" || Boolean(createdSurvey.client_contact_email);
+    const emailResult = createdSurvey.email_dispatch_result;
 
     return (
       <div
         style={{
           display: "flex",
           flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          maxWidth: "600px",
+          margin: "80px auto",
+          padding: "36px 32px",
+          background: "var(--bg-surface, #0d1b2a)",
+          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+          borderRadius: "var(--radius-lg, 16px)",
+          boxShadow: "0 16px 40px rgba(0, 0, 0, 0.45)",
+          textAlign: "center",
           gap: "24px",
-          maxWidth: "680px",
-          margin: "0 auto",
-          padding: "20px 0 60px 0",
         }}
       >
-        {/* Success Header Banner */}
         <div
           style={{
-            textAlign: "center",
+            width: "56px",
+            height: "56px",
+            borderRadius: "50%",
+            background: "rgba(34, 197, 94, 0.15)",
+            border: "2px solid var(--success, #22c55e)",
             display: "flex",
-            flexDirection: "column",
             alignItems: "center",
-            gap: "10px",
+            justifyContent: "center",
+            fontSize: "26px",
+            color: "var(--success, #22c55e)",
+            boxShadow: "0 0 20px rgba(34, 197, 94, 0.25)",
           }}
         >
-          <div
-            style={{
-              width: "60px",
-              height: "60px",
-              borderRadius: "50%",
-              background: "rgba(34, 197, 94, 0.15)",
-              border: "2px solid var(--success, #22c55e)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "28px",
-              color: "var(--success, #22c55e)",
-              boxShadow: "0 0 24px rgba(34, 197, 94, 0.25)",
-            }}
-          >
-            ✓
-          </div>
-          <h2 style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-            Survey Created Successfully!
-          </h2>
-          <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: 0, maxWidth: "500px", lineHeight: 1.5 }}>
-            Your CSAT survey is generated and ready. The public client link and dispatch form are available below.
-          </p>
+          ✓
         </div>
 
-        {/* 1. THE LINK IS SHOWN HERE */}
-        <div
+        <h2
           style={{
-            background: "linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(13, 27, 42, 0.95) 100%)",
-            border: "1px solid rgba(96, 165, 250, 0.3)",
-            borderRadius: "var(--radius-lg, 12px)",
-            padding: "20px 24px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "14px",
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
+            fontSize: "22px",
+            fontWeight: 700,
+            color: "var(--text-white, #ffffff)",
+            margin: 0,
+            lineHeight: 1.4,
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "16px" }}>🔗</span>
-              <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--primary-lt, #60a5fa)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                Public Survey Link
-              </span>
-            </div>
-            <Badge variant={isSent ? "info" : "active"}>
-              {isSent ? "Dispatched" : "Ready to Dispatch"}
-            </Badge>
-          </div>
+          Survey link dispatched to {clientName}
+        </h2>
 
-          <p style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", margin: 0, lineHeight: 1.4 }}>
-            The client stakeholder can access and complete their evaluation using this secure URL without login.
-          </p>
-
+        {createdSurvey.client_contact_email && (
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              background: "rgba(10, 22, 40, 0.8)",
-              border: "1px solid rgba(96, 165, 250, 0.25)",
+              padding: "10px 18px",
               borderRadius: "8px",
-              padding: "6px 8px 6px 14px",
+              background: emailResult?.success
+                ? "rgba(34, 197, 94, 0.12)"
+                : emailResult?.mode === "error"
+                ? "rgba(239, 68, 68, 0.12)"
+                : "rgba(37, 99, 235, 0.12)",
+              border: `1px solid ${
+                emailResult?.success
+                  ? "rgba(34, 197, 94, 0.3)"
+                  : emailResult?.mode === "error"
+                  ? "rgba(239, 68, 68, 0.3)"
+                  : "rgba(96, 165, 250, 0.3)"
+              }`,
+              fontSize: "13px",
+              lineHeight: 1.5,
+              marginTop: "-8px",
             }}
           >
-            <input
-              type="text"
-              readOnly
-              value={surveyUrl}
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                color: "#93c5fd",
-                fontSize: "13px",
-                fontFamily: "monospace",
-                outline: "none",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-              onClick={(e) => e.target.select()}
-            />
-            <Button
-              variant="primary"
-              size="sm"
-              type="button"
-              onClick={() => handleCopyLink(createdSurvey.unique_token)}
-              style={{ whiteSpace: "nowrap" }}
-            >
-              {copiedLink ? "✓ Copied!" : "Copy Link"}
-            </Button>
-            <a
-              href={`/s/${createdSurvey.unique_token}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ textDecoration: "none" }}
-            >
-              <Button variant="ghost" size="sm" type="button" style={{ whiteSpace: "nowrap" }}>
-                ↗ Open Form
-              </Button>
-            </a>
+            {emailResult?.success ? (
+              <span style={{ color: "#34d399", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <span>✉</span> Invitation email successfully sent to <strong>{createdSurvey.client_contact_email}</strong>
+              </span>
+            ) : emailResult?.mode === "error" ? (
+              <span style={{ color: "#f87171", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <span>⚠</span> Email dispatch notice: {emailResult.message}
+              </span>
+            ) : (
+              <span style={{ color: "#93c5fd", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <span>✉</span> Invitation email triggered for <strong>{createdSurvey.client_contact_email}</strong>
+              </span>
+            )}
           </div>
-        </div>
+        )}
 
-        {/* 2. AND THIS WILL BE SHOWN BELOW (Matches User's Screenshot) */}
         <div
           style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
-            borderRadius: "var(--radius-lg, 14px)",
-            padding: "26px",
-            boxShadow: "0 12px 32px rgba(0, 0, 0, 0.5)",
             display: "flex",
-            flexDirection: "column",
-            gap: "18px",
+            alignItems: "center",
+            gap: "8px",
+            width: "100%",
+            background: "var(--bg-hover, rgba(10, 22, 40, 0.8))",
+            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+            borderRadius: "8px",
+            padding: "8px 10px 8px 14px",
+            boxSizing: "border-box",
           }}
         >
-          <div>
-            <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-              Dispatch Survey Link
-            </h3>
-            <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-              Generate a unique secure link for the client stakeholder to submit their CSAT feedback.
-            </p>
-          </div>
-
-          {/* Survey Reference Box (Matches Screenshot) */}
-          <div
+          <input
+            type="text"
+            readOnly
+            value={surveyUrl}
             style={{
-              background: "rgba(10, 22, 40, 0.7)",
-              border: "1px solid rgba(96, 165, 250, 0.15)",
-              borderRadius: "var(--radius-md, 8px)",
-              padding: "12px 16px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "6px",
-              fontSize: "12px",
+              flex: 1,
+              background: "transparent",
+              border: "none",
+              color: "var(--primary-lt, #1d4ed8)",
+              fontSize: "13px",
+              fontFamily: "monospace",
+              outline: "none",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
+            onClick={(e) => e.target.select()}
+          />
+          <Button
+            variant="primary"
+            size="sm"
+            type="button"
+            onClick={() => handleCopyLink(createdSurvey.unique_token)}
+            style={{ whiteSpace: "nowrap" }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--text-dim, #64748b)" }}>Project:</span>
-              <span style={{ color: "var(--text-white, #ffffff)", fontWeight: 600 }}>
-                {currentProject?.name || createdSurvey.project?.name} ({createdSurvey.phase})
-              </span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "var(--text-dim, #64748b)" }}>Client:</span>
-              <span style={{ color: "var(--text-white, #ffffff)" }}>
-                {currentClient?.name || createdSurvey.client?.name}
-              </span>
-            </div>
-          </div>
-
-          {/* Dispatch Success Alert & Quick Gmail Send */}
-          {dispatchSuccess && (
-            <div
-              style={{
-                background: "rgba(34, 197, 94, 0.12)",
-                border: "1px solid rgba(34, 197, 94, 0.35)",
-                borderRadius: "8px",
-                padding: "12px 16px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--success, #22c55e)", fontSize: "13px", fontWeight: 600 }}>
-                <span>✓</span>
-                <span>{dispatchSuccess}</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "12px" }}>
-                <span style={{ color: "var(--text-muted, #94a3b8)" }}>Open directly in your webmail:</span>
-                <a
-                  href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(contactEmail)}&su=${encodeURIComponent(`Invitation: CSAT Evaluation for ${currentProject?.name || createdSurvey.project?.name || "Project"} (${createdSurvey.phase})`)}&body=${encodeURIComponent(`Dear ${contactName || "Client Stakeholder"},\n\nYou are invited to complete our Customer Satisfaction (CSAT) survey.\n\nPlease submit your feedback using your unique secure link below:\n${surveyUrl}\n\nClient: ${currentClient?.name || createdSurvey.client?.name || ""}\nProject: ${currentProject?.name || createdSurvey.project?.name || ""}\nPhase: ${createdSurvey.phase}\n\nThank you!`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    color: "#93c5fd",
-                    textDecoration: "underline",
-                    fontWeight: 600,
-                  }}
-                >
-                  ✉ Open in Gmail
-                </a>
-              </div>
-            </div>
-          )}
-
-          {/* Form (Matches Screenshot) */}
-          <form onSubmit={handleDispatchFromSuccess} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <Input
-              id="contactNameInputSuccess"
-              label="Client Contact Name"
-              placeholder="e.g. Sarah Jenkins"
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
-              required
-            />
-
-            <Input
-              id="contactEmailInputSuccess"
-              label="Client Contact Email"
-              type="email"
-              placeholder="e.g. sjenkins@acmeglobal.com"
-              value={contactEmail}
-              onChange={(e) => setContactEmail(e.target.value)}
-              required
-            />
-
-            {dispatchError && (
-              <div
-                style={{
-                  background: "rgba(239, 68, 68, 0.15)",
-                  border: "1px solid rgba(239, 68, 68, 0.3)",
-                  borderRadius: "6px",
-                  padding: "10px 14px",
-                  color: "#fca5a5",
-                  fontSize: "12px",
-                }}
-              >
-                ⚠ {dispatchError}
-              </div>
-            )}
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
-              <Link to="/surveys" style={{ textDecoration: "none" }}>
-                <Button variant="secondary" size="md" type="button">
-                  Cancel
-                </Button>
-              </Link>
-              <Button
-                variant="primary"
-                size="md"
-                type="submit"
-                loading={dispatching}
-                disabled={dispatching}
-              >
-                {isSent ? "Update & Re-dispatch Link" : "Generate & Dispatch Link"}
-              </Button>
-            </div>
-          </form>
+            {copiedLink ? "✓ Copied!" : "Copy"}
+          </Button>
         </div>
 
-        {/* Bottom Navigation */}
-        <div style={{ display: "flex", justifyContent: "center", gap: "14px", marginTop: "6px" }}>
-          <Link to="/surveys" style={{ textDecoration: "none" }}>
-            <Button variant="primary" size="md">
-              View All Surveys
-            </Button>
-          </Link>
-          <Link to="/dashboard" style={{ textDecoration: "none" }}>
-            <Button variant="secondary" size="md">
-              Dashboard
-            </Button>
-          </Link>
-        </div>
+        <Button
+          variant="secondary"
+          size="md"
+          type="button"
+          onClick={() => navigate("/dashboard")}
+          style={{ marginTop: "4px" }}
+        >
+          Back to Create Survey Dashboard
+        </Button>
       </div>
     );
   }
@@ -779,7 +624,7 @@ export default function CreateSurveyPage() {
                   key={phase.value}
                   onClick={() => setSelectedPhase(phase.value)}
                   style={{
-                    background: isSelected ? "rgba(37, 99, 235, 0.2)" : "var(--bg-card, rgba(14, 30, 50, 0.6))",
+                    background: isSelected ? "var(--bg-active, rgba(37, 99, 235, 0.2))" : "var(--bg-card, rgba(14, 30, 50, 0.6))",
                     border: `1.5px solid ${isSelected ? "var(--primary-lt, #60a5fa)" : "var(--border, rgba(96, 165, 250, 0.15))"}`,
                     borderRadius: "var(--radius-md, 9px)",
                     padding: "16px",
@@ -793,7 +638,7 @@ export default function CreateSurveyPage() {
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: isSelected ? "#93c5fd" : "#64748b", textTransform: "uppercase" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: isSelected ? "var(--primary, #1d4ed8)" : "var(--text-dim, #64748b)", textTransform: "uppercase" }}>
                         Phase {phase.order} of 4
                       </span>
                       <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)" }}>
@@ -1109,16 +954,17 @@ export default function CreateSurveyPage() {
                             fontWeight: 700,
                             color: "var(--primary-lt, #60a5fa)",
                             background: "rgba(37, 99, 235, 0.15)",
-                            width: "24px",
+                            minWidth: "28px",
                             height: "24px",
-                            borderRadius: "50%",
+                            padding: "0 6px",
+                            borderRadius: "12px",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             flexShrink: 0,
                           }}
                         >
-                          {idx + 1}
+                          Q{idx + 1}
                         </span>
 
                         {/* Question Text */}
@@ -1167,7 +1013,7 @@ export default function CreateSurveyPage() {
                           + Add Question from Bank ({availableBank.length} Available of 25)
                         </span>
                         {atLimit && (
-                          <span style={{ fontSize: "11px", color: "#fbbf24" }}>
+                          <span style={{ fontSize: "11px", color: "var(--warning, #b45309)", fontWeight: 600 }}>
                             Limit of 5 questions reached in this section
                           </span>
                         )}
@@ -1180,8 +1026,8 @@ export default function CreateSurveyPage() {
                           disabled={atLimit || availableBank.length === 0}
                           style={{
                             flex: 1,
-                            background: "rgba(10, 22, 40, 0.8)",
-                            border: "1px solid rgba(96, 165, 250, 0.2)",
+                            background: "var(--bg-surface, #0d1b2a)",
+                            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
                             borderRadius: "var(--radius-md, 8px)",
                             color: bankSelectValue ? "var(--text-white, #ffffff)" : "var(--text-dim, #64748b)",
                             fontSize: "13px",
@@ -1258,7 +1104,7 @@ export default function CreateSurveyPage() {
                   </div>
                 </form>
 
-                {/* ── Section Navigation Underneath Question Section ── */}
+                {/* ── Section Navigation Inside Question Section Grid ── */}
                 <div
                   style={{
                     borderTop: "1px solid rgba(96, 165, 250, 0.2)",
@@ -1267,30 +1113,21 @@ export default function CreateSurveyPage() {
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    gap: "12px",
-                    flexWrap: "wrap",
                   }}
                 >
-                  {activeSectionTab > 1 ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="md"
+                  {/* Left: Inside-grid Back button (Section 1 returns to Phase; Sections 2 to 6 step back to previous section) */}
+                  {activeSectionTab === 1 ? (
+                    <GridBackButton onClick={() => setCurrentStep(1)} />
+                  ) : (
+                    <GridBackButton
                       onClick={() => {
                         setActiveSectionTab((p) => Math.max(1, p - 1));
                         setBankSelectValue("");
                       }}
-                    >
-                      ← Previous Section
-                    </Button>
-                  ) : (
-                    <div />
+                    />
                   )}
 
-                  <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", fontWeight: 600 }}>
-                    Section {currentSection.number} of 6: <strong style={{ color: "var(--primary-lt, #60a5fa)" }}>{currentSection.title}</strong> ({currentSelected.length}/5)
-                  </span>
-
+                  {/* Right: Next Section on Sections 1-5, or Preview & Dispatch on Section 6 */}
                   {activeSectionTab < 6 ? (
                     <Button
                       type="button"
@@ -1311,7 +1148,7 @@ export default function CreateSurveyPage() {
                       disabled={!allSectionsHaveQuestions}
                       onClick={() => setCurrentStep(3)}
                     >
-                      Proceed to Preview & Dispatch →
+                      Preview & Dispatch →
                     </Button>
                   )}
                 </div>
@@ -1336,7 +1173,7 @@ export default function CreateSurveyPage() {
             >
               <span>⚠</span>
               <span>
-                Section {emptySections.join(", ")} {emptySections.length === 1 ? "has" : "have"} 0 questions selected. Each section requires at least 1 question (max 5).
+                Section {emptySections.join(", ")} {emptySections.length === 1 ? "has" : "have"} 0 questions selected. Sections 1 to 5 require at least 1 question (max 5). Section 6 is optional.
               </span>
             </div>
           )}
@@ -1357,25 +1194,12 @@ export default function CreateSurveyPage() {
             >
               <span>ℹ</span>
               <span>
-                Please select between 1 and 5 questions for each of the 6 sections above to configure your survey.
+                Please select between 1 and 5 questions for sections 1 to 5 to configure your survey. Section 6 is optional.
               </span>
             </div>
           )}
 
-          {/* Step 3 Outer Actions */}
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px" }}>
-            <Button variant="secondary" size="md" onClick={() => setCurrentStep(1)}>
-              ← Back to Phase
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              disabled={!allSectionsHaveQuestions}
-              onClick={() => setCurrentStep(3)}
-            >
-              Continue to Preview & Dispatch →
-            </Button>
-          </div>
+
         </div>
       )}
 
@@ -1453,63 +1277,21 @@ export default function CreateSurveyPage() {
               </div>
             </div>
 
-            {/* Stakeholder Recipient Details in Preview Stage */}
+            {/* Client Form Simulation Canvas (Preview Form) */}
             <div
               style={{
-                background: "var(--bg-surface, #0d1b2a)",
+                background: "var(--bg-surface, #081325)",
                 border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
-                borderRadius: "var(--radius-lg, 12px)",
-                padding: "20px 24px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-              }}
-            >
-              <div>
-                <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-                  Client Stakeholder Details
-                </h4>
-                <p style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-                  Enter the client stakeholder contact name and email address who will receive this survey invitation.
-                </p>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
-                <Input
-                  id="previewStakeholderName"
-                  label="Client Stakeholder Contact Name *"
-                  placeholder="e.g. Sarah Jenkins"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  required
-                />
-                <Input
-                  id="previewStakeholderEmail"
-                  label="Client Stakeholder Contact Email *"
-                  type="email"
-                  placeholder="e.g. sjenkins@acmeglobal.com"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Client Form Simulation Canvas */}
-            <div
-              style={{
-                background: "#081325",
-                border: "1px solid rgba(96, 165, 250, 0.25)",
                 borderRadius: "var(--radius-lg, 16px)",
-                boxShadow: "0 12px 36px rgba(0, 0, 0, 0.45)",
+                boxShadow: "var(--shadow-lg, 0 12px 36px rgba(0, 0, 0, 0.45))",
                 overflow: "hidden",
               }}
             >
               {/* Top Browser/Portal Header Bar */}
               <div
                 style={{
-                  background: "rgba(10, 22, 40, 0.95)",
-                  borderBottom: "1px solid rgba(96, 165, 250, 0.15)",
+                  background: "var(--bg-hover, rgba(10, 22, 40, 0.95))",
+                  borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                   padding: "16px 28px",
                   display: "flex",
                   alignItems: "center",
@@ -1539,8 +1321,8 @@ export default function CreateSurveyPage() {
                 {/* Form Title & Context Card */}
                 <div
                   style={{
-                    background: "rgba(14, 30, 55, 0.6)",
-                    border: "1px solid rgba(96, 165, 250, 0.15)",
+                    background: "var(--bg-hover, rgba(14, 30, 55, 0.6))",
+                    border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                     borderRadius: "var(--radius-md, 10px)",
                     padding: "20px 24px",
                     display: "flex",
@@ -1568,9 +1350,9 @@ export default function CreateSurveyPage() {
                     style={{
                       marginTop: "6px",
                       padding: "10px 14px",
-                      background: "rgba(10, 20, 36, 0.7)",
+                      background: "var(--bg-surface, rgba(10, 20, 36, 0.7))",
                       borderRadius: "var(--radius-sm, 8px)",
-                      border: "1px solid rgba(96, 165, 250, 0.1)",
+                      border: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
                       display: "flex",
                       alignItems: "center",
                       gap: "14px",
@@ -1598,8 +1380,8 @@ export default function CreateSurveyPage() {
                 {/* Overall Survey Evaluation Progress */}
                 <div
                   style={{
-                    background: "rgba(11, 23, 42, 0.85)",
-                    border: "1px solid rgba(96, 165, 250, 0.2)",
+                    background: "var(--bg-hover, rgba(11, 23, 42, 0.85))",
+                    border: "1px solid var(--border, rgba(96, 165, 250, 0.2))",
                     borderRadius: "var(--radius-md, 12px)",
                     padding: "16px 22px",
                     display: "flex",
@@ -1625,7 +1407,7 @@ export default function CreateSurveyPage() {
                     style={{
                       height: "6px",
                       width: "100%",
-                      background: "rgba(96, 165, 250, 0.15)",
+                      background: "var(--border, rgba(96, 165, 250, 0.15))",
                       borderRadius: "3px",
                       overflow: "hidden",
                     }}
@@ -1651,25 +1433,20 @@ export default function CreateSurveyPage() {
                   const isFirstCat = previewCategoryIndex === 0;
                   const isLastCat = previewCategoryIndex === categoryGroups.length - 1;
 
-                  let qStartIndex = 0;
-                  for (let i = 0; i < previewCategoryIndex; i++) {
-                    qStartIndex += categoryGroups[i]?.questions?.length || 0;
-                  }
-
                   const currentStarQs = currentGroup.questions.filter((q) => q.response_type === "star_rating");
                   const currentRated = currentStarQs.filter((q) => previewRatings[q.uniqueKey] > 0).length;
 
                   return (
                     <div
                       style={{
-                        background: "rgba(11, 23, 42, 0.85)",
-                        border: "1.5px solid rgba(96, 165, 250, 0.22)",
+                        background: "var(--bg-card, rgba(11, 23, 42, 0.85))",
+                        border: "1.5px solid var(--border-strong, rgba(96, 165, 250, 0.22))",
                         borderRadius: "var(--radius-md, 14px)",
                         padding: "24px 26px",
                         display: "flex",
                         flexDirection: "column",
                         gap: "18px",
-                        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+                        boxShadow: "var(--shadow-md, 0 4px 20px rgba(0, 0, 0, 0.3))",
                       }}
                     >
                       {/* Category Header */}
@@ -1680,7 +1457,7 @@ export default function CreateSurveyPage() {
                           alignItems: "center",
                           flexWrap: "wrap",
                           gap: "10px",
-                          borderBottom: "1px solid rgba(96, 165, 250, 0.15)",
+                          borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                           paddingBottom: "14px",
                         }}
                       >
@@ -1708,7 +1485,6 @@ export default function CreateSurveyPage() {
                         {currentGroup.questions.map((q, idx) => {
                           const qKey = q.uniqueKey;
                           const isStar = q.response_type === "star_rating";
-                          const currentNum = qStartIndex + idx + 1;
                           const currentRating = previewRatings[qKey] || 0;
                           const hoverRating = previewHover[qKey] || 0;
                           const activeRating = hoverRating || currentRating;
@@ -1717,8 +1493,8 @@ export default function CreateSurveyPage() {
                             <div
                               key={qKey}
                               style={{
-                                background: currentRating > 0 ? "rgba(34, 197, 94, 0.05)" : "rgba(14, 28, 48, 0.6)",
-                                border: currentRating > 0 ? "1px solid rgba(34, 197, 94, 0.25)" : "1px solid rgba(96, 165, 250, 0.12)",
+                                background: currentRating > 0 ? "rgba(34, 197, 94, 0.08)" : "var(--bg-hover, rgba(14, 28, 48, 0.6))",
+                                border: currentRating > 0 ? "1px solid rgba(34, 197, 94, 0.3)" : "1px solid var(--border, rgba(96, 165, 250, 0.12))",
                                 borderRadius: "var(--radius-md, 9px)",
                                 padding: "16px 20px",
                                 display: "flex",
@@ -1734,16 +1510,17 @@ export default function CreateSurveyPage() {
                                     fontWeight: 700,
                                     color: currentRating > 0 ? "var(--success, #22c55e)" : "var(--primary-lt, #60a5fa)",
                                     background: currentRating > 0 ? "rgba(34, 197, 94, 0.15)" : "rgba(37, 99, 235, 0.15)",
-                                    width: "24px",
+                                    minWidth: "28px",
                                     height: "24px",
-                                    borderRadius: "50%",
+                                    padding: "0 6px",
+                                    borderRadius: "12px",
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
                                     flexShrink: 0,
                                   }}
                                 >
-                                  {currentRating > 0 ? "✓" : currentNum}
+                                  {currentRating > 0 ? "✓" : `Q${idx + 1}`}
                                 </span>
                                 <div style={{ flex: 1 }}>
                                   <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-white, #ffffff)", lineHeight: 1.5 }}>
@@ -1854,8 +1631,8 @@ export default function CreateSurveyPage() {
                                     }
                                     style={{
                                       width: "100%",
-                                      background: "rgba(10, 20, 36, 0.6)",
-                                      border: "1px solid rgba(96, 165, 250, 0.2)",
+                                      background: "var(--bg-surface, rgba(10, 20, 36, 0.6))",
+                                      border: "1px solid var(--border, rgba(96, 165, 250, 0.2))",
                                       borderRadius: "var(--radius-md, 8px)",
                                       padding: "10px 14px",
                                       color: "var(--text-main, #e2e8f0)",
@@ -1927,6 +1704,48 @@ export default function CreateSurveyPage() {
               </div>
             </div>
 
+            {/* Stakeholder Details Box (Order: Preview form, then Stakeholder Details, then button) */}
+            <div
+              style={{
+                background: "var(--bg-surface, #0d1b2a)",
+                border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+                borderRadius: "var(--radius-lg, 12px)",
+                padding: "20px 24px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+              }}
+            >
+              <div>
+                <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+                  Client Stakeholder Details
+                </h4>
+                <p style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+                  Enter the client stakeholder contact name and email address who will receive this survey invitation.
+                </p>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+                <Input
+                  id="previewStakeholderName"
+                  label="Client Stakeholder Contact Name *"
+                  placeholder="e.g. Sarah Jenkins"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  required
+                />
+                <Input
+                  id="previewStakeholderEmail"
+                  label="Client Stakeholder Contact Email *"
+                  type="email"
+                  placeholder="e.g. sjenkins@acmeglobal.com"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
             {/* Submission Error Banner */}
             {submitError && (
               <div
@@ -1943,7 +1762,7 @@ export default function CreateSurveyPage() {
               </div>
             )}
 
-            {/* Step 4 Single Unified Action Bar (No Duplicate Buttons) */}
+            {/* Step 4 Single Unified Action Bar */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px" }}>
               <Button variant="secondary" size="md" disabled={submitting} onClick={() => setCurrentStep(2)}>
                 ← Back to Questions
@@ -1955,7 +1774,7 @@ export default function CreateSurveyPage() {
                 disabled={submitting || !contactName.trim() || !contactEmail.trim()}
                 onClick={handleFinalSubmit}
               >
-                Create & Dispatch Survey →
+                Create Survey & Dispatch
               </Button>
             </div>
           </div>

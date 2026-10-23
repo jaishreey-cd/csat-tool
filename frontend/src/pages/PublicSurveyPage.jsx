@@ -360,8 +360,8 @@ export default function PublicSurveyPage() {
           {/* Engagement Details */}
           <div
             style={{
-              background: "rgba(10, 22, 40, 0.7)",
-              border: "1px solid rgba(96, 165, 250, 0.15)",
+              background: "var(--bg-hover, rgba(10, 22, 40, 0.7))",
+              border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
               borderRadius: "var(--radius-md, 10px)",
               padding: "14px 20px",
               width: "100%",
@@ -400,7 +400,7 @@ export default function PublicSurveyPage() {
         {/* Top Branding Banner */}
         <div
           style={{
-            background: "rgba(13, 27, 42, 0.95)",
+            background: "var(--bg-surface, rgba(13, 27, 42, 0.95))",
             border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
             borderRadius: "var(--radius-lg, 14px)",
             padding: "16px 28px",
@@ -409,7 +409,7 @@ export default function PublicSurveyPage() {
             justifyContent: "space-between",
             flexWrap: "wrap",
             gap: "14px",
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            boxShadow: "var(--shadow-md, 0 8px 24px rgba(0, 0, 0, 0.35))",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
@@ -431,8 +431,8 @@ export default function PublicSurveyPage() {
         {/* Survey Welcome Card */}
         <div
           style={{
-            background: "rgba(14, 30, 55, 0.7)",
-            border: "1px solid rgba(96, 165, 250, 0.2)",
+            background: "var(--bg-card, rgba(14, 30, 55, 0.7))",
+            border: "1px solid var(--border, rgba(96, 165, 250, 0.2))",
             borderRadius: "var(--radius-lg, 14px)",
             padding: "24px 28px",
             display: "flex",
@@ -460,9 +460,9 @@ export default function PublicSurveyPage() {
             style={{
               marginTop: "8px",
               padding: "10px 14px",
-              background: "rgba(10, 20, 36, 0.7)",
+              background: "var(--bg-hover, rgba(10, 20, 36, 0.7))",
               borderRadius: "var(--radius-sm, 8px)",
-              border: "1px solid rgba(96, 165, 250, 0.1)",
+              border: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
               display: "flex",
               alignItems: "center",
               gap: "14px",
@@ -510,14 +510,14 @@ export default function PublicSurveyPage() {
         {/* Overall Survey Evaluation Progress */}
         <div
           style={{
-            background: "rgba(11, 23, 42, 0.85)",
-            border: "1px solid rgba(96, 165, 250, 0.2)",
+            background: "var(--bg-card, rgba(11, 23, 42, 0.85))",
+            border: "1px solid var(--border, rgba(96, 165, 250, 0.2))",
             borderRadius: "var(--radius-md, 12px)",
             padding: "18px 24px",
             display: "flex",
             flexDirection: "column",
             gap: "10px",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.3)",
+            boxShadow: "var(--shadow-sm, 0 4px 16px rgba(0, 0, 0, 0.3))",
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -538,7 +538,7 @@ export default function PublicSurveyPage() {
             style={{
               height: "7px",
               width: "100%",
-              background: "rgba(96, 165, 250, 0.15)",
+              background: "var(--border, rgba(96, 165, 250, 0.15))",
               borderRadius: "4px",
               overflow: "hidden",
             }}
@@ -564,26 +564,20 @@ export default function PublicSurveyPage() {
           const isFirstCategory = currentCategoryIndex === 0;
           const isLastCategory = currentCategoryIndex === categoryGroups.length - 1;
 
-          // Calculate continuous question start number for the active category
-          let questionStartIndex = 0;
-          for (let i = 0; i < currentCategoryIndex; i++) {
-            questionStartIndex += categoryGroups[i]?.questions?.length || 0;
-          }
-
           const currentGroupStarQuestions = currentGroup.questions.filter((q) => q.response_type === "star_rating");
           const currentGroupRatedCount = currentGroupStarQuestions.filter((q) => responses[q.id]?.rating_score > 0).length;
 
           return (
             <div
               style={{
-                background: "rgba(11, 23, 42, 0.85)",
-                border: "1.5px solid rgba(96, 165, 250, 0.22)",
+                background: "var(--bg-card, rgba(11, 23, 42, 0.85))",
+                border: "1.5px solid var(--border-strong, rgba(96, 165, 250, 0.22))",
                 borderRadius: "var(--radius-md, 14px)",
                 padding: "26px 28px",
                 display: "flex",
                 flexDirection: "column",
                 gap: "22px",
-                boxShadow: "0 6px 24px rgba(0, 0, 0, 0.35)",
+                boxShadow: "var(--shadow-md, 0 6px 24px rgba(0, 0, 0, 0.35))",
               }}
             >
               {/* Category Header (NO category tabs, NO 'Section 1 of 6' text, just clean category title & type badge) */}
@@ -594,7 +588,7 @@ export default function PublicSurveyPage() {
                   alignItems: "center",
                   flexWrap: "wrap",
                   gap: "10px",
-                  borderBottom: "1px solid rgba(96, 165, 250, 0.15)",
+                  borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                   paddingBottom: "16px",
                 }}
               >
@@ -621,7 +615,6 @@ export default function PublicSurveyPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 {currentGroup.questions.map((q, idx) => {
                   const isStarRating = q.response_type === "star_rating";
-                  const currentNum = questionStartIndex + idx + 1;
                   const currentRating = responses[q.id]?.rating_score || 0;
                   const hoverRating = hoveredRatings[q.id] || 0;
                   const activeScore = hoverRating || currentRating;
@@ -635,13 +628,13 @@ export default function PublicSurveyPage() {
                         background: isMissing
                           ? "rgba(239, 68, 68, 0.08)"
                           : currentRating > 0
-                          ? "rgba(34, 197, 94, 0.05)"
-                          : "rgba(14, 28, 48, 0.6)",
+                          ? "rgba(34, 197, 94, 0.08)"
+                          : "var(--bg-hover, rgba(14, 28, 48, 0.6))",
                         border: isMissing
                           ? "1.5px solid rgba(239, 68, 68, 0.55)"
                           : currentRating > 0
-                          ? "1px solid rgba(34, 197, 94, 0.25)"
-                          : "1px solid rgba(96, 165, 250, 0.12)",
+                          ? "1px solid rgba(34, 197, 94, 0.3)"
+                          : "1px solid var(--border, rgba(96, 165, 250, 0.12))",
                         borderRadius: "var(--radius-md, 10px)",
                         padding: "18px 22px",
                         display: "flex",
@@ -657,16 +650,17 @@ export default function PublicSurveyPage() {
                             fontWeight: 700,
                             color: currentRating > 0 ? "var(--success, #22c55e)" : "var(--primary-lt, #60a5fa)",
                             background: currentRating > 0 ? "rgba(34, 197, 94, 0.15)" : "rgba(37, 99, 235, 0.15)",
-                            width: "26px",
+                            minWidth: "28px",
                             height: "26px",
-                            borderRadius: "50%",
+                            padding: "0 6px",
+                            borderRadius: "13px",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                             flexShrink: 0,
                           }}
                         >
-                          {currentRating > 0 ? "✓" : currentNum}
+                          {currentRating > 0 ? "✓" : `Q${idx + 1}`}
                         </span>
                         <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-white, #ffffff)", lineHeight: 1.5, marginTop: "2px" }}>
                           {q.question_text}
@@ -682,9 +676,9 @@ export default function PublicSurveyPage() {
                             marginLeft: "38px",
                             marginTop: "4px",
                             padding: "10px 14px",
-                            background: "rgba(10, 22, 40, 0.5)",
+                            background: "var(--bg-surface, rgba(10, 22, 40, 0.5))",
                             borderRadius: "8px",
-                            border: "1px solid rgba(96, 165, 250, 0.1)",
+                            border: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
                             width: "fit-content",
                           }}
                         >
@@ -769,8 +763,8 @@ export default function PublicSurveyPage() {
                             onChange={(e) => handleTextChange(q.id, e.target.value)}
                             style={{
                               width: "100%",
-                              background: "rgba(10, 20, 36, 0.6)",
-                              border: "1px solid rgba(96, 165, 250, 0.2)",
+                              background: "var(--bg-surface, rgba(10, 20, 36, 0.6))",
+                              border: "1px solid var(--border, rgba(96, 165, 250, 0.2))",
                               borderRadius: "var(--radius-md, 8px)",
                               padding: "12px 14px",
                               color: "var(--text-main, #e2e8f0)",

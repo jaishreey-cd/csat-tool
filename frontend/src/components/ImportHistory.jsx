@@ -197,7 +197,7 @@ export default function ImportHistory({
                       display: "grid",
                       gridTemplateColumns: "repeat(3, 1fr)",
                       gap: "6px",
-                      background: "rgba(10, 22, 40, 0.4)",
+                      background: "var(--bg-hover, rgba(10, 22, 40, 0.4))",
                       padding: "8px",
                       borderRadius: "var(--radius-sm, 6px)",
                       fontSize: "11px",

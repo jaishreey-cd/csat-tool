@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import questionsApi from "../api/questionsApi";
 import Button from "../components/Button";
+import Spinner from "../components/Spinner";
 
 const SECTIONS = [
   { num: 1, title: "Project Management & Communication" },
@@ -18,6 +19,15 @@ const ALL_PHASES = [
   "Closure",
 ];
 
+const parsePhases = (val) => {
+  if (Array.isArray(val)) return val;
+  if (!val || val === "ALL") return [...ALL_PHASES];
+  if (typeof val === "string") {
+    return val.split(",").map((p) => p.trim()).filter(Boolean);
+  }
+  return [...ALL_PHASES];
+};
+
 export default function QuestionsPage() {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +36,6 @@ export default function QuestionsPage() {
 
   // Filters
   const [selectedSection, setSelectedSection] = useState("ALL");
-  const [selectedPhase, setSelectedPhase] = useState("ALL");
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,26 +50,40 @@ export default function QuestionsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async (force = false) => {
+    const params = {};
+    if (selectedSection !== "ALL") params.section = Number(selectedSection);
+
+    // Instant cached render
+    if (!force) {
+      const cached = questionsApi.getCachedQuestions(params);
+      if (cached) {
+        setQuestions(cached.questions || []);
+        setLoading(false);
+        // refresh in background silently
+        questionsApi.getQuestions(params, true).then((data) => {
+          setQuestions(data.questions || []);
+        }).catch(() => {});
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       setError(null);
-      const params = {};
-      if (selectedSection !== "ALL") params.section = Number(selectedSection);
-      if (selectedPhase !== "ALL") params.phase = selectedPhase;
-      const data = await questionsApi.getQuestions(params);
+      const data = await questionsApi.getQuestions(params, force);
       setQuestions(data.questions || []);
     } catch (err) {
       console.error("Failed to load questions:", err);
-      setError("Failed to load questions from database.");
+      setError("Failed to load questions from database. Please retry.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedSection]);
 
   useEffect(() => {
     fetchQuestions();
-  }, [selectedSection, selectedPhase]);
+  }, [fetchQuestions]);
 
   const openCreateModal = () => {
     setEditingQuestion(null);
@@ -81,7 +104,7 @@ export default function QuestionsPage() {
       section_title: q.section_title,
       question_text: q.question_text,
       response_type: q.response_type,
-      applicable_phases: q.applicable_phases || [...ALL_PHASES],
+      applicable_phases: parsePhases(q.applicable_phases),
     });
     setIsModalOpen(true);
   };
@@ -98,10 +121,11 @@ export default function QuestionsPage() {
 
   const togglePhase = (phase) => {
     setFormData((prev) => {
-      const exists = prev.applicable_phases.includes(phase);
+      const current = Array.isArray(prev.applicable_phases) ? prev.applicable_phases : parsePhases(prev.applicable_phases);
+      const exists = current.includes(phase);
       const nextPhases = exists
-        ? prev.applicable_phases.filter((p) => p !== phase)
-        : [...prev.applicable_phases, phase];
+        ? current.filter((p) => p !== phase)
+        : [...current, phase];
       return { ...prev, applicable_phases: nextPhases };
     });
   };
@@ -112,22 +136,29 @@ export default function QuestionsPage() {
       alert("Please enter question text.");
       return;
     }
-    if (formData.applicable_phases.length === 0) {
+    if (!formData.applicable_phases || formData.applicable_phases.length === 0) {
       alert("Please select at least one applicable survey phase.");
       return;
     }
 
     try {
       setIsSubmitting(true);
+      const payload = {
+        ...formData,
+        applicable_phases: Array.isArray(formData.applicable_phases)
+          ? formData.applicable_phases.join(",")
+          : (formData.applicable_phases || "ALL"),
+      };
+
       if (editingQuestion) {
-        await questionsApi.updateQuestion(editingQuestion.id, formData);
+        await questionsApi.updateQuestion(editingQuestion.id, payload);
         setSuccessMsg("Question updated successfully!");
       } else {
-        await questionsApi.createQuestion(formData);
+        await questionsApi.createQuestion(payload);
         setSuccessMsg("Question added to bank successfully!");
       }
       setIsModalOpen(false);
-      fetchQuestions();
+      fetchQuestions(true);
       setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err) {
       console.error("Save question error:", err);
@@ -142,7 +173,7 @@ export default function QuestionsPage() {
       setDeleteConfirmId(null);
       await questionsApi.deleteQuestion(id);
       setSuccessMsg("Question permanently deleted from database.");
-      fetchQuestions();
+      fetchQuestions(true);
       setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err) {
       console.error("Delete question error:", err);
@@ -250,9 +281,9 @@ export default function QuestionsPage() {
             value={selectedSection}
             onChange={(e) => setSelectedSection(e.target.value)}
             style={{
-              background: "var(--bg-card, rgba(14, 30, 50, 0.9))",
+              background: "var(--bg-surface, #0d1b2a)",
               border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
-              color: "#e2e8f0",
+              color: "var(--text-main, #0f172a)",
               borderRadius: "6px",
               padding: "6px 12px",
               fontSize: "13px",
@@ -267,40 +298,16 @@ export default function QuestionsPage() {
           </select>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
-            Applicable Phase:
-          </label>
-          <select
-            value={selectedPhase}
-            onChange={(e) => setSelectedPhase(e.target.value)}
-            style={{
-              background: "var(--bg-card, rgba(14, 30, 50, 0.9))",
-              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
-              color: "#e2e8f0",
-              borderRadius: "6px",
-              padding: "6px 12px",
-              fontSize: "13px",
-            }}
-          >
-            <option value="ALL">All Survey Phases</option>
-            {ALL_PHASES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <div style={{ marginLeft: "auto", fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>
-          Total Questions: <strong style={{ color: "#60a5fa" }}>{questions.length}</strong>
+          Total Questions: <strong style={{ color: "var(--primary-lt, #60a5fa)" }}>{questions.length}</strong>
         </div>
       </div>
 
       {/* Questions List */}
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "48px 0", color: "var(--text-muted, #94a3b8)" }}>
-          Loading questions from database...
+      {loading && questions.length === 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 0", gap: "12px" }}>
+          <Spinner size="lg" />
+          <span style={{ color: "var(--text-muted, #94a3b8)", fontSize: "14px" }}>Loading questions from database...</span>
         </div>
       ) : questions.length === 0 ? (
         <div
@@ -321,117 +328,120 @@ export default function QuestionsPage() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          {questions.map((q) => (
-            <div
-              key={q.id}
-              style={{
-                background: "var(--bg-surface, #0d1b2a)",
-                border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
-                borderRadius: "10px",
-                padding: "18px 22px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                gap: "20px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                {/* Meta Badges */}
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
-                  <span
-                    style={{
-                      background: q.section_number === 6 ? "rgba(168, 85, 247, 0.2)" : "rgba(37, 99, 235, 0.2)",
-                      border: `1px solid ${q.section_number === 6 ? "rgba(168, 85, 247, 0.4)" : "rgba(37, 99, 235, 0.4)"}`,
-                      color: q.section_number === 6 ? "#c084fc" : "#93c5fd",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      padding: "2px 8px",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    Section {q.section_number}: {q.section_title}
-                  </span>
-
-                  <span
-                    style={{
-                      background: "rgba(100, 116, 139, 0.2)",
-                      color: "#cbd5e1",
-                      fontSize: "12px",
-                      padding: "2px 8px",
-                      borderRadius: "4px",
-                      border: "1px solid rgba(100, 116, 139, 0.3)",
-                    }}
-                  >
-                    Type: {q.response_type === "Text" ? "Text / Comment" : "1-5 Star Rating"}
-                  </span>
-
-                  {q.section_number === 6 && (
+          {questions.map((q) => {
+            const phases = parsePhases(q.applicable_phases);
+            return (
+              <div
+                key={q.id}
+                style={{
+                  background: "var(--bg-surface, #0d1b2a)",
+                  border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+                  borderRadius: "10px",
+                  padding: "18px 22px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: "20px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  {/* Meta Badges */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
                     <span
                       style={{
-                        background: "rgba(245, 158, 11, 0.15)",
-                        color: "#fde68a",
-                        fontSize: "11px",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                        border: "1px solid rgba(245, 158, 11, 0.3)",
-                      }}
-                    >
-                      Optional
-                    </span>
-                  )}
-                </div>
-
-                {/* Question Text */}
-                <div style={{ fontSize: "15px", fontWeight: 600, color: "#f8fafc", marginBottom: "12px", lineHeight: 1.5 }}>
-                  {q.question_text}
-                </div>
-
-                {/* Applicable Phases */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                  <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)" }}>Phases:</span>
-                  {(q.applicable_phases || []).map((ph) => (
-                    <span
-                      key={ph}
-                      style={{
-                        fontSize: "11px",
-                        background: "rgba(15, 23, 42, 0.6)",
-                        border: "1px solid rgba(96, 165, 250, 0.2)",
-                        color: "#93c5fd",
+                        background: q.section_number === 6 ? "rgba(168, 85, 247, 0.2)" : "rgba(37, 99, 235, 0.2)",
+                        border: `1px solid ${q.section_number === 6 ? "rgba(168, 85, 247, 0.4)" : "rgba(37, 99, 235, 0.4)"}`,
+                        color: q.section_number === 6 ? "#c084fc" : "#93c5fd",
+                        fontSize: "12px",
+                        fontWeight: 600,
                         padding: "2px 8px",
-                        borderRadius: "12px",
+                        borderRadius: "4px",
                       }}
                     >
-                      {ph}
+                      Section {q.section_number}: {q.section_title}
                     </span>
-                  ))}
+
+                    <span
+                      style={{
+                        background: "rgba(100, 116, 139, 0.2)",
+                        color: "#cbd5e1",
+                        fontSize: "12px",
+                        padding: "2px 8px",
+                        borderRadius: "4px",
+                        border: "1px solid rgba(100, 116, 139, 0.3)",
+                      }}
+                    >
+                      Type: {q.response_type === "Text" ? "Text / Comment" : "1-5 Star Rating"}
+                    </span>
+
+                    {q.section_number === 6 && (
+                      <span
+                        style={{
+                          background: "rgba(245, 158, 11, 0.15)",
+                          color: "#fde68a",
+                          fontSize: "11px",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          border: "1px solid rgba(245, 158, 11, 0.3)",
+                        }}
+                      >
+                        Optional
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Question Text */}
+                  <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-white, #ffffff)", marginBottom: "12px", lineHeight: 1.5 }}>
+                    {q.question_text}
+                  </div>
+
+                  {/* Applicable Phases */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)" }}>Phases:</span>
+                    {phases.map((ph) => (
+                      <span
+                        key={ph}
+                        style={{
+                          fontSize: "11px",
+                          background: "var(--bg-hover, rgba(15, 23, 42, 0.6))",
+                          border: "1px solid var(--border, rgba(96, 165, 250, 0.2))",
+                          color: "var(--primary-lt, #1d4ed8)",
+                          padding: "2px 8px",
+                          borderRadius: "12px",
+                        }}
+                      >
+                        {ph}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <Button variant="secondary" size="sm" onClick={() => openEditModal(q)}>
+                    Edit
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirmId(q.id)}
+                    style={{
+                      background: "rgba(239, 68, 68, 0.15)",
+                      border: "1px solid rgba(239, 68, 68, 0.3)",
+                      color: "#fca5a5",
+                      borderRadius: "6px",
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
-
-              {/* Actions */}
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <Button variant="secondary" size="sm" onClick={() => openEditModal(q)}>
-                  Edit
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirmId(q.id)}
-                  style={{
-                    background: "rgba(239, 68, 68, 0.15)",
-                    border: "1px solid rgba(239, 68, 68, 0.3)",
-                    color: "#fca5a5",
-                    borderRadius: "6px",
-                    padding: "6px 12px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -451,18 +461,19 @@ export default function QuestionsPage() {
         >
           <div
             style={{
-              background: "#0d1b2a",
+              background: "var(--bg-surface, #0d1b2a)",
               border: "1px solid rgba(239, 68, 68, 0.4)",
               borderRadius: "12px",
               padding: "24px",
               maxWidth: "460px",
               width: "100%",
+              boxShadow: "var(--shadow-lg)",
             }}
           >
-            <h3 style={{ color: "#ef4444", margin: "0 0 12px 0", fontSize: "18px" }}>
+            <h3 style={{ color: "var(--danger, #ef4444)", margin: "0 0 12px 0", fontSize: "18px" }}>
               Permanent Question Deletion
             </h3>
-            <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.5, margin: "0 0 20px 0" }}>
+            <p style={{ color: "var(--text-muted, #cbd5e1)", fontSize: "14px", lineHeight: 1.5, margin: "0 0 20px 0" }}>
               Are you sure you want to delete this question? This question will be <strong>permanently removed from the database</strong>.
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
@@ -506,23 +517,23 @@ export default function QuestionsPage() {
         >
           <div
             style={{
-              background: "#0d1b2a",
-              border: "1px solid rgba(96, 165, 250, 0.3)",
+              background: "var(--bg-surface, #0d1b2a)",
+              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.3))",
               borderRadius: "12px",
               padding: "28px",
               maxWidth: "600px",
               width: "100%",
-              boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
+              boxShadow: "var(--shadow-lg, 0 10px 40px rgba(0,0,0,0.6))",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3 style={{ color: "#ffffff", margin: 0, fontSize: "18px" }}>
+              <h3 style={{ color: "var(--text-white, #ffffff)", margin: 0, fontSize: "18px" }}>
                 {editingQuestion ? "Edit Question" : "Add Question to Bank"}
               </h3>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}
+                style={{ background: "transparent", border: "none", color: "var(--text-muted, #94a3b8)", fontSize: "20px", cursor: "pointer" }}
               >
                 &times;
               </button>
@@ -531,7 +542,7 @@ export default function QuestionsPage() {
             <form onSubmit={handleSubmit}>
               {/* Section Select */}
               <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#cbd5e1", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-muted, #cbd5e1)", marginBottom: "6px" }}>
                   Section
                 </label>
                 <select
@@ -539,10 +550,10 @@ export default function QuestionsPage() {
                   onChange={(e) => handleSectionChange(e.target.value)}
                   style={{
                     width: "100%",
-                    background: "#0b1329",
-                    border: "1px solid rgba(96, 165, 250, 0.25)",
+                    background: "var(--bg-surface, #0b1329)",
+                    border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
                     borderRadius: "6px",
-                    color: "#ffffff",
+                    color: "var(--text-main, #ffffff)",
                     padding: "8px 12px",
                     fontSize: "14px",
                   }}
@@ -554,7 +565,7 @@ export default function QuestionsPage() {
                   ))}
                 </select>
                 {formData.section_number === 6 && (
-                  <p style={{ fontSize: "12px", color: "#fde68a", margin: "4px 0 0 0" }}>
+                  <p style={{ fontSize: "12px", color: "var(--warning, #fde68a)", margin: "4px 0 0 0" }}>
                     * Section 6 questions and feedback comments are optional in surveys.
                   </p>
                 )}
@@ -562,7 +573,7 @@ export default function QuestionsPage() {
 
               {/* Question Text */}
               <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#cbd5e1", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-muted, #cbd5e1)", marginBottom: "6px" }}>
                   Question Text
                 </label>
                 <textarea
@@ -572,10 +583,10 @@ export default function QuestionsPage() {
                   placeholder="e.g. How satisfied are you with the technical architecture and delivery velocity?"
                   style={{
                     width: "100%",
-                    background: "#0b1329",
-                    border: "1px solid rgba(96, 165, 250, 0.25)",
+                    background: "var(--bg-surface, #0b1329)",
+                    border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
                     borderRadius: "6px",
-                    color: "#ffffff",
+                    color: "var(--text-main, #ffffff)",
                     padding: "8px 12px",
                     fontSize: "14px",
                     resize: "vertical",
@@ -586,7 +597,7 @@ export default function QuestionsPage() {
 
               {/* Response Type */}
               <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#cbd5e1", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-muted, #cbd5e1)", marginBottom: "6px" }}>
                   Response Type
                 </label>
                 <select
@@ -594,10 +605,10 @@ export default function QuestionsPage() {
                   onChange={(e) => setFormData((p) => ({ ...p, response_type: e.target.value }))}
                   style={{
                     width: "100%",
-                    background: "#0b1329",
-                    border: "1px solid rgba(96, 165, 250, 0.25)",
+                    background: "var(--bg-surface, #0b1329)",
+                    border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
                     borderRadius: "6px",
-                    color: "#ffffff",
+                    color: "var(--text-main, #ffffff)",
                     padding: "8px 12px",
                     fontSize: "14px",
                   }}
@@ -609,21 +620,22 @@ export default function QuestionsPage() {
 
               {/* Applicable Phases */}
               <div style={{ marginBottom: "24px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#cbd5e1", marginBottom: "8px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", marginBottom: "8px" }}>
                   Link to Survey Phases
                 </label>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                   {ALL_PHASES.map((ph) => {
-                    const selected = formData.applicable_phases.includes(ph);
+                    const phases = Array.isArray(formData.applicable_phases) ? formData.applicable_phases : parsePhases(formData.applicable_phases);
+                    const selected = phases.includes(ph);
                     return (
                       <button
                         type="button"
                         key={ph}
                         onClick={() => togglePhase(ph)}
                         style={{
-                          background: selected ? "rgba(37, 99, 235, 0.3)" : "rgba(15, 23, 42, 0.6)",
-                          border: `1px solid ${selected ? "#3b82f6" : "rgba(96, 165, 250, 0.2)"}`,
-                          color: selected ? "#60a5fa" : "#94a3b8",
+                          background: selected ? "var(--bg-active, rgba(37, 99, 235, 0.3))" : "var(--bg-hover, rgba(15, 23, 42, 0.6))",
+                          border: `1px solid ${selected ? "var(--primary, #3b82f6)" : "var(--border, rgba(96, 165, 250, 0.2))"}`,
+                          color: selected ? "var(--primary, #60a5fa)" : "var(--text-muted, #94a3b8)",
                           borderRadius: "6px",
                           padding: "6px 12px",
                           fontSize: "12px",

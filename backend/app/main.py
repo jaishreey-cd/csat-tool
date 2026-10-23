@@ -15,7 +15,7 @@ async def _periodic_followup_checker():
             from app.db.session import SessionLocal
             from app.services.survey_service import check_and_trigger_automated_followups
             with SessionLocal() as db:
-                result = check_and_trigger_automated_followups(db, threshold_days=7)
+                result = check_and_trigger_automated_followups(db, threshold_days=15)
                 if result.get("reminded_count", 0) > 0:
                     print(f"[AUTOMATED FOLLOWUP] Auto-reminded {result['reminded_count']} overdue survey(s)")
         except asyncio.CancelledError:

@@ -16,7 +16,7 @@ from app.services.sync_service import confirm_sync
 
 def seed():
     """
-    Idempotently seed default admin user, reviewer user, and initial clients/projects dataset.
+    Idempotently seed default admin user and initial clients/projects dataset.
     Never logs or returns password hashes.
     """
     db = SessionLocal()
@@ -31,17 +31,18 @@ def seed():
                 email=admin_email,
                 full_name="Admin User",
                 hashed_password=hash_password(admin_password),
+                role="Admin",
                 is_active=True
             )
             db.add(admin_user)
             db.commit()
             db.refresh(admin_user)
-            print(f"[SEED] Created admin user: {admin_email}")
+            print(f"[SEED] Created initial admin user: {admin_email}")
         else:
-            # Update password hash if needed
+            admin_user.role = "Admin"
             admin_user.hashed_password = hash_password(admin_password)
             db.commit()
-            print(f"[SEED] Admin user verified: {admin_email}")
+            print(f"[SEED] Initial admin user verified: {admin_email}")
 
         # 2. Seed Reviewer User (Maker-Checker workflow)
         reviewer_email = settings.SEED_REVIEWER_EMAIL.strip().lower()

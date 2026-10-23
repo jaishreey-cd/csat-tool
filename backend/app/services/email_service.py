@@ -28,10 +28,8 @@ def send_survey_invitation_email(
 
 You have been invited by the PMO team to submit your Customer Satisfaction (CSAT) feedback for the following project:
 
-Client: {client_name}
 Project: {project_name}
 Phase: {phase}
-Survey Code: {survey_code}
 
 Please access your secure survey evaluation link below to submit your feedback:
 {survey_url}
@@ -78,10 +76,8 @@ Best regards,
       <p>You are cordially invited to complete our Customer Satisfaction evaluation for your ongoing project engagement. Your feedback is confidential and will directly guide our delivery enhancements.</p>
       
       <div class="info-card">
-        <div class="info-row"><span class="info-label">Client:</span> <span class="info-value">{client_name}</span></div>
         <div class="info-row"><span class="info-label">Project:</span> <span class="info-value">{project_name}</span></div>
         <div class="info-row"><span class="info-label">Phase:</span> <span class="info-value">{phase}</span></div>
-        <div class="info-row"><span class="info-label">Survey Code:</span> <span class="info-value" style="color:#60a5fa; font-family:monospace;">{survey_code}</span></div>
       </div>
 
       <div class="btn-container">
@@ -179,14 +175,12 @@ def send_survey_reminder_email(
 
     text_content = f"""Dear {recipient_name},
 
-This is a gentle follow-up regarding the Customer Satisfaction (CSAT) evaluation for {project_name} ({client_name}).
+This is a gentle follow-up regarding the Customer Satisfaction (CSAT) evaluation for {project_name}.
 
 Your perspective is invaluable to our engineering and PMO teams in ensuring the highest delivery standards.
 
 Please take 2-3 minutes to submit your evaluation using your private link:
 {survey_url}
-
-Survey Code: {survey_code}
 
 Thank you for your continued partnership.
 
@@ -229,10 +223,8 @@ Best regards,
       <p>We recently sent you an invitation for Customer Satisfaction feedback on <strong>{project_name}</strong>. If you haven't had a chance to complete it yet, we would love to hear your thoughts.</p>
       
       <div class="info-card">
-        <div class="info-row"><span class="info-label">Client:</span> <span class="info-value">{client_name}</span></div>
         <div class="info-row"><span class="info-label">Project:</span> <span class="info-value">{project_name}</span></div>
         <div class="info-row"><span class="info-label">Phase:</span> <span class="info-value">{phase}</span></div>
-        <div class="info-row"><span class="info-label">Survey Code:</span> <span class="info-value" style="color:#fbbf24; font-family:monospace;">{survey_code}</span></div>
       </div>
 
       <div class="btn-container">
@@ -428,7 +420,7 @@ def send_response_followup_email(
 
     text_content = f"""Dear {recipient_name},
 
-Thank you for completing the CSAT survey for {project_name} ({client_name}) - Phase: {phase}.
+Thank you for completing the CSAT survey for {project_name} - Phase: {phase}.
 {score_text}{note_text}
 Your insights are invaluable in driving our continuous service improvements and delivering excellence.
 Our project team and leadership review all feedback carefully. If you have any further observations or would like to schedule a discussion, please feel free to reach out to us directly.
@@ -476,7 +468,7 @@ Best regards,
     </div>
     <div class="body">
       <p>Dear <strong>{recipient_name}</strong>,</p>
-      <p>We gratefully acknowledge receipt of your CSAT evaluation for <strong>{project_name}</strong> ({client_name}) - Phase: <strong>{phase}</strong>.</p>
+      <p>We gratefully acknowledge receipt of your CSAT evaluation for <strong>{project_name}</strong> - Phase: <strong>{phase}</strong>.</p>
       {score_badge_html}
       {custom_note_html}
       <p>Our delivery leads and PMO team review all feedback closely to maintain the highest quality of service. We appreciate your valuable time and collaboration.</p>

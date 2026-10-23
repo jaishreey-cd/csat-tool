@@ -4,8 +4,9 @@ import AppLayout from "../layouts/AppLayout";
 import LoginPage from "../pages/LoginPage";
 import CreateSurveyPage from "../pages/CreateSurveyPage";
 import SurveysPage from "../pages/SurveysPage";
-import DraftsPage from "../pages/DraftsPage";
 import PermissionsPage from "../pages/PermissionsPage";
+import QuestionsPage from "../pages/QuestionsPage";
+import UserResultsPage from "../pages/UserResultsPage";
 import ProjectAnalyticsPage from "../pages/ProjectAnalyticsPage";
 import ClientResponsePage from "../pages/ClientResponsePage";
 import PublicSurveyPage from "../pages/PublicSurveyPage";
@@ -39,11 +40,26 @@ export default function AppRoutes() {
         <Route path="/dashboard" element={<SurveysPage />} />
         <Route path="/surveys" element={<Navigate to="/dashboard" replace />} />
 
-        {/* Dedicated Drafts Route */}
-        <Route path="/drafts" element={<DraftsPage />} />
+        {/* Question Bank Route (Admin Only) */}
+        <Route
+          path="/question-bank"
+          element={
+            <ProtectedRoute requiredRole="Admin">
+              <QuestionsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/questions" element={<Navigate to="/question-bank" replace />} />
 
-        {/* Permissions & User Access Route */}
-        <Route path="/permissions" element={<PermissionsPage />} />
+        {/* Permissions & User Access Route (Admin Only) */}
+        <Route
+          path="/permissions"
+          element={
+            <ProtectedRoute requiredRole="Admin">
+              <PermissionsPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Inside Project Analytics Dashboard */}
         <Route path="/projects/:projectId" element={<ProjectAnalyticsPage />} />

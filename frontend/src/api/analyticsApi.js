@@ -1,5 +1,10 @@
 import axiosClient from "./axiosClient";
 
+export const sanitizeFilename = (name) => {
+  if (!name) return "Survey_Export";
+  return String(name).replace(/[\\/*?:"<>|]/g, "_").trim().replace(/^\.+/, "") || "Survey_Export";
+};
+
 const triggerDownload = (response, defaultFilename) => {
   const contentDisposition = response.headers["content-disposition"];
   let filename = defaultFilename;
@@ -22,6 +27,9 @@ const triggerDownload = (response, defaultFilename) => {
   window.URL.revokeObjectURL(url);
 };
 
+const _projectAnalyticsCache = new Map();
+const CACHE_TTL_MS = 60 * 1000;
+
 const analyticsApi = {
   getDashboardAnalytics: async (params = {}) => {
     const response = await axiosClient.get("/analytics/dashboard", { params });
@@ -33,25 +41,33 @@ const analyticsApi = {
     return response.data;
   },
 
-  getProjectAnalytics: async (projectId) => {
+  getProjectAnalytics: async (projectId, forceRefresh = false) => {
+    const key = String(projectId);
+    if (!forceRefresh) {
+      const entry = _projectAnalyticsCache.get(key);
+      if (entry && Date.now() - entry.timestamp < CACHE_TTL_MS) {
+        return entry.data;
+      }
+    }
     const response = await axiosClient.get(`/analytics/projects/${projectId}`);
+    _projectAnalyticsCache.set(key, { data: response.data, timestamp: Date.now() });
     return response.data;
   },
 
-  exportProjectAnalytics: async (projectId, format = "xlsx") => {
+  exportProjectAnalytics: async (projectId, format = "xlsx", customFilename = null) => {
     const response = await axiosClient.get(`/analytics/projects/${projectId}/export`, {
       params: { format },
       responseType: "blob",
     });
-    triggerDownload(response, `Project_${projectId}_CSAT_Report.${format}`);
+    triggerDownload(response, customFilename || `Project_${projectId}_CSAT_Report.${format}`);
   },
 
-  exportSurveysRegistry: async (params = {}, format = "xlsx") => {
+  exportSurveysRegistry: async (params = {}, format = "csv", customFilename = null) => {
     const response = await axiosClient.get("/analytics/surveys/export", {
       params: { ...params, format },
       responseType: "blob",
     });
-    triggerDownload(response, `CSAT_Surveys_Registry.${format}`);
+    triggerDownload(response, customFilename || `CSAT_Surveys_Registry.${format}`);
   },
 
   exportOverview: async (format = "xlsx") => {

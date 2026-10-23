@@ -40,7 +40,7 @@ def seed_database():
             {
                 "username": "pmo_user",
                 "email": "user@pmo.com",
-                "full_name": "PMO Reviewer",
+                "full_name": "PMO User",
                 "password": "Password@123",
                 "role": "PMO User"
             }

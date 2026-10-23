@@ -35,14 +35,14 @@ def test_survey_reminder_and_automated_scanner(client, test_user, test_client_an
     survey_data = create_resp.json()
     survey_id = survey_data["id"]
 
-    # 3. Trigger on-demand reminder endpoint
-    remind_resp = client.post(f"/api/surveys/{survey_id}/remind", headers=headers)
-    assert remind_resp.status_code == 200
-    remind_data = remind_resp.json()
-    assert remind_data["followup_sent_at"] is not None
-
-    # 4. Trigger automated follow-ups scanner (with 0 threshold to catch the newly created survey)
+    # 3. Trigger automated follow-ups scanner (with 0 threshold to catch the newly created survey)
     scanner_resp = client.post("/api/surveys/check-followups?threshold_days=0", headers=headers)
     assert scanner_resp.status_code == 200
     scanner_result = scanner_resp.json()
     assert scanner_result["status"] == "success"
+    assert scanner_result["reminded_count"] >= 1
+
+    # 4. Trigger again - should not re-remind since it only sends one follow-up automatically
+    scanner_resp2 = client.post("/api/surveys/check-followups?threshold_days=0", headers=headers)
+    assert scanner_resp2.status_code == 200
+    assert scanner_resp2.json()["reminded_count"] == 0

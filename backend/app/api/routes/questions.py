@@ -23,12 +23,11 @@ router = APIRouter(prefix="/questions", tags=["Questions"])
 @router.get("", response_model=QuestionListResponse)
 def list_questions(
     section: Optional[int] = Query(None, description="Filter by section number 1-6"),
-    phase: Optional[str] = Query(None, description="Filter by applicable phase (Weekly, Monthly, Mid-Project, etc.)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List questions in the question bank, with optional section or phase filter."""
-    questions = get_questions(db, section_number=section, phase=phase)
+    """List questions in the question bank, with optional section filter."""
+    questions = get_questions(db, section_number=section)
     return QuestionListResponse(questions=questions, total=len(questions))
 
 @router.get("/{question_id}", response_model=QuestionTemplateResponse)

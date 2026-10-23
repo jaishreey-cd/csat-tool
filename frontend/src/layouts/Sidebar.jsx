@@ -5,51 +5,91 @@ import { useAuth } from "../context/AuthContext";
 export default function Sidebar({ isOpen = true, onClose = null }) {
   const { user, logout } = useAuth();
 
-  const navItems = [
-    {
-      to: "/surveys/new",
-      label: "Create Survey",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 20h9"></path>
-          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-        </svg>
-      ),
-    },
-    {
-      to: "/dashboard",
-      label: "Dashboard",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="7" height="9"></rect>
-          <rect x="14" y="3" width="7" height="5"></rect>
-          <rect x="14" y="12" width="7" height="9"></rect>
-          <rect x="3" y="16" width="7" height="5"></rect>
-        </svg>
-      ),
-    },
-    {
-      to: "/drafts",
-      label: "Drafts",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <line x1="16" y1="13" x2="8" y2="13"></line>
-          <line x1="16" y1="17" x2="8" y2="17"></line>
-        </svg>
-      ),
-    },
-    {
-      to: "/permissions",
-      label: "Permissions",
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-        </svg>
-      ),
-    },
-  ];
+  const isAdmin = user?.role === "Admin";
+
+  const navItems = isAdmin
+    ? [
+        {
+          to: "/surveys/new",
+          label: "Create Survey",
+          icon: (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+          ),
+        },
+        {
+          to: "/dashboard",
+          label: "Dashboard",
+          icon: (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="9"></rect>
+              <rect x="14" y="3" width="7" height="5"></rect>
+              <rect x="14" y="12" width="7" height="9"></rect>
+              <rect x="3" y="16" width="7" height="5"></rect>
+            </svg>
+          ),
+        },
+        {
+          to: "/question-bank",
+          label: "Question Bank",
+          icon: (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              <circle cx="12" cy="11" r="0.75" fill="currentColor"></circle>
+              <path d="M10 8.5a2 2 0 1 1 3.5 1.4c-.8.8-1.5 1.3-1.5 2.6"></path>
+            </svg>
+          ),
+        },
+        {
+          to: "/permissions",
+          label: "Permissions",
+          icon: (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          ),
+        },
+      ]
+    : [
+        {
+          to: "/surveys/new",
+          label: "Create Survey",
+          icon: (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+          ),
+        },
+        {
+          to: "/dashboard",
+          label: "Dashboard",
+          icon: (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="9"></rect>
+              <rect x="14" y="3" width="7" height="5"></rect>
+              <rect x="14" y="12" width="7" height="9"></rect>
+              <rect x="3" y="16" width="7" height="5"></rect>
+            </svg>
+          ),
+        },
+        {
+          to: "/results",
+          label: "Results",
+          icon: (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          ),
+        },
+      ];
 
   const getInitials = (name, email) => {
     if (name) {
@@ -175,7 +215,7 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
           style={{
             padding: "16px",
             borderTop: "1px solid var(--border, rgba(96, 165, 250, 0.12))",
-            background: "rgba(10, 20, 35, 0.6)",
+            background: "var(--bg-hover, rgba(10, 20, 35, 0.6))",
             display: "flex",
             flexDirection: "column",
             gap: "12px",
@@ -189,7 +229,7 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
                 height: "36px",
                 borderRadius: "50%",
                 background: "linear-gradient(135deg, var(--accent, #06b6d4), var(--primary, #2563eb))",
-                color: "var(--text-white, #ffffff)",
+                color: "#ffffff",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -218,8 +258,8 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
                   style={{
                     fontSize: "10px",
                     fontWeight: 700,
-                    background: user?.role === "Admin" ? "rgba(16, 185, 129, 0.2)" : "rgba(37, 99, 235, 0.2)",
-                    color: user?.role === "Admin" ? "#6ee7b7" : "#93c5fd",
+                    background: user?.role === "Admin" ? "rgba(16, 185, 129, 0.15)" : "rgba(37, 99, 235, 0.15)",
+                    color: user?.role === "Admin" ? "var(--success, #10b981)" : "var(--primary-lt, #2563eb)",
                     padding: "1px 6px",
                     borderRadius: "4px",
                     textTransform: "uppercase",
@@ -252,7 +292,7 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
               borderRadius: "6px",
               border: "1px solid rgba(239, 68, 68, 0.25)",
               background: "rgba(239, 68, 68, 0.08)",
-              color: "#fca5a5",
+              color: "var(--danger, #ef4444)",
               fontSize: "12px",
               fontWeight: 600,
               cursor: "pointer",

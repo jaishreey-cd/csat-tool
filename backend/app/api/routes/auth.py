@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional, Dict, Any
 
-from app.api.deps import get_db, get_current_user
+from app.api.deps import get_db, get_current_user, require_admin
+from app.core.config import settings
 from app.models.user import User
 from app.core.security import hash_password
 from app.schemas.auth import LoginRequest, TokenResponse, UserResponse, UpdateUserRoleRequest, CreateUserRequest
@@ -93,9 +94,9 @@ def get_active_admin_status(
 @router.get("/users", response_model=List[UserResponse])
 def list_system_users(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
 ):
-    """List all registered users and their permission roles."""
+    """Admin-only: List all registered users and their permission roles."""
     users = db.query(User).order_by(User.id).all()
     return [UserResponse.model_validate(u) for u in users]
 
@@ -103,7 +104,7 @@ def list_system_users(
 def create_authorized_user(
     payload: CreateUserRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
 ):
     """
     Enable administrators to grant access to users by entering their email and role (PMO/Admin).
@@ -141,6 +142,17 @@ def create_authorized_user(
         db.refresh(existing)
         return UserResponse.model_validate(existing)
 
+    # For a new user grant: verify active PMO limit
+    active_pmos = db.query(User).filter(
+        User.email != initial_admin_email,
+        User.is_active == True
+    ).count()
+    if active_pmos >= 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum limit of 3 PMOs reached. You cannot grant access to more than 3 PMO users."
+        )
+
     new_user = User(
         email=normalized_email,
         full_name=payload.full_name or normalized_email.split("@")[0].title(),
@@ -158,7 +170,7 @@ def update_user_permissions(
     user_id: int,
     payload: UpdateUserRoleRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
 ):
     """
     Enable administrators to grant/modify permissions and roles for users.

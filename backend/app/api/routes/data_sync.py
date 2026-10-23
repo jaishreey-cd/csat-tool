@@ -2,7 +2,7 @@ from typing import List, Literal
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, get_current_user
+from app.api.deps import get_db, get_current_user, require_admin
 from app.models.user import User
 from app.schemas.data_sync import (
     PreviewResponse,
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/data", tags=["Data Sync"])
 async def preview_data_sync(
     file: UploadFile = File(...),
     mode: str = Form("add_update"),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -44,7 +44,7 @@ async def preview_data_sync(
 async def confirm_data_sync(
     file: UploadFile = File(...),
     mode: str = Form("add_update"),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -65,12 +65,12 @@ async def confirm_data_sync(
         file_bytes=file_bytes,
         filename=file.filename,
         mode=mode,
-        user_id=current_user.id
+        user_id=admin_user.id
     )
 
 @router.get("/imports", response_model=List[ImportBatchItem])
 def get_import_history(
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Get import history newest first with batch counts, user, and timestamps."""
@@ -79,7 +79,7 @@ def get_import_history(
 @router.post("/imports/{batch_id}/rollback", response_model=RollbackResponse)
 def rollback_import(
     batch_id: int,
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """

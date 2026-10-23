@@ -21,8 +21,6 @@ from app.services.survey_service import (
     dispatch_survey,
     get_public_survey_by_token,
     submit_public_survey_response,
-    send_survey_reminder,
-    send_survey_response_followup,
     check_and_trigger_automated_followups,
     get_client_response_detail,
 )
@@ -137,33 +135,9 @@ def dispatch_survey_to_client(
         client_contact_email=dispatch_in.client_contact_email,
     )
 
-@router.post("/{survey_id}/remind", response_model=SurveyResponse)
-def remind_survey_client(
-    survey_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Send on-demand reminder email to client contact for a pending survey."""
-    return send_survey_reminder(db, survey_id=survey_id)
-
-class FollowupRequest(BaseModel):
-    message: Optional[str] = None
-
-@router.post("/{survey_id}/response-followup")
-def follow_up_survey_response(
-    survey_id: int,
-    payload: FollowupRequest = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Send a dedicated follow-up email acknowledging and discussing client survey responses."""
-    msg = payload.message if payload else None
-    return send_survey_response_followup(db, survey_id=survey_id, custom_message=msg)
-
-
 @router.post("/check-followups")
 def trigger_automated_followups(
-    threshold_days: int = Query(7, description="Minimum days pending before reminder is sent"),
+    threshold_days: int = Query(15, description="Minimum days pending before reminder is sent"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

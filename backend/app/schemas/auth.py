@@ -32,7 +32,7 @@ class CreateUserRequest(BaseModel):
     email: str
     password: Optional[str] = "Password123!"
     full_name: Optional[str] = None
-    role: str = "PMO"
+    role: str = "User"
     is_active: bool = True
 
 class TokenResponse(BaseModel):
