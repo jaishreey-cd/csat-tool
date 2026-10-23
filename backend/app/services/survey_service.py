@@ -1,18 +1,27 @@
 import time
 import uuid
-from datetime import datetime
-from typing import Optional, List
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Tuple
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import desc
 
-from app.models.survey import Survey, SurveyQuestion
+from app.models.survey import Survey, SurveyQuestion, SurveyAnswer
 from app.models.client import Client
 from app.models.project import Project
 from app.models.user import User
-from app.schemas.survey import SurveyCreate
-from app.services.email_service import send_survey_invitation_email
+from app.schemas.survey import (
+    SurveyCreate,
+    PublicSurveyDetail,
+    PublicQuestionResponse,
+    AnswerItem,
+)
+from app.services.email_service import (
+    send_survey_invitation_email,
+    send_response_followup_email,
+    send_survey_reminder_email,
+)
+from app.services.client_service import invalidate_clients_cache
 
 # In-memory cache for get_surveys
 _surveys_cache: Dict[Tuple, Tuple[float, List]] = {}
@@ -93,7 +102,7 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
         status="Sent" if is_dispatched else "Draft",
         client_contact_name=survey_in.client_contact_name if is_dispatched else None,
         client_contact_email=survey_in.client_contact_email if is_dispatched else None,
-        sent_at=datetime.utcnow() if is_dispatched else None,
+        sent_at=datetime.now(timezone.utc) if is_dispatched else None,
         creator_id=creator_id,
     )
     db.add(survey)
@@ -129,7 +138,6 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
         )
 
     invalidate_surveys_cache()
-    from app.services.client_service import invalidate_clients_cache
     invalidate_clients_cache()
     survey.email_dispatch_result = email_res
     return survey
@@ -150,7 +158,6 @@ def submit_survey_for_approval(db: Session, survey_id: int, user_id: int) -> Sur
     db.commit()
     db.refresh(survey)
     invalidate_surveys_cache()
-    from app.services.client_service import invalidate_clients_cache
     invalidate_clients_cache()
     return survey
 
@@ -173,7 +180,6 @@ def get_surveys(
         if now - cached_time < _SURVEYS_CACHE_TTL:
             return cached_data
 
-    from sqlalchemy.orm import joinedload, selectinload
     query = (
         db.query(Survey)
         .options(
@@ -225,10 +231,7 @@ def get_surveys(
     _surveys_cache[cache_key] = (now, surveys)
     return surveys
 
-from app.models.survey import Survey, SurveyQuestion, SurveyAnswer
-from app.models.client import Client
-from app.models.project import Project
-from app.schemas.survey import SurveyCreate, PublicSurveyDetail, PublicQuestionResponse, AnswerItem
+
 
 def get_survey_by_id(db: Session, survey_id: int) -> Survey:
     """Fetch single survey with joined relationships."""
@@ -255,7 +258,7 @@ def dispatch_survey(db: Session, survey_id: int, client_contact_name: str, clien
 
     survey.client_contact_name = client_contact_name
     survey.client_contact_email = client_contact_email
-    survey.sent_at = datetime.utcnow()
+    survey.sent_at = datetime.now(timezone.utc)
     survey.status = "Sent"
 
     db.commit()
@@ -275,7 +278,6 @@ def dispatch_survey(db: Session, survey_id: int, client_contact_name: str, clien
     )
 
     invalidate_surveys_cache()
-    from app.services.client_service import invalidate_clients_cache
     invalidate_clients_cache()
     survey.email_dispatch_result = email_res
     return survey
@@ -332,7 +334,7 @@ def submit_public_survey_response(db: Session, token: str, answers: List[AnswerI
             question_id=item.question_id,
             rating_score=item.rating_score,
             text_answer=item.text_answer,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
         db.add(answer_record)
         if item.rating_score is not None and item.rating_score >= 1:
@@ -343,18 +345,16 @@ def submit_public_survey_response(db: Session, token: str, answers: List[AnswerI
         survey.average_score = round(sum(star_scores) / len(star_scores), 2)
 
     survey.status = "Completed"
-    survey.completed_at = datetime.utcnow()
+    survey.completed_at = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(survey)
     invalidate_surveys_cache()
-    from app.services.client_service import invalidate_clients_cache
     invalidate_clients_cache()
 
     # Automatically dispatch acknowledgement follow-up email if client email is available
     if survey.client_contact_email:
         try:
-            from app.services.email_service import send_response_followup_email
             send_response_followup_email(
                 recipient_email=survey.client_contact_email,
                 recipient_name=survey.client_contact_name or "Client Stakeholder",
@@ -379,7 +379,6 @@ def get_client_response_detail(db: Session, survey_id: int) -> dict:
     Fetch comprehensive client response details for a submitted survey.
     Returns 404 if the survey does not exist or has not been submitted yet.
     """
-    from sqlalchemy.orm import joinedload, selectinload
     survey = (
         db.query(Survey)
         .options(
@@ -477,7 +476,6 @@ def send_survey_response_followup(db: Session, survey_id: int, custom_message: O
     if not survey.client_contact_email:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No client contact email recorded for this survey.")
 
-    from app.services.email_service import send_response_followup_email
     result = send_response_followup_email(
         recipient_email=survey.client_contact_email,
         recipient_name=survey.client_contact_name or "Client Stakeholder",
@@ -501,7 +499,6 @@ def send_survey_reminder(db: Session, survey_id: int) -> Survey:
     if not survey.client_contact_email:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Survey has not been dispatched to a client contact yet.")
 
-    from app.services.email_service import send_survey_reminder_email
     send_survey_reminder_email(
         recipient_email=survey.client_contact_email,
         recipient_name=survey.client_contact_name or "Client Stakeholder",
@@ -512,7 +509,7 @@ def send_survey_reminder(db: Session, survey_id: int) -> Survey:
         survey_token=survey.unique_token,
     )
 
-    survey.followup_sent_at = datetime.utcnow()
+    survey.followup_sent_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(survey)
     invalidate_surveys_cache()
@@ -523,7 +520,7 @@ def check_and_trigger_automated_followups(db: Session, threshold_days: int = 7) 
     Scans all pending sent surveys. If days since sent_at >= threshold_days and
     no follow-up has been sent yet, automatically triggers one follow-up reminder email.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     pending_surveys = (
         db.query(Survey)
         .filter(
@@ -535,13 +532,15 @@ def check_and_trigger_automated_followups(db: Session, threshold_days: int = 7) 
     )
 
     reminded = []
-    from app.services.email_service import send_survey_reminder_email
 
     for survey in pending_surveys:
         if not survey.sent_at:
             continue
 
-        days_since_sent = (now - survey.sent_at).days
+        sent_at = survey.sent_at
+        if sent_at.tzinfo is None:
+            sent_at = sent_at.replace(tzinfo=timezone.utc)
+        days_since_sent = (now - sent_at).days
         if days_since_sent >= threshold_days:
             # If a follow-up email has already been sent, do not send another.
             if survey.followup_sent_at:

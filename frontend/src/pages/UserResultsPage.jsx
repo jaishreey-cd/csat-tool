@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import surveysApi from "../api/surveysApi";
 import analyticsApi, { sanitizeFilename } from "../api/analyticsApi";
+import { SURVEY_PHASES } from "../data/questionBank";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
 import Spinner from "../components/Spinner";
@@ -35,7 +37,7 @@ export default function UserResultsPage() {
       setSurveys(res.surveys || []);
     } catch (err) {
       if (surveys.length === 0) {
-        setToast({ message: "Failed to load authorized survey results.", type: "error" });
+        setToast({ message: "Failed to load authorized survey results.", type: "danger" });
       }
     } finally {
       setLoading(false);
@@ -61,7 +63,7 @@ export default function UserResultsPage() {
     } catch (err) {
       setToast({
         message: err?.response?.data?.detail || "Failed to trigger email to client.",
-        type: "error",
+        type: "danger",
       });
     } finally {
       setSendingEmailId(null);
@@ -78,7 +80,7 @@ export default function UserResultsPage() {
       const projName = sanitizeFilename(survey.project?.name || "Survey_Results");
       setToast({ message: `Exported ${projName}.csv successfully.`, type: "success" });
     } catch (err) {
-      setToast({ message: "Failed to download export file.", type: "error" });
+      setToast({ message: "Failed to download export file.", type: "danger" });
     } finally {
       setExportingId(null);
     }
@@ -167,11 +169,9 @@ export default function UserResultsPage() {
               }}
             >
               <option value="ALL">All Phases</option>
-              <option value="Weekly">Weekly</option>
-              <option value="Monthly">Monthly</option>
-              <option value="Mid-Project">Mid-Project</option>
-              <option value="Post-Go-Live">Post-Go-Live</option>
-              <option value="Closure">Closure</option>
+              {SURVEY_PHASES.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -232,6 +232,41 @@ export default function UserResultsPage() {
                             loading={sendingEmailId === s.id}
                             title={`Trigger/Resend survey invitation email to ${s.client_contact_email}`}
                           />
+                        )}
+                        {s.status === "Completed" && (
+                          <Link
+                            to={`/responses/${s.id}`}
+                            title="View submitted client response details"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              color: "#60a5fa",
+                              textDecoration: "none",
+                              padding: "0 10px",
+                              height: "32px",
+                              borderRadius: "6px",
+                              border: "1px solid rgba(96, 165, 250, 0.3)",
+                              background: "rgba(96, 165, 250, 0.08)",
+                              transition: "all 0.15s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "rgba(96, 165, 250, 0.18)";
+                              e.currentTarget.style.borderColor = "rgba(96, 165, 250, 0.55)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "rgba(96, 165, 250, 0.08)";
+                              e.currentTarget.style.borderColor = "rgba(96, 165, 250, 0.3)";
+                            }}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                            View Response
+                          </Link>
                         )}
                         <ExportCsvButton
                           onClick={() => handleExportCsv(s)}

@@ -347,15 +347,27 @@ export default function PublicSurveyPage() {
             ✓
           </div>
 
-          <div>
-            <h2 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-white, #ffffff)", margin: "0 0 8px 0" }}>
-              Thank You for Your Feedback!
-            </h2>
-            <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", lineHeight: 1.6, margin: 0 }}>
-              Your responses have been successfully submitted for <strong>{survey?.project_name}</strong>.
-              Cloud Destinations sincerely appreciates your partnership and valuable insights.
-            </p>
-          </div>
+          {submittedData ? (
+            <div>
+              <h2 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-white, #ffffff)", margin: "0 0 8px 0" }}>
+                Thank You for Your Feedback!
+              </h2>
+              <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", lineHeight: 1.6, margin: 0 }}>
+                Your responses have been successfully submitted for <strong>{survey?.project_name}</strong>.
+                Cloud Destinations sincerely appreciates your partnership and valuable insights.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <h2 style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-white, #ffffff)", margin: "0 0 8px 0" }}>
+                Survey Already Submitted
+              </h2>
+              <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", lineHeight: 1.6, margin: 0 }}>
+                This CSAT feedback evaluation for <strong>{survey?.project_name}</strong> has already been completed and recorded.
+                Thank you for your valuable partnership.
+              </p>
+            </div>
+          )}
 
           {/* Engagement Details */}
           <div

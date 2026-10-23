@@ -47,6 +47,7 @@ export default function QuestionsPage() {
     response_type: "StarRating",
     applicable_phases: ALL_PHASES,
   });
+  const [modalError, setModalError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
@@ -87,6 +88,7 @@ export default function QuestionsPage() {
 
   const openCreateModal = () => {
     setEditingQuestion(null);
+    setModalError("");
     setFormData({
       section_number: 1,
       section_title: SECTIONS[0].title,
@@ -99,6 +101,7 @@ export default function QuestionsPage() {
 
   const openEditModal = (q) => {
     setEditingQuestion(q);
+    setModalError("");
     setFormData({
       section_number: q.section_number,
       section_title: q.section_title,
@@ -132,12 +135,13 @@ export default function QuestionsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setModalError("");
     if (!formData.question_text.trim()) {
-      alert("Please enter question text.");
+      setModalError("Please enter question text.");
       return;
     }
     if (!formData.applicable_phases || formData.applicable_phases.length === 0) {
-      alert("Please select at least one applicable survey phase.");
+      setModalError("Please select at least one applicable survey phase.");
       return;
     }
 
@@ -162,7 +166,7 @@ export default function QuestionsPage() {
       setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err) {
       console.error("Save question error:", err);
-      alert("Failed to save question. Please try again.");
+      setModalError(err?.response?.data?.detail || "Failed to save question. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -650,6 +654,23 @@ export default function QuestionsPage() {
                   })}
                 </div>
               </div>
+
+              {/* Modal Inline Error */}
+              {modalError && (
+                <div
+                  style={{
+                    background: "rgba(239, 68, 68, 0.15)",
+                    border: "1px solid rgba(239, 68, 68, 0.35)",
+                    color: "#fca5a5",
+                    padding: "10px 14px",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    marginBottom: "18px",
+                  }}
+                >
+                  {modalError}
+                </div>
+              )}
 
               {/* Modal Buttons */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>

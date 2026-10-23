@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import Badge from "../components/Badge";
 import Button from "../components/Button";
 import Spinner from "../components/Spinner";
+import Toast from "../components/Toast";
 import EmptyState from "../components/EmptyState";
 import ErrorState from "../components/ErrorState";
 import analyticsApi from "../api/analyticsApi";
@@ -19,6 +20,7 @@ export default function ProjectAnalyticsPage() {
   const [commentSearch, setCommentSearch] = useState("");
   const [exportingFormat, setExportingFormat] = useState(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [toast, setToast] = useState({ message: "", type: "info" });
 
   const handleExport = async (format) => {
     setExportingFormat(format);
@@ -27,7 +29,7 @@ export default function ProjectAnalyticsPage() {
       await analyticsApi.exportProjectAnalytics(projectId, format);
     } catch (err) {
       console.error("Export error:", err);
-      alert("Failed to download export report. Please try again.");
+      setToast({ message: "Failed to download export report. Please try again.", type: "danger" });
     } finally {
       setExportingFormat(null);
     }
@@ -1001,6 +1003,14 @@ export default function ProjectAnalyticsPage() {
             </div>
           )}
         </div>
+      )}
+
+      {toast.message && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ message: "", type: "info" })}
+        />
       )}
     </div>
   );

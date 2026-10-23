@@ -71,6 +71,7 @@ def test_user(db):
             email="testadmin@example.com",
             full_name="Test Administrator",
             hashed_password=hash_password("Password123!"),
+            role="Admin",
             is_active=True
         )
         db.add(user)

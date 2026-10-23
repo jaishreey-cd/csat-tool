@@ -1,9 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Float
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 class Survey(Base):
     """
@@ -34,8 +37,8 @@ class Survey(Base):
     average_score = Column(Float, nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
     # Relationships
     client = relationship("Client", lazy="joined")
@@ -78,7 +81,7 @@ class SurveyQuestion(Base):
     response_type = Column(String(30), default="star_rating", nullable=False)  # 'star_rating' | 'free_text'
     is_custom = Column(Boolean, default=False, nullable=False)
     display_order = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
     # Relationship back to Survey
     survey = relationship("Survey", back_populates="questions")
@@ -95,7 +98,7 @@ class SurveyAnswer(Base):
     question_id = Column(Integer, ForeignKey("survey_questions.id", ondelete="CASCADE"), nullable=False)
     rating_score = Column(Integer, nullable=True)  # 1 to 5 for star rating questions
     text_answer = Column(Text, nullable=True)       # for section 6 qualitative questions
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
     # Relationships
     survey = relationship("Survey", back_populates="answers")
