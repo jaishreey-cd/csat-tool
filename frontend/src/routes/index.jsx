@@ -61,6 +61,9 @@ export default function AppRoutes() {
           }
         />
 
+        {/* User Survey Results Route */}
+        <Route path="/results" element={<UserResultsPage />} />
+
         {/* Inside Project Analytics Dashboard */}
         <Route path="/projects/:projectId" element={<ProjectAnalyticsPage />} />
 

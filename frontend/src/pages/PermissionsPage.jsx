@@ -135,15 +135,26 @@ export default function PermissionsPage() {
       return;
     }
 
+    const nextActive = !currentActive;
+
+    // Immediately update state optimistically so the user transitions between filters with zero delay
+    setUsers((prevUsers) =>
+      prevUsers.map((u) => (u.id === userId ? { ...u, is_active: nextActive } : u))
+    );
+
     try {
-      await authApi.updateUserRole(userId, userRole, !currentActive);
+      await authApi.updateUserRole(userId, userRole, nextActive);
       setToast({
-        message: !currentActive ? "User access activated." : "User access suspended/revoked.",
+        message: nextActive ? "User access activated." : "User access suspended/revoked.",
         type: "success",
       });
       await fetchUsers();
     } catch (err) {
       console.error("Failed to toggle status:", err);
+      // Revert optimistic update on failure
+      setUsers((prevUsers) =>
+        prevUsers.map((u) => (u.id === userId ? { ...u, is_active: currentActive } : u))
+      );
       setToast({
         message: err.response?.data?.detail || "Failed to update access status.",
         type: "danger",
@@ -352,10 +363,93 @@ export default function PermissionsPage() {
           overflow: "hidden",
         }}
       >
-        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-          <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-            Authorized Users ({users.length})
-          </h4>
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+              Authorized Users ({users.length})
+            </h4>
+
+            {/* User Filter Controls (Current Users vs Old Users) */}
+            <div
+              style={{
+                display: "inline-flex",
+                background: "rgba(10, 22, 40, 0.7)",
+                borderRadius: "8px",
+                padding: "3px",
+                border: "1px solid rgba(96, 165, 250, 0.2)",
+                gap: "4px",
+              }}
+            >
+              <button
+                type="button"
+                id="filter-current-users-btn"
+                onClick={() => setUserFilter("current")}
+                style={{
+                  padding: "5px 12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  borderRadius: "6px",
+                  border: "none",
+                  background: userFilter === "current" ? "rgba(37, 99, 235, 0.3)" : "transparent",
+                  color: userFilter === "current" ? "#93c5fd" : "var(--text-dim, #64748b)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>Current Users</span>
+                <span
+                  style={{
+                    background: userFilter === "current" ? "#2563eb" : "rgba(255, 255, 255, 0.1)",
+                    color: "#ffffff",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    padding: "1px 6px",
+                    borderRadius: "10px",
+                  }}
+                >
+                  {currentUsers.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                id="filter-old-users-btn"
+                onClick={() => setUserFilter("old")}
+                style={{
+                  padding: "5px 12px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  borderRadius: "6px",
+                  border: "none",
+                  background: userFilter === "old" ? "rgba(239, 68, 68, 0.25)" : "transparent",
+                  color: userFilter === "old" ? "#fca5a5" : "var(--text-dim, #64748b)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span>Old Users</span>
+                <span
+                  style={{
+                    background: userFilter === "old" ? "#ef4444" : "rgba(255, 255, 255, 0.1)",
+                    color: "#ffffff",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    padding: "1px 6px",
+                    borderRadius: "10px",
+                  }}
+                >
+                  {oldUsers.length}
+                </span>
+              </button>
+            </div>
+          </div>
+
           <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>
             Active Admins: <strong style={{ color: adminCountInfo.active_admin_count >= 3 ? "#f87171" : "#60a5fa" }}>{adminCountInfo.active_admin_count}/3</strong> • PMO: <strong style={{ color: "#ffffff" }}>{users.filter(u => (u.role || "").toLowerCase() === "pmo" && u.is_active).length}</strong>
           </span>
@@ -458,17 +552,17 @@ export default function PermissionsPage() {
                           <button
                             type="button"
                             onClick={() => handleToggleStatus(u.id, u.is_active, u.role)}
-                            disabled={!u.is_active && isLimitReached}
-                            title={!u.is_active && isLimitReached ? "3-PMO limit reached. Suspend another user first." : undefined}
+                            disabled={!u.is_active && (u.role || "").trim().toLowerCase() === "admin" && adminCountInfo.active_admin_count >= 3}
+                            title={!u.is_active && (u.role || "").trim().toLowerCase() === "admin" && adminCountInfo.active_admin_count >= 3 ? "3-Admin limit reached. Revoke another Admin first." : undefined}
                             style={{
                               background: "transparent",
                               border: `1px solid ${u.is_active ? "rgba(248, 113, 113, 0.3)" : "rgba(74, 222, 128, 0.3)"}`,
                               color: u.is_active ? "#f87171" : "#4ade80",
-                              opacity: !u.is_active && isLimitReached ? 0.5 : 1,
+                              opacity: !u.is_active && (u.role || "").trim().toLowerCase() === "admin" && adminCountInfo.active_admin_count >= 3 ? 0.5 : 1,
                               padding: "4px 10px",
                               borderRadius: "4px",
                               fontSize: "12px",
-                              cursor: !u.is_active && isLimitReached ? "not-allowed" : "pointer",
+                              cursor: !u.is_active && (u.role || "").trim().toLowerCase() === "admin" && adminCountInfo.active_admin_count >= 3 ? "not-allowed" : "pointer",
                               fontWeight: 600,
                               transition: "all 0.15s ease",
                             }}
