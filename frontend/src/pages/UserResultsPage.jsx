@@ -5,7 +5,7 @@ import Button from "../components/Button";
 import Badge from "../components/Badge";
 import Spinner from "../components/Spinner";
 import Toast from "../components/Toast";
-import { CopyLinkButton, ResendMailButton, ExportCsvButton } from "../components/SurveyActionButtons";
+import { ResendMailButton, ExportCsvButton } from "../components/SurveyActionButtons";
 
 export default function UserResultsPage() {
   const [surveys, setSurveys] = useState(() => {
@@ -225,12 +225,7 @@ export default function UserResultsPage() {
                     </td>
                     <td style={{ padding: "12px", textAlign: "right" }}>
                       <div style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
-                        {s.unique_token && (
-                          <CopyLinkButton
-                            url={`${window.location.origin}/s/${s.unique_token}`}
-                            onCopy={() => setToast({ message: "Shortened survey link copied to clipboard!", type: "success" })}
-                          />
-                        )}
+
                         {s.client_contact_email && s.status !== "Completed" && (
                           <ResendMailButton
                             onClick={() => handleResendEmail(s)}
