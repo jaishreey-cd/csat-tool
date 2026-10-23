@@ -46,11 +46,23 @@ def list_all_surveys(
     status: Optional[str] = Query(None, description="Filter by status (Draft, Ready, Sent, Completed, etc.)"),
     client_id: Optional[int] = Query(None, description="Filter by client ID"),
     project_id: Optional[int] = Query(None, description="Filter by project ID"),
+    phase: Optional[str] = Query(None, description="Filter by feedback phase"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List all surveys with optional filters."""
-    surveys = get_surveys(db, status_filter=status, client_id=client_id, project_id=project_id)
+    """List all surveys with optional filters, date range, and role-based scoping."""
+    surveys = get_surveys(
+        db,
+        status_filter=status,
+        client_id=client_id,
+        project_id=project_id,
+        phase=phase,
+        start_date=start_date,
+        end_date=end_date,
+        current_user=current_user,
+    )
     return SurveyListResponse(surveys=surveys, total=len(surveys))
 
 @router.get("/email-status")

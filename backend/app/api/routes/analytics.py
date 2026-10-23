@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_user
 from app.models.user import User
-from app.schemas.analytics import ProjectAnalyticsResponse, SystemOverviewResponse
-from app.services.analytics_service import get_project_analytics, get_system_overview
+from app.schemas.analytics import ProjectAnalyticsResponse, SystemOverviewResponse, DashboardAnalyticsResponse
+from app.services.analytics_service import get_project_analytics, get_system_overview, get_dashboard_analytics
 from app.services.export_service import (
     export_project_analytics,
     export_surveys_registry,
@@ -13,6 +13,30 @@ from app.services.export_service import (
 )
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
+
+@router.get("/dashboard", response_model=DashboardAnalyticsResponse)
+def fetch_dashboard_analytics(
+    client_id: Optional[int] = Query(None, description="Filter by client ID"),
+    project_id: Optional[int] = Query(None, description="Filter by project ID"),
+    phase: Optional[str] = Query(None, description="Filter by feedback phase"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Fetch comprehensive dashboard analytics: overall KPIs, category-wise averages, and project comparisons.
+    Role-based access enforced: Admin sees portfolio-wide, PMO users see permitted projects/surveys.
+    """
+    return get_dashboard_analytics(
+        db,
+        client_id=client_id,
+        project_id=project_id,
+        phase=phase,
+        start_date=start_date,
+        end_date=end_date,
+        current_user=current_user,
+    )
 
 @router.get("/overview", response_model=SystemOverviewResponse)
 def fetch_system_overview(

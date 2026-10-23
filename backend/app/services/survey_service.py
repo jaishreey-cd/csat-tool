@@ -10,6 +10,7 @@ from sqlalchemy import desc
 from app.models.survey import Survey, SurveyQuestion
 from app.models.client import Client
 from app.models.project import Project
+from app.models.user import User
 from app.schemas.survey import SurveyCreate
 from app.services.email_service import send_survey_invitation_email
 
@@ -156,9 +157,14 @@ def get_surveys(
     status_filter: Optional[str] = None,
     client_id: Optional[int] = None,
     project_id: Optional[int] = None,
+    phase: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: Optional[User] = None,
 ) -> List[Survey]:
-    """List surveys with optional filters and eager loading to eliminate N+1 queries."""
-    cache_key = (status_filter, client_id, project_id)
+    """List surveys with optional filters, date range, and role-based data access."""
+    user_id_cache = current_user.id if current_user else None
+    cache_key = (status_filter, client_id, project_id, phase, start_date, end_date, user_id_cache)
     now = time.time()
     if cache_key in _surveys_cache:
         cached_time, cached_data = _surveys_cache[cache_key]
@@ -177,12 +183,35 @@ def get_surveys(
             selectinload(Survey.answers),
         )
     )
+
+    # Role-Based Access: PMO User only accesses permitted surveys
+    if current_user:
+        is_admin = bool(current_user.role and "admin" in current_user.role.lower())
+        if not is_admin:
+            query = query.filter(
+                (Survey.creator_id == current_user.id) | (Survey.reviewer_id == current_user.id)
+            )
+
     if status_filter:
         query = query.filter(Survey.status == status_filter)
     if client_id:
         query = query.filter(Survey.client_id == client_id)
     if project_id:
         query = query.filter(Survey.project_id == project_id)
+    if phase and phase.strip().upper() != "ALL":
+        query = query.filter(Survey.phase == phase.strip())
+    if start_date and start_date.strip():
+        try:
+            parsed_start = datetime.strptime(start_date.strip(), "%Y-%m-%d")
+            query = query.filter(Survey.created_at >= parsed_start)
+        except Exception:
+            pass
+    if end_date and end_date.strip():
+        try:
+            parsed_end = datetime.strptime(end_date.strip(), "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            query = query.filter(Survey.created_at <= parsed_end)
+        except Exception:
+            pass
 
     surveys = query.order_by(desc(Survey.created_at)).all()
     has_updates = False

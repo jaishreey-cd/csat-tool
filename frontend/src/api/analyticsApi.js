@@ -23,6 +23,11 @@ const triggerDownload = (response, defaultFilename) => {
 };
 
 const analyticsApi = {
+  getDashboardAnalytics: async (params = {}) => {
+    const response = await axiosClient.get("/analytics/dashboard", { params });
+    return response.data;
+  },
+
   getSystemOverview: async () => {
     const response = await axiosClient.get("/analytics/overview");
     return response.data;

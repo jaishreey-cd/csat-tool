@@ -4,8 +4,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from fastapi import HTTPException, status
 
+from datetime import datetime
 from app.models.project import Project
 from app.models.client import Client
+from app.models.user import User
 from app.models.survey import Survey, SurveyQuestion, SurveyAnswer
 from app.schemas.analytics import (
     ProjectAnalyticsResponse,
@@ -15,6 +17,9 @@ from app.schemas.analytics import (
     SystemOverviewResponse,
     MonthlyTrend,
     PhaseScore,
+    CategoryScore,
+    ProjectMetric,
+    DashboardAnalyticsResponse,
 )
 
 SECTION_TITLES = {
@@ -231,3 +236,236 @@ def get_system_overview(db: Session) -> SystemOverviewResponse:
         total_clients_count=total_clients_count,
         monthly_trends=monthly_trends,
     )
+
+def is_admin_user(user: Optional[User]) -> bool:
+    """Helper to check if user has Admin privileges."""
+    if not user or not user.role:
+        return False
+    return "admin" in user.role.strip().lower()
+
+def get_dashboard_analytics(
+    db: Session,
+    client_id: Optional[int] = None,
+    project_id: Optional[int] = None,
+    phase: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: Optional[User] = None,
+) -> DashboardAnalyticsResponse:
+    """
+    Fetch comprehensive dashboard analytics including overall metrics,
+    dynamically loaded category rating averages, and project-level breakdown.
+    Strictly enforces role-based access control (Admin vs PMO User).
+    """
+    from sqlalchemy.orm import joinedload
+
+    query = (
+        db.query(Survey)
+        .options(
+            joinedload(Survey.client),
+            joinedload(Survey.project),
+        )
+    )
+
+    # 1. Role-Based Access Scoping: PMO Users see only their permitted surveys
+    if current_user and not is_admin_user(current_user):
+        query = query.filter(
+            (Survey.creator_id == current_user.id) | (Survey.reviewer_id == current_user.id)
+        )
+
+    # 2. Apply Filters
+    if client_id is not None:
+        query = query.filter(Survey.client_id == client_id)
+    if project_id is not None:
+        query = query.filter(Survey.project_id == project_id)
+    if phase and phase.strip().upper() != "ALL":
+        query = query.filter(Survey.phase == phase.strip())
+    if start_date and start_date.strip():
+        try:
+            parsed_start = datetime.strptime(start_date.strip(), "%Y-%m-%d")
+            query = query.filter(Survey.created_at >= parsed_start)
+        except Exception:
+            pass
+    if end_date and end_date.strip():
+        try:
+            parsed_end = datetime.strptime(end_date.strip(), "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            query = query.filter(Survey.created_at <= parsed_end)
+        except Exception:
+            pass
+
+    all_surveys = query.all()
+    total_created = len(all_surveys)
+
+    # Dispatched surveys represent valid survey invitations sent to clients (Sent or Completed)
+    dispatched = [s for s in all_surveys if s.status in ("Sent", "Completed")]
+    total_dispatched = len(dispatched)
+
+    # Responded surveys: valid final submissions completed by clients
+    responded = [s for s in dispatched if s.status == "Completed" and s.completed_at is not None]
+    responded_count = len(responded)
+
+    # Awaiting Response surveys: successfully sent but no final submission yet
+    awaiting = [s for s in dispatched if s.status == "Sent"]
+    awaiting_count = len(awaiting)
+
+    # Response Rate (%)
+    response_rate = round((responded_count / total_dispatched * 100), 1) if total_dispatched > 0 else 0.0
+
+    # 3. Overall CSAT Calculation
+    completed_survey_ids = [s.id for s in responded]
+    all_ratings = []
+    if completed_survey_ids:
+        raw_ratings = (
+            db.query(SurveyAnswer.rating_score)
+            .filter(
+                SurveyAnswer.survey_id.in_(completed_survey_ids),
+                SurveyAnswer.rating_score.isnot(None),
+                SurveyAnswer.rating_score >= 1,
+                SurveyAnswer.rating_score <= 5,
+            )
+            .all()
+        )
+        all_ratings = [r[0] for r in raw_ratings if r[0] is not None]
+
+    if all_ratings:
+        overall_avg_rating = round(sum(all_ratings) / len(all_ratings), 2)
+        high_ratings_count = sum(1 for r in all_ratings if r >= 4)
+        overall_csat_percentage = round((high_ratings_count / len(all_ratings)) * 100, 1)
+    else:
+        overall_avg_rating = None
+        overall_csat_percentage = None
+
+    # 4. Category-wise Analytics (Dynamic category names from database)
+    configured_sections = (
+        db.query(SurveyQuestion.section_number, SurveyQuestion.section_title)
+        .filter(SurveyQuestion.section_number >= 1, SurveyQuestion.section_number <= 5)
+        .distinct()
+        .order_by(SurveyQuestion.section_number)
+        .all()
+    )
+    category_names = {}
+    for sec_num, sec_title in configured_sections:
+        if sec_num not in category_names and sec_title:
+            category_names[sec_num] = sec_title
+
+    for sec_num in range(1, 6):
+        if sec_num not in category_names:
+            category_names[sec_num] = SECTION_TITLES.get(sec_num, f"Category {sec_num}")
+
+    category_data = {
+        sec_num: {
+            "title": category_names[sec_num],
+            "scores": [],
+            "dist": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0},
+        }
+        for sec_num in sorted(category_names.keys())
+    }
+
+    if completed_survey_ids:
+        sec_ratings = (
+            db.query(SurveyAnswer.rating_score, SurveyQuestion.section_number, SurveyQuestion.section_title)
+            .join(SurveyQuestion, SurveyAnswer.question_id == SurveyQuestion.id)
+            .filter(
+                SurveyAnswer.survey_id.in_(completed_survey_ids),
+                SurveyAnswer.rating_score.isnot(None),
+                SurveyAnswer.rating_score >= 1,
+                SurveyAnswer.rating_score <= 5,
+            )
+            .all()
+        )
+        for score, s_num, s_title in sec_ratings:
+            if s_num not in category_data:
+                category_data[s_num] = {
+                    "title": s_title or f"Category {s_num}",
+                    "scores": [],
+                    "dist": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0},
+                }
+            category_data[s_num]["scores"].append(score)
+            category_data[s_num]["dist"][str(score)] += 1
+            if s_title and not category_data[s_num]["title"]:
+                category_data[s_num]["title"] = s_title
+
+    categories_list = []
+    for sec_num in sorted(category_data.keys()):
+        c_item = category_data[sec_num]
+        sc_list = c_item["scores"]
+        if sc_list:
+            c_avg = round(sum(sc_list) / len(sc_list), 2)
+            c_csat = round((sum(1 for s in sc_list if s >= 4) / len(sc_list)) * 100, 1)
+        else:
+            c_avg = None
+            c_csat = None
+        categories_list.append(
+            CategoryScore(
+                section_number=sec_num,
+                category_name=c_item["title"],
+                average_rating=c_avg,
+                total_ratings=len(sc_list),
+                csat_percentage=c_csat,
+                rating_distribution=c_item["dist"],
+            )
+        )
+
+    # 5. Project-wise Analytics
+    project_map = {}
+    for s in dispatched:
+        pid = s.project_id
+        if pid not in project_map:
+            project_map[pid] = {
+                "project": s.project,
+                "sent": 0,
+                "responded": 0,
+                "scores": [],
+            }
+        project_map[pid]["sent"] += 1
+        if s.status == "Completed" and s.completed_at is not None:
+            project_map[pid]["responded"] += 1
+            if s.average_score is not None:
+                project_map[pid]["scores"].append(s.average_score)
+
+    projects_list = []
+    for pid, pdata in project_map.items():
+        proj = pdata["project"]
+        s_cnt = pdata["sent"]
+        r_cnt = pdata["responded"]
+        a_cnt = s_cnt - r_cnt
+        rate = round((r_cnt / s_cnt * 100), 1) if s_cnt > 0 else 0.0
+        p_scores = pdata["scores"]
+        if p_scores:
+            p_avg = round(sum(p_scores) / len(p_scores), 2)
+            p_pct = round((sum(1 for sc in p_scores if sc >= 4.0) / len(p_scores)) * 100, 1)
+        else:
+            p_avg = None
+            p_pct = None
+
+        projects_list.append(
+            ProjectMetric(
+                project_id=pid,
+                project_name=proj.name if proj else f"Project {pid}",
+                project_code=proj.project_code if proj else f"PRJ-{pid}",
+                client_id=proj.client_id if proj else 0,
+                client_name=proj.client.name if (proj and proj.client) else "Client",
+                surveys_sent=s_cnt,
+                submitted_responses=r_cnt,
+                awaiting_responses=a_cnt,
+                response_rate=rate,
+                average_csat=p_avg,
+                csat_percentage=p_pct,
+                has_low_rating=(p_avg is not None and p_avg < 3.5),
+                has_pending=(a_cnt > 0),
+            )
+        )
+    projects_list.sort(key=lambda p: (p.submitted_responses, p.surveys_sent), reverse=True)
+
+    return DashboardAnalyticsResponse(
+        total_surveys=total_dispatched,
+        total_created_surveys=total_created,
+        responded_surveys=responded_count,
+        awaiting_surveys=awaiting_count,
+        overall_csat=overall_avg_rating,
+        overall_csat_percentage=overall_csat_percentage,
+        response_rate=response_rate,
+        categories=categories_list,
+        projects=projects_list,
+    )
+
