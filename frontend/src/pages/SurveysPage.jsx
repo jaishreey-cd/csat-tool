@@ -443,7 +443,7 @@ export default function SurveysPage() {
               <thead>
                 <tr
                   style={{
-                    background: "rgba(10, 22, 40, 0.8)",
+                    background: "var(--bg-hover, rgba(10, 22, 40, 0.8))",
                     borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                     color: "var(--text-dim, #64748b)",
                     fontSize: "11px",
@@ -472,10 +472,10 @@ export default function SurveysPage() {
                     <tr
                       key={survey.id}
                       style={{
-                        borderBottom: "1px solid rgba(96, 165, 250, 0.08)",
+                        borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.08))",
                         transition: "background 0.15s ease",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(14, 30, 50, 0.45)")}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover, rgba(14, 30, 50, 0.45))")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
                       {/* Client & Project with role-guarded link to inside project analytics */}

@@ -1272,18 +1272,18 @@ export default function CreateSurveyPage() {
             {/* Client Form Simulation Canvas (Preview Form) */}
             <div
               style={{
-                background: "#081325",
-                border: "1px solid rgba(96, 165, 250, 0.25)",
+                background: "var(--bg-surface, #081325)",
+                border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
                 borderRadius: "var(--radius-lg, 16px)",
-                boxShadow: "0 12px 36px rgba(0, 0, 0, 0.45)",
+                boxShadow: "var(--shadow-lg, 0 12px 36px rgba(0, 0, 0, 0.45))",
                 overflow: "hidden",
               }}
             >
               {/* Top Browser/Portal Header Bar */}
               <div
                 style={{
-                  background: "rgba(10, 22, 40, 0.95)",
-                  borderBottom: "1px solid rgba(96, 165, 250, 0.15)",
+                  background: "var(--bg-hover, rgba(10, 22, 40, 0.95))",
+                  borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                   padding: "16px 28px",
                   display: "flex",
                   alignItems: "center",

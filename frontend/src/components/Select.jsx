@@ -97,7 +97,7 @@ export default function Select({
           {...props}
         >
           {placeholder && (
-            <option value="" disabled style={{ background: "#0d1b2a", color: "#64748b" }}>
+            <option value="" disabled style={{ background: "var(--bg-surface, #0d1b2a)", color: "var(--text-dim, #64748b)" }}>
               {placeholder}
             </option>
           )}
@@ -110,7 +110,7 @@ export default function Select({
                 key={val}
                 value={val}
                 disabled={dis}
-                style={{ background: "#0d1b2a", color: "#e2e8f0" }}
+                style={{ background: "var(--bg-surface, #0d1b2a)", color: "var(--text-main, #e2e8f0)" }}
               >
                 {lbl}
               </option>

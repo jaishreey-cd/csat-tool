@@ -167,7 +167,7 @@ export default function UserResultsPage() {
               style={{
                 padding: "6px 10px",
                 borderRadius: "6px",
-                background: "rgba(15, 23, 42, 0.6)",
+                background: "var(--bg-surface, #0d1b2a)",
                 border: "1px solid var(--border, rgba(96, 165, 250, 0.2))",
                 color: "var(--text-main, #e2e8f0)",
                 fontSize: "12px",
@@ -208,14 +208,14 @@ export default function UserResultsPage() {
                   <tr
                     key={s.id}
                     style={{
-                      borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
+                      borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
                       color: "var(--text-main, #e2e8f0)",
                     }}
                   >
                     <td style={{ padding: "12px", fontWeight: 600, color: "var(--text-white, #ffffff)" }}>{s.client?.name || "—"}</td>
                     <td style={{ padding: "12px" }}>{s.project?.name || "—"}</td>
                     <td style={{ padding: "12px" }}>
-                      <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "10px", background: "rgba(37, 99, 235, 0.15)", color: "#93c5fd" }}>
+                      <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "10px", background: "rgba(37, 99, 235, 0.15)", color: "var(--primary-lt, #2563eb)" }}>
                         {s.phase}
                       </span>
                     </td>

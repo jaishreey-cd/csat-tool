@@ -334,9 +334,9 @@ export default function PermissionsPage() {
                             value={u.role === "Admin" ? "Admin" : "User"}
                             onChange={(e) => handleRoleChange(u.id, e.target.value)}
                             style={{
-                              background: "#0b1329",
-                              border: "1px solid rgba(96, 165, 250, 0.3)",
-                              color: "#60a5fa",
+                              background: "var(--bg-surface, #0b1329)",
+                              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.3))",
+                              color: "var(--primary-lt, #60a5fa)",
                               borderRadius: "4px",
                               padding: "4px 8px",
                               fontSize: "12px",

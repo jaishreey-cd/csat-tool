@@ -488,18 +488,19 @@ export default function QuestionsPage() {
         >
           <div
             style={{
-              background: "#0d1b2a",
+              background: "var(--bg-surface, #0d1b2a)",
               border: "1px solid rgba(239, 68, 68, 0.4)",
               borderRadius: "12px",
               padding: "24px",
               maxWidth: "460px",
               width: "100%",
+              boxShadow: "var(--shadow-lg)",
             }}
           >
-            <h3 style={{ color: "#ef4444", margin: "0 0 12px 0", fontSize: "18px" }}>
+            <h3 style={{ color: "var(--danger, #ef4444)", margin: "0 0 12px 0", fontSize: "18px" }}>
               Permanent Question Deletion
             </h3>
-            <p style={{ color: "#cbd5e1", fontSize: "14px", lineHeight: 1.5, margin: "0 0 20px 0" }}>
+            <p style={{ color: "var(--text-muted, #cbd5e1)", fontSize: "14px", lineHeight: 1.5, margin: "0 0 20px 0" }}>
               Are you sure you want to delete this question? This question will be <strong>permanently removed from the database</strong>.
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
@@ -543,23 +544,23 @@ export default function QuestionsPage() {
         >
           <div
             style={{
-              background: "#0d1b2a",
-              border: "1px solid rgba(96, 165, 250, 0.3)",
+              background: "var(--bg-surface, #0d1b2a)",
+              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.3))",
               borderRadius: "12px",
               padding: "28px",
               maxWidth: "600px",
               width: "100%",
-              boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
+              boxShadow: "var(--shadow-lg, 0 10px 40px rgba(0,0,0,0.6))",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3 style={{ color: "#ffffff", margin: 0, fontSize: "18px" }}>
+              <h3 style={{ color: "var(--text-white, #ffffff)", margin: 0, fontSize: "18px" }}>
                 {editingQuestion ? "Edit Question" : "Add Question to Bank"}
               </h3>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}
+                style={{ background: "transparent", border: "none", color: "var(--text-muted, #94a3b8)", fontSize: "20px", cursor: "pointer" }}
               >
                 &times;
               </button>
@@ -568,7 +569,7 @@ export default function QuestionsPage() {
             <form onSubmit={handleSubmit}>
               {/* Section Select */}
               <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#cbd5e1", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-muted, #cbd5e1)", marginBottom: "6px" }}>
                   Section
                 </label>
                 <select
@@ -576,10 +577,10 @@ export default function QuestionsPage() {
                   onChange={(e) => handleSectionChange(e.target.value)}
                   style={{
                     width: "100%",
-                    background: "#0b1329",
-                    border: "1px solid rgba(96, 165, 250, 0.25)",
+                    background: "var(--bg-surface, #0b1329)",
+                    border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
                     borderRadius: "6px",
-                    color: "#ffffff",
+                    color: "var(--text-main, #ffffff)",
                     padding: "8px 12px",
                     fontSize: "14px",
                   }}
@@ -591,7 +592,7 @@ export default function QuestionsPage() {
                   ))}
                 </select>
                 {formData.section_number === 6 && (
-                  <p style={{ fontSize: "12px", color: "#fde68a", margin: "4px 0 0 0" }}>
+                  <p style={{ fontSize: "12px", color: "var(--warning, #fde68a)", margin: "4px 0 0 0" }}>
                     * Section 6 questions and feedback comments are optional in surveys.
                   </p>
                 )}
@@ -599,7 +600,7 @@ export default function QuestionsPage() {
 
               {/* Question Text */}
               <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#cbd5e1", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-muted, #cbd5e1)", marginBottom: "6px" }}>
                   Question Text
                 </label>
                 <textarea
@@ -609,10 +610,10 @@ export default function QuestionsPage() {
                   placeholder="e.g. How satisfied are you with the technical architecture and delivery velocity?"
                   style={{
                     width: "100%",
-                    background: "#0b1329",
-                    border: "1px solid rgba(96, 165, 250, 0.25)",
+                    background: "var(--bg-surface, #0b1329)",
+                    border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
                     borderRadius: "6px",
-                    color: "#ffffff",
+                    color: "var(--text-main, #ffffff)",
                     padding: "8px 12px",
                     fontSize: "14px",
                     resize: "vertical",
@@ -623,7 +624,7 @@ export default function QuestionsPage() {
 
               {/* Response Type */}
               <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#cbd5e1", marginBottom: "6px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-muted, #cbd5e1)", marginBottom: "6px" }}>
                   Response Type
                 </label>
                 <select
@@ -631,10 +632,10 @@ export default function QuestionsPage() {
                   onChange={(e) => setFormData((p) => ({ ...p, response_type: e.target.value }))}
                   style={{
                     width: "100%",
-                    background: "#0b1329",
-                    border: "1px solid rgba(96, 165, 250, 0.25)",
+                    background: "var(--bg-surface, #0b1329)",
+                    border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
                     borderRadius: "6px",
-                    color: "#ffffff",
+                    color: "var(--text-main, #ffffff)",
                     padding: "8px 12px",
                     fontSize: "14px",
                   }}
