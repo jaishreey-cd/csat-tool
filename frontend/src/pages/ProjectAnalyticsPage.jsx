@@ -270,7 +270,7 @@ export default function ProjectAnalyticsPage() {
         {/* Big Overall CSAT Badge */}
         <div
           style={{
-            background: "rgba(10, 22, 40, 0.8)",
+            background: "var(--bg-hover, rgba(10, 22, 40, 0.8))",
             border: "1px solid var(--border, rgba(96, 165, 250, 0.2))",
             borderRadius: "12px",
             padding: "16px 24px",
@@ -921,7 +921,7 @@ export default function ProjectAnalyticsPage() {
                     style={{
                       margin: 0,
                       padding: "10px 14px",
-                      background: "rgba(10, 22, 40, 0.6)",
+                      background: "var(--bg-hover, rgba(10, 22, 40, 0.6))",
                       borderLeft: "3px solid var(--primary-lt, #60a5fa)",
                       borderRadius: "0 8px 8px 0",
                       fontSize: "14px",
@@ -964,7 +964,7 @@ export default function ProjectAnalyticsPage() {
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
                 <thead>
-                  <tr style={{ background: "rgba(15, 23, 42, 0.85)", borderBottom: "1px solid rgba(96, 165, 250, 0.15)" }}>
+                  <tr style={{ background: "var(--bg-hover, rgba(15, 23, 42, 0.85))", borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))" }}>
                     <th style={{ padding: "12px 18px", color: "var(--text-dim, #64748b)", fontWeight: 600 }}>Phase</th>
                     <th style={{ padding: "12px 18px", color: "var(--text-dim, #64748b)", fontWeight: 600 }}>Client Contact</th>
                     <th style={{ padding: "12px 18px", color: "var(--text-dim, #64748b)", fontWeight: 600 }}>Status</th>

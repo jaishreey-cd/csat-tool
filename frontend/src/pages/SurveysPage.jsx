@@ -444,7 +444,7 @@ export default function SurveysPage() {
               <thead>
                 <tr
                   style={{
-                    background: "rgba(10, 22, 40, 0.8)",
+                    background: "var(--bg-hover, rgba(10, 22, 40, 0.8))",
                     borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                     color: "var(--text-dim, #64748b)",
                     fontSize: "11px",
@@ -473,10 +473,10 @@ export default function SurveysPage() {
                     <tr
                       key={survey.id}
                       style={{
-                        borderBottom: "1px solid rgba(96, 165, 250, 0.08)",
+                        borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.08))",
                         transition: "background 0.15s ease",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(14, 30, 50, 0.45)")}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover, rgba(14, 30, 50, 0.45))")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
                       {/* Client & Project with role-guarded link to inside project analytics */}
@@ -568,8 +568,77 @@ export default function SurveysPage() {
 
                       {/* Actions: Shortened URL Link with copy/open + Matching Export CSV Button */}
                       <td style={{ padding: "14px 18px", textAlign: "right" }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", justifyContent: "flex-end" }}>
+                          {/* Truncated URL with tooltip hover, copy and open actions */}
+                          <div
+                            title={fullUrl}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              background: "var(--bg-hover, rgba(10, 22, 40, 0.7))",
+                              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
+                              borderRadius: "6px",
+                              padding: "4px 8px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontFamily: "monospace",
+                                fontSize: "11px",
+                                color: "var(--primary-lt, #93c5fd)",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {shortDisplayUrl}
+                            </span>
 
+                            {/* Copy full URL */}
+                            <button
+                              type="button"
+                              onClick={() => handleCopySurveyUrl(survey)}
+                              title={`Copy full URL: ${fullUrl}`}
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: copiedSurveyId === survey.id ? "var(--success, #34d399)" : "var(--primary-lt, #60a5fa)",
+                                cursor: "pointer",
+                                padding: "2px",
+                                display: "flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              {copiedSurveyId === survey.id ? (
+                                <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--success, #34d399)" }}>✓</span>
+                              ) : (
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                              )}
+                            </button>
+
+                            {/* Open in new tab */}
+                            <a
+                              href={fullUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Open client response form in new tab"
+                              style={{
+                                color: "var(--text-dim, #94a3b8)",
+                                display: "flex",
+                                alignItems: "center",
+                                textDecoration: "none",
+                                padding: "2px",
+                              }}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                              </svg>
+                            </a>
+                          </div>
 
                           {/* Trigger / Resend Email Button */}
                           {survey.client_contact_email && survey.status !== "Completed" && (
@@ -601,18 +670,18 @@ export default function SurveysPage() {
                               width: "32px",
                               height: "32px",
                               borderRadius: "6px",
-                              border: "1px solid rgba(96, 165, 250, 0.15)",
-                              background: "rgba(10, 22, 40, 0.5)",
+                              border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+                              background: "var(--bg-hover, rgba(10, 22, 40, 0.5))",
                               textDecoration: "none",
                               transition: "all 0.15s ease",
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.color = "#93c5fd";
-                              e.currentTarget.style.borderColor = "rgba(96, 165, 250, 0.4)";
+                              e.currentTarget.style.color = "var(--primary-lt, #93c5fd)";
+                              e.currentTarget.style.borderColor = "var(--border-strong, rgba(96, 165, 250, 0.4))";
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.color = "var(--text-dim, #64748b)";
-                              e.currentTarget.style.borderColor = "rgba(96, 165, 250, 0.15)";
+                              e.currentTarget.style.borderColor = "var(--border, rgba(96, 165, 250, 0.15))";
                             }}
                           >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -390,7 +390,7 @@ export default function PermissionsPage() {
               <thead>
                 <tr
                   style={{
-                    background: "rgba(10, 22, 40, 0.8)",
+                    background: "var(--bg-hover, rgba(10, 22, 40, 0.8))",
                     borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
                     color: "var(--text-dim, #64748b)",
                     fontSize: "11px",
@@ -413,13 +413,13 @@ export default function PermissionsPage() {
                     <tr
                       key={u.id}
                       style={{
-                        borderBottom: "1px solid rgba(96, 165, 250, 0.08)",
+                        borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.08))",
                         transition: "background 0.15s ease",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(14, 30, 50, 0.45)")}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover, rgba(14, 30, 50, 0.45))")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
-                      <td style={{ padding: "14px 20px", color: "#93c5fd", fontFamily: "monospace", fontWeight: 600 }}>
+                      <td style={{ padding: "14px 20px", color: "var(--primary-lt, #1d4ed8)", fontFamily: "monospace", fontWeight: 600 }}>
                         {u.email}
                       </td>
 
@@ -435,9 +435,9 @@ export default function PermissionsPage() {
                             value={u.role === "Admin" ? "Admin" : "User"}
                             onChange={(e) => handleRoleChange(u.id, e.target.value)}
                             style={{
-                              background: "#0b1329",
-                              border: "1px solid rgba(96, 165, 250, 0.3)",
-                              color: "#60a5fa",
+                              background: "var(--bg-surface, #0b1329)",
+                              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.3))",
+                              color: "var(--primary-lt, #60a5fa)",
                               borderRadius: "4px",
                               padding: "4px 8px",
                               fontSize: "12px",

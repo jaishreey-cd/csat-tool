@@ -22,7 +22,7 @@ export default function Button({
   const variantStyles = {
     primary: {
       background: "var(--primary, #2563eb)",
-      color: "var(--text-white, #ffffff)",
+      color: "#ffffff",
       border: "1px solid transparent",
       boxShadow: "0 2px 8px rgba(37, 99, 235, 0.3)",
     },
@@ -33,7 +33,7 @@ export default function Button({
     },
     danger: {
       background: "var(--danger, #ef4444)",
-      color: "var(--text-white, #ffffff)",
+      color: "#ffffff",
       border: "1px solid transparent",
       boxShadow: "0 2px 8px rgba(239, 68, 68, 0.3)",
     },

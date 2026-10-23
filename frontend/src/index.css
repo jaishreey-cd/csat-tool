@@ -8,6 +8,7 @@
 }
 
 :root {
+  color-scheme: dark;
   /* Brand palette from existing PMO theme */
   --bg-deep:       #0a1628;
   --bg-surface:    #0d1b2a;
@@ -47,6 +48,89 @@
   --shadow-lg:     0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
+/* Light / Bright Theme Overrides - High Visibility Palette */
+[data-theme="light"] {
+  color-scheme: light;
+  --bg-deep:       #f1f5f9;
+  --bg-surface:    #ffffff;
+  --bg-card:       #ffffff;
+  --bg-hover:      #e2e8f0;
+  --bg-active:     rgba(29, 78, 216, 0.1);
+  
+  --border:        #cbd5e1;
+  --border-strong: #94a3b8;
+  
+  /* High Visibility Text Palette */
+  --text-white:    #090d16;        /* Bold black for headers, titles, and key metrics */
+  --text-main:     #0f172a;        /* Deep slate-900 primary text (14:1+ contrast) */
+  --text-muted:    #334155;        /* Slate-700 secondary text (8:1+ contrast) */
+  --text-dim:      #475569;        /* Slate-600 tertiary/subtle text (5.5:1+ contrast) */
+  
+  --primary:       #1d4ed8;        /* Vibrant royal blue */
+  --primary-hover: #1e40af;        /* Darker blue hover */
+  --primary-lt:    #1d4ed8;        /* Deep royal blue for links and active counts */
+  --accent:        #0369a1;        /* Sky-700 rich contrast teal/cyan */
+  --success:       #15803d;        /* Emerald-700 deep contrast green */
+  --warning:       #b45309;        /* Amber-700 deep contrast amber */
+  --danger:        #b91c1c;        /* Red-700 deep contrast red */
+
+  /* Shadows tuned for crisp light mode */
+  --shadow-sm:     0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md:     0 4px 14px rgba(0, 0, 0, 0.07), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-lg:     0 10px 25px -3px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(0, 0, 0, 0.04);
+}
+
+/* Light Theme High-Visibility Enhancements */
+[data-theme="light"] thead tr,
+[data-theme="light"] thead th {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] tbody tr {
+  border-bottom-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+[data-theme="light"] select,
+[data-theme="light"] input,
+[data-theme="light"] textarea {
+  color-scheme: light;
+}
+
+[data-theme="light"] select option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+[data-theme="dark"] select option {
+  background: #0d1b2a;
+  color: #e2e8f0;
+}
+
+[data-theme="light"] .app-sidebar nav a {
+  color: #334155 !important;
+  font-weight: 500;
+}
+
+[data-theme="light"] .app-sidebar nav a:hover {
+  color: #0f172a !important;
+  background-color: #f1f5f9 !important;
+}
+
+[data-theme="light"] .app-sidebar nav a.active,
+[data-theme="light"] .app-sidebar nav a[aria-current="page"] {
+  color: #1d4ed8 !important;
+  background-color: rgba(29, 78, 216, 0.08) !important;
+  border-color: rgba(29, 78, 216, 0.25) !important;
+  font-weight: 700 !important;
+}
+
 html, body {
   height: 100%;
   background: var(--bg-deep);
@@ -55,6 +139,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 #root {
@@ -66,6 +151,13 @@ html, body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.15); border-radius: var(--radius-sm); }
 ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.3); }
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.25);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.45);
+}
 
 /* Selection */
 ::selection { background: rgba(37, 99, 235, 0.3); color: var(--text-white); }
