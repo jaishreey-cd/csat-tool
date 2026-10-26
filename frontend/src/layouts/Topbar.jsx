@@ -37,7 +37,12 @@ export default function Topbar({ onToggleSidebar }) {
 
   return (
     <header
+      className="app-topbar"
       style={{
+        position: "fixed",
+        top: 0,
+        right: 0,
+        left: "var(--sidebar-w, 260px)",
         height: "var(--topbar-h, 68px)",
         background: "var(--bg-header, #172235)",
         borderBottom: "1px solid var(--border, #33465f)",
@@ -45,12 +50,10 @@ export default function Topbar({ onToggleSidebar }) {
         alignItems: "center",
         justifyContent: "space-between",
         padding: "0 28px",
-        position: "sticky",
-        top: 0,
-        zIndex: 30,
+        zIndex: 40,
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
-        transition: "background 0.25s ease, border-color 0.25s ease",
+        transition: "left 0.25s ease, background 0.25s ease, border-color 0.25s ease",
       }}
     >
       {/* Left: Mobile hamburger & Page Title */}
@@ -150,6 +153,9 @@ export default function Topbar({ onToggleSidebar }) {
 
       <style>{`
         @media (max-width: 768px) {
+          .app-topbar {
+            left: 0 !important;
+          }
           .mobile-hamburger-btn {
             display: block !important;
           }

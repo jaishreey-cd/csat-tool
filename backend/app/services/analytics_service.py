@@ -269,9 +269,18 @@ def get_dashboard_analytics(
 
     # 1. Role-Based Access Scoping: PMO Users see only their permitted surveys
     if current_user and not is_admin_user(current_user):
-        query = query.filter(
-            (Survey.creator_id == current_user.id) | (Survey.reviewer_id == current_user.id)
-        )
+        user_survey_filter = (Survey.creator_id == current_user.id) | (Survey.reviewer_id == current_user.id)
+        if project_id is not None:
+            user_has_access = db.query(Survey.id).filter(
+                Survey.project_id == project_id,
+                user_survey_filter
+            ).first()
+            if not user_has_access:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: You do not have permission to view analytics for this project."
+                )
+        query = query.filter(user_survey_filter)
 
     # 2. Apply Filters
     if client_id is not None:

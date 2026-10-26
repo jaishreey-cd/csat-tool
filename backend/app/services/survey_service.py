@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import desc
 
 from app.models.survey import Survey, SurveyQuestion, SurveyAnswer
+from app.models.question_template import QuestionTemplate
 from app.models.client import Client
 from app.models.project import Project
 from app.models.user import User
@@ -121,6 +122,28 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
             display_order=order_idx + 1,
         )
         db.add(survey_q)
+
+        # Reflect newly added questions in PostgreSQL database (only addition)
+        clean_text = q.question_text.strip()
+        existing_template = (
+            db.query(QuestionTemplate)
+            .filter(
+                QuestionTemplate.section_number == q.section_number,
+                QuestionTemplate.question_text == clean_text,
+            )
+            .first()
+        )
+        if not existing_template:
+            new_template = QuestionTemplate(
+                section_number=q.section_number,
+                section_title=q.section_title or f"Section {q.section_number}",
+                question_text=clean_text,
+                response_type=expected_type,
+                applicable_phases="ALL",
+                display_order=order_idx + 1,
+                is_active=True,
+            )
+            db.add(new_template)
 
     db.commit()
     db.refresh(survey)

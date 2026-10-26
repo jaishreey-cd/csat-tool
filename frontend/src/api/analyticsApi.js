@@ -41,6 +41,14 @@ const analyticsApi = {
     return response.data;
   },
 
+  getCachedProjectAnalytics: (projectId) => {
+    const entry = _projectAnalyticsCache.get(String(projectId));
+    if (entry && Date.now() - entry.timestamp < CACHE_TTL_MS) {
+      return entry.data;
+    }
+    return null;
+  },
+
   getProjectAnalytics: async (projectId, forceRefresh = false) => {
     const key = String(projectId);
     if (!forceRefresh) {

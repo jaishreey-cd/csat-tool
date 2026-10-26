@@ -1,11 +1,12 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_user, require_admin
 from app.models.user import User
+from app.models.survey import Survey
 from app.schemas.analytics import ProjectAnalyticsResponse, SystemOverviewResponse, DashboardAnalyticsResponse
-from app.services.analytics_service import get_project_analytics, get_system_overview, get_dashboard_analytics
+from app.services.analytics_service import get_project_analytics, get_system_overview, get_dashboard_analytics, is_admin_user
 from app.services.export_service import (
     export_project_analytics,
     export_surveys_registry,
@@ -96,12 +97,23 @@ def download_surveys_registry_export(
 def fetch_project_analytics(
     project_id: int,
     db: Session = Depends(get_db),
-    admin_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Fetch comprehensive CSAT analytics, section breakdown, qualitative comments,
-    and survey timeline for an individual project (Admin only).
+    and survey timeline for an individual project.
+    Access: Admins, and the project's owner/creator. Anyone else gets a 403.
     """
+    if not is_admin_user(current_user):
+        user_has_access = db.query(Survey.id).filter(
+            Survey.project_id == project_id,
+            (Survey.creator_id == current_user.id) | (Survey.reviewer_id == current_user.id)
+        ).first()
+        if not user_has_access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You do not have permission to view analytics for this project."
+            )
     return get_project_analytics(db, project_id=project_id)
 
 @router.get("/projects/{project_id}/export")
@@ -109,11 +121,22 @@ def download_project_analytics_export(
     project_id: int,
     format: str = Query("csv", description="Export format: 'csv' or 'xlsx'"),
     db: Session = Depends(get_db),
-    admin_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Export project analytics report (KPIs, Section scores, Question distributions, Comments) to CSV or Excel (XLSX).
+    Access: Admins, and the project's owner/creator. Anyone else gets a 403.
     """
+    if not is_admin_user(current_user):
+        user_has_access = db.query(Survey.id).filter(
+            Survey.project_id == project_id,
+            (Survey.creator_id == current_user.id) | (Survey.reviewer_id == current_user.id)
+        ).first()
+        if not user_has_access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You do not have permission to export analytics for this project."
+            )
     file_bytes, filename, media_type = export_project_analytics(db, project_id=project_id, format=format)
     return Response(
         content=file_bytes,

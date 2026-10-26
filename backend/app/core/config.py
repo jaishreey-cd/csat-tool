@@ -23,9 +23,11 @@ class Settings(BaseSettings):
     # Audit & Uploads
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", str(Path(__file__).resolve().parent.parent.parent / "uploads"))
 
-    # Initial Admin Account
+    # Initial Admin & Reviewer Account
     SEED_ADMIN_EMAIL: str = os.getenv("SEED_ADMIN_EMAIL", "admin@csat.local")
     SEED_ADMIN_PASSWORD: str = os.getenv("SEED_ADMIN_PASSWORD", "AdminPassword123!")
+    SEED_REVIEWER_EMAIL: str = os.getenv("SEED_REVIEWER_EMAIL", "reviewer@csat.local")
+    SEED_REVIEWER_PASSWORD: str = os.getenv("SEED_REVIEWER_PASSWORD", "ReviewerPassword123!")
 
     # CORS & Links
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")

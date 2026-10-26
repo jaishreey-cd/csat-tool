@@ -10,7 +10,7 @@ import Input from "../components/Input";
 import Select from "../components/Select";
 import Spinner from "../components/Spinner";
 import Toast from "../components/Toast";
-import { ResendMailButton, ExportCsvButton } from "../components/SurveyActionButtons";
+import { ResendMailButton } from "../components/SurveyActionButtons";
 import { SURVEY_PHASES } from "../data/questionBank";
 import CategoryRadarChart from "../components/charts/CategoryRadarChart";
 import CategoryBarChart from "../components/charts/CategoryBarChart";
@@ -32,9 +32,11 @@ const getSurveyStatus = (survey) => {
   return { key: "Awaiting Response", label: "Awaiting Response", variant: "info" };
 };
 
-export default function SurveysPage() {
+export default function SurveysPage({ scope = null }) {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const isAdmin = scope ? scope === "all" : user?.role === "Admin";
+
   const cachedSurveys = surveysApi.getCachedSurveys();
   const cachedClients = clientsApi.getCachedClients();
   const [surveys, setSurveys] = useState(() => cachedSurveys?.surveys || []);
@@ -42,27 +44,26 @@ export default function SurveysPage() {
   const [loading, setLoading] = useState(() => !cachedSurveys);
   const [error, setError] = useState("");
 
-  // Filters for Existing Survey Registry (Unchanged)
+  // Role-based Project Switcher & View States
+  const [selectedProjectId, setSelectedProjectId] = useState(() => searchParams.get("project") || "ALL");
+  const [activeTableTab, setActiveTableTab] = useState("surveys"); // "surveys" | "projects"
+  const [showAdvancedCharts, setShowAdvancedCharts] = useState(false);
+
+  // Filters for Existing Survey Registry
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedPhase, setSelectedPhase] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [selectedClientFilter, setSelectedClientFilter] = useState("ALL");
 
-  // Response Follow-up Modal State (Unchanged)
+  // Response Follow-up Modal State
   const [followupModalSurvey, setFollowupModalSurvey] = useState(null);
   const [followupMessage, setFollowupMessage] = useState("");
   const [sendingFollowup, setSendingFollowup] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "info" });
   const [copiedSurveyId, setCopiedSurveyId] = useState(null);
-
-  // Export state per survey (Unchanged)
-  const [exportingSurveyId, setExportingSurveyId] = useState(null);
   const [resendingSurveyId, setResendingSurveyId] = useState(null);
 
-  // Hover state for Responded popover (Unchanged)
-  const [hoveredSurveyId, setHoveredSurveyId] = useState(null);
-
-  // ── Analytics State (Added to Dashboard) ───────────────────────────────────
+  // ── Analytics State (Scoped to Role & Selected Project) ───────────────────
   const [analytics, setAnalytics] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState("");
@@ -70,8 +71,8 @@ export default function SurveysPage() {
   const [categoryChartView, setCategoryChartView] = useState("BAR");
   const [projectAttentionFilter, setProjectAttentionFilter] = useState("ALL");
 
-  // Fetch Dashboard Analytics from PostgreSQL
-  const fetchAnalytics = useCallback(async (preset = analyticsDatePreset) => {
+  // Fetch Dashboard Analytics with role scoping & project filter
+  const fetchAnalytics = useCallback(async (preset = analyticsDatePreset, projId = selectedProjectId) => {
     setAnalyticsLoading(true);
     setAnalyticsError("");
 
@@ -96,15 +97,16 @@ export default function SurveysPage() {
       const params = {};
       if (start_date) params.start_date = start_date;
       if (end_date) params.end_date = end_date;
+      if (projId && projId !== "ALL") params.project_id = Number(projId);
       const data = await analyticsApi.getDashboardAnalytics(params);
       setAnalytics(data);
     } catch (err) {
       console.error("Failed to load dashboard analytics:", err);
-      setAnalyticsError("Could not load analytics metrics from database.");
+      setAnalyticsError(err?.response?.data?.detail || "Could not load analytics metrics from database.");
     } finally {
       setAnalyticsLoading(false);
     }
-  }, [analyticsDatePreset]);
+  }, [analyticsDatePreset, selectedProjectId]);
 
   // Fetch surveys and clients independently (Original logic preserved)
   const fetchSurveys = async (force = false) => {
@@ -145,25 +147,7 @@ export default function SurveysPage() {
     fetchAnalytics("ALL");
   }, []);
 
-  // Handle Export per individual survey (Original logic preserved)
-  const handleExportSingleSurvey = async (survey, format = "xlsx") => {
-    setExportingSurveyId(survey.id);
-    const projectName = survey.project?.name || "Survey";
-    const safeName = sanitizeFilename(projectName);
-    const downloadFilename = `${safeName}.csv`;
-    try {
-      await analyticsApi.exportSurveysRegistry({ survey_id: survey.id }, "csv", downloadFilename);
-      setToast({
-        message: `Successfully exported survey as ${downloadFilename}`,
-        type: "success",
-      });
-    } catch (err) {
-      console.error("Export failed:", err);
-      setToast({ message: "Failed to export survey. Please try again.", type: "danger" });
-    } finally {
-      setExportingSurveyId(null);
-    }
-  };
+
 
   // Follow-up modal (Original logic preserved)
   const openFollowupModal = (survey) => {
@@ -219,9 +203,12 @@ export default function SurveysPage() {
     return { total, sent, completed, responseRate, avgScore, percentageScore };
   }, [activeSurveys]);
 
-  // Filtered surveys for Main Surveys Table (Original logic preserved)
+  // Filtered surveys for Main Surveys Table
   const filteredSurveys = useMemo(() => {
     return activeSurveys.filter((s) => {
+      if (selectedProjectId !== "ALL" && String(s.project_id) !== String(selectedProjectId)) {
+        return false;
+      }
       if (selectedStatus !== "ALL") {
         const sStatus = getSurveyStatus(s);
         if (sStatus.key !== selectedStatus) {
@@ -243,16 +230,42 @@ export default function SurveysPage() {
       }
       return true;
     });
-  }, [activeSurveys, selectedStatus, selectedPhase, selectedClientFilter, searchQuery]);
+  }, [activeSurveys, selectedStatus, selectedPhase, selectedClientFilter, searchQuery, selectedProjectId]);
+
+  // Available projects list scoped by backend role queries
+  const availableProjects = useMemo(() => {
+    if (analytics?.projects && analytics.projects.length > 0) {
+      return analytics.projects;
+    }
+    const map = new Map();
+    for (const s of surveys) {
+      if (s.project && !map.has(s.project_id)) {
+        map.set(s.project_id, {
+          project_id: s.project_id,
+          project_name: s.project.name,
+          client_name: s.client?.name || "Client",
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [analytics?.projects, surveys]);
+
+  const selectedProjectObj = useMemo(() => {
+    if (selectedProjectId === "ALL") return null;
+    return availableProjects.find((p) => String(p.project_id) === String(selectedProjectId));
+  }, [availableProjects, selectedProjectId]);
 
   // Project-wise analytics list
   const projectMetricsList = useMemo(() => {
-    const list = analytics?.projects || [];
+    let list = analytics?.projects || [];
+    if (selectedProjectId !== "ALL") {
+      list = list.filter((p) => String(p.project_id) === String(selectedProjectId));
+    }
     if (projectAttentionFilter === "ATTENTION") {
       return list.filter((p) => p.has_low_rating || p.has_pending);
     }
     return list;
-  }, [analytics, projectAttentionFilter]);
+  }, [analytics, projectAttentionFilter, selectedProjectId]);
 
   // Metrics resolution
   const totalSurveysDispatched = analytics?.total_surveys ?? kpis.total;
@@ -280,67 +293,176 @@ export default function SurveysPage() {
             CSAT Dashboard & Analytics
           </h1>
           <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-            Real-time portfolio CSAT metrics, category ratings, and project satisfaction performance.
+            {isAdmin
+              ? "Portfolio-wide CSAT performance, category benchmarks, and project satisfaction metrics."
+              : "Project satisfaction performance, category ratings, and dispatched surveys for your assigned projects."}
           </p>
         </div>
 
-        {/* Date Filter Tabs for Analytics */}
-        <div
-          style={{
-            display: "inline-flex",
-            background: "var(--bg-card, #18263B)",
-            border: "1px solid var(--border, #33465f)",
-            borderRadius: "10px",
-            padding: "4px",
-            gap: "4px",
-            backdropFilter: "blur(8px)",
-            boxShadow: "var(--shadow-sm)",
-          }}
-        >
-          {[
-            { id: "ALL", label: "All Time" },
-            { id: "30D", label: "Last 30 Days" },
-            { id: "90D", label: "Last 90 Days" },
-            { id: "YTD", label: "Year to Date" },
-          ].map((tab) => {
-            const active = analyticsDatePreset === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  setAnalyticsDatePreset(tab.id);
-                  fetchAnalytics(tab.id);
-                }}
-                style={{
-                  padding: "6px 14px",
-                  fontSize: "12px",
-                  fontWeight: active ? 700 : 500,
-                  borderRadius: "7px",
-                  border: "none",
-                  cursor: "pointer",
-                  background: active ? "linear-gradient(135deg, var(--primary), var(--primary-hover))" : "transparent",
-                  color: active ? "#ffffff" : "var(--text-muted, #94a3b8)",
-                  boxShadow: active ? "0 2px 8px rgba(37, 99, 235, 0.4)" : "none",
-                  transition: "all 0.18s ease",
-                }}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
+        {/* Header Controls: Role-based Project Switcher & Date Preset Filter */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          {/* Project Switcher */}
+          <div style={{ minWidth: "210px" }}>
+            <select
+              id="projectSwitcher"
+              value={selectedProjectId}
+              onChange={(e) => {
+                const newId = e.target.value;
+                setSelectedProjectId(newId);
+                fetchAnalytics(analyticsDatePreset, newId);
+              }}
+              style={{
+                width: "100%",
+                padding: "8px 14px",
+                fontSize: "13px",
+                fontWeight: 600,
+                borderRadius: "9px",
+                background: "var(--bg-card, #18263B)",
+                border: "1px solid var(--border, #33465f)",
+                color: "var(--text-primary, #ffffff)",
+                cursor: "pointer",
+                outline: "none",
+                boxShadow: "var(--shadow-sm)",
+              }}
+            >
+              <option value="ALL">
+                {isAdmin ? "🌐 All Projects (Portfolio)" : "📁 All My Projects"}
+              </option>
+              {availableProjects.map((p) => (
+                <option key={p.project_id} value={String(p.project_id)}>
+                  {p.project_name} ({p.client_name})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date Filter Tabs for Analytics */}
+          <div
+            style={{
+              display: "inline-flex",
+              background: "var(--bg-card, #18263B)",
+              border: "1px solid var(--border, #33465f)",
+              borderRadius: "10px",
+              padding: "4px",
+              gap: "4px",
+              backdropFilter: "blur(8px)",
+              boxShadow: "var(--shadow-sm)",
+            }}
+          >
+            {[
+              { id: "ALL", label: "All Time" },
+              { id: "30D", label: "Last 30 Days" },
+              { id: "90D", label: "Last 90 Days" },
+              { id: "YTD", label: "Year to Date" },
+            ].map((tab) => {
+              const active = analyticsDatePreset === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setAnalyticsDatePreset(tab.id);
+                    fetchAnalytics(tab.id, selectedProjectId);
+                  }}
+                  style={{
+                    padding: "6px 14px",
+                    fontSize: "12px",
+                    fontWeight: active ? 700 : 500,
+                    borderRadius: "7px",
+                    border: "none",
+                    cursor: "pointer",
+                    background: active ? "linear-gradient(135deg, var(--primary), var(--primary-hover))" : "transparent",
+                    color: active ? "#ffffff" : "var(--text-muted, #94a3b8)",
+                    boxShadow: active ? "0 2px 8px rgba(37, 99, 235, 0.4)" : "none",
+                    transition: "all 0.18s ease",
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* ── Summary Cards (Added Analytics) ──────────────────────────────── */}
+      {/* Scoped Project Banner (when a specific project is selected) */}
+      {selectedProjectId !== "ALL" && selectedProjectObj && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "12px",
+            background: "rgba(37, 99, 235, 0.12)",
+            border: "1px solid rgba(59, 130, 246, 0.35)",
+            borderRadius: "10px",
+            padding: "12px 18px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ fontSize: "20px" }}>🎯</span>
+            <div>
+              <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary, #ffffff)" }}>
+                Viewing Scoped Analytics: {selectedProjectObj.project_name}
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)" }}>
+                Client: {selectedProjectObj.client_name} • Scoped metrics and survey records
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <Link
+              to={`/projects/${selectedProjectId}/analytics`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "12px",
+                fontWeight: 700,
+                padding: "6px 14px",
+                borderRadius: "6px",
+                background: "var(--primary, #2563eb)",
+                color: "#ffffff",
+                textDecoration: "none",
+                boxShadow: "0 2px 6px rgba(37, 99, 235, 0.3)",
+              }}
+            >
+              <span>Dedicated Project Analytics</span>
+              <span>↗</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedProjectId("ALL");
+                fetchAnalytics(analyticsDatePreset, "ALL");
+              }}
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                padding: "6px 12px",
+                borderRadius: "6px",
+                background: "transparent",
+                border: "1px solid var(--border, #33465f)",
+                color: "var(--text-muted, #94a3b8)",
+                cursor: "pointer",
+              }}
+            >
+              Show All Projects
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── 5 Key Summary Cards ─────────────────────────────────────────── */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
           gap: "16px",
         }}
       >
-        {/* Overall CSAT Score */}
+        {/* Card 1: Overall CSAT Score */}
         <div
           className="interactive-card"
           style={{
@@ -348,10 +470,10 @@ export default function SurveysPage() {
             background: "var(--bg-kpi-card)",
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-lg, 14px)",
-            padding: "22px 20px 20px 20px",
+            padding: "20px 18px",
             display: "flex",
             flexDirection: "column",
-            gap: "8px",
+            gap: "6px",
             boxShadow: "var(--shadow-card)",
             overflow: "hidden",
           }}
@@ -368,26 +490,26 @@ export default function SurveysPage() {
           />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Overall CSAT Score
+              Overall CSAT
             </span>
             <span style={{ fontSize: "11px", color: "var(--primary, #60a5fa)", fontWeight: 600 }}>Ratings ≥ 4 / 5</span>
           </div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginTop: "2px" }}>
-            <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--primary, #60a5fa)", letterSpacing: "-0.5px" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginTop: "2px" }}>
+            <span style={{ fontSize: "28px", fontWeight: 800, color: "var(--primary, #60a5fa)", letterSpacing: "-0.5px" }}>
               {overallCsatPercentage != null ? `${overallCsatPercentage}%` : "—"}
             </span>
             {overallCsatAvg != null && (
-              <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--warning, #fbbf24)" }}>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--warning, #fbbf24)" }}>
                 ★ {overallCsatAvg.toFixed(2)} / 5.0
               </span>
             )}
           </div>
           <span style={{ fontSize: "11px", color: "var(--text-secondary, #64748b)" }}>
-            Calculated from valid submitted client ratings
+            From submitted client evaluations
           </span>
         </div>
 
-        {/* Total Surveys Dispatched */}
+        {/* Card 2: Total Surveys Dispatched */}
         <div
           className="interactive-card"
           style={{
@@ -395,10 +517,10 @@ export default function SurveysPage() {
             background: "var(--bg-kpi-card)",
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-lg, 14px)",
-            padding: "22px 20px 20px 20px",
+            padding: "20px 18px",
             display: "flex",
             flexDirection: "column",
-            gap: "8px",
+            gap: "6px",
             boxShadow: "var(--shadow-card)",
             overflow: "hidden",
           }}
@@ -414,17 +536,17 @@ export default function SurveysPage() {
             }}
           />
           <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Total Surveys Dispatched
+            Surveys Dispatched
           </span>
-          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--text-primary, #ffffff)", marginTop: "2px", letterSpacing: "-0.5px" }}>
+          <span style={{ fontSize: "28px", fontWeight: 800, color: "var(--text-primary, #ffffff)", marginTop: "2px", letterSpacing: "-0.5px" }}>
             {totalSurveysDispatched}
           </span>
           <span style={{ fontSize: "11px", color: "var(--text-secondary, #64748b)" }}>
-            Total invitations sent to stakeholders
+            Invitations sent to stakeholders
           </span>
         </div>
 
-        {/* Responded Surveys */}
+        {/* Card 3: Responded Surveys */}
         <div
           className="interactive-card"
           style={{
@@ -432,10 +554,10 @@ export default function SurveysPage() {
             background: "var(--bg-kpi-card)",
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-lg, 14px)",
-            padding: "22px 20px 20px 20px",
+            padding: "20px 18px",
             display: "flex",
             flexDirection: "column",
-            gap: "8px",
+            gap: "6px",
             boxShadow: "var(--shadow-card)",
             overflow: "hidden",
           }}
@@ -458,15 +580,15 @@ export default function SurveysPage() {
               {responseRate}%
             </span>
           </div>
-          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--success, #22c55e)", marginTop: "2px", letterSpacing: "-0.5px" }}>
+          <span style={{ fontSize: "28px", fontWeight: 800, color: "var(--success, #22c55e)", marginTop: "2px", letterSpacing: "-0.5px" }}>
             {totalResponded}
           </span>
           <span style={{ fontSize: "11px", color: "var(--text-secondary, #64748b)" }}>
-            Valid final client submissions received
+            Completed feedback submissions
           </span>
         </div>
 
-        {/* Awaiting Response */}
+        {/* Card 4: Awaiting Response */}
         <div
           className="interactive-card"
           style={{
@@ -474,10 +596,10 @@ export default function SurveysPage() {
             background: "var(--bg-kpi-card)",
             border: "1px solid var(--border)",
             borderRadius: "var(--radius-lg, 14px)",
-            padding: "22px 20px 20px 20px",
+            padding: "20px 18px",
             display: "flex",
             flexDirection: "column",
-            gap: "8px",
+            gap: "6px",
             boxShadow: "var(--shadow-card)",
             overflow: "hidden",
           }}
@@ -495,183 +617,145 @@ export default function SurveysPage() {
           <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
             Awaiting Response
           </span>
-          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--warning, #f59e0b)", marginTop: "2px", letterSpacing: "-0.5px" }}>
+          <span style={{ fontSize: "28px", fontWeight: 800, color: "var(--warning, #f59e0b)", marginTop: "2px", letterSpacing: "-0.5px" }}>
             {totalAwaiting}
           </span>
           <span style={{ fontSize: "11px", color: "var(--text-secondary, #64748b)" }}>
-            Dispatched surveys pending client response
+            Dispatched surveys pending reply
+          </span>
+        </div>
+
+        {/* Card 5: Monitored Projects */}
+        <div
+          className="interactive-card"
+          style={{
+            position: "relative",
+            background: "var(--bg-kpi-card)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-lg, 14px)",
+            padding: "20px 18px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+            boxShadow: "var(--shadow-card)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "3px",
+              background: "linear-gradient(90deg, #8b5cf6 0%, #a78bfa 100%)",
+            }}
+          />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Monitored Projects
+            </span>
+            <span style={{ fontSize: "11px", color: "#a78bfa", fontWeight: 600 }}>Active Scope</span>
+          </div>
+          <span style={{ fontSize: "28px", fontWeight: 800, color: "var(--text-primary, #ffffff)", marginTop: "2px", letterSpacing: "-0.5px" }}>
+            {availableProjects.length}
+          </span>
+          <span style={{ fontSize: "11px", color: "var(--text-secondary, #64748b)" }}>
+            {isAdmin ? "Total projects in portfolio" : "Projects assigned to your scope"}
           </span>
         </div>
       </div>
 
-      {/* ── Category-wise Analytics (Professional Multi-Chart Suite) ────── */}
+      {/* ── Primary Chart: Category CSAT Bar Chart (Decluttered) ──────────── */}
       <div
         style={{
           background: "var(--bg-card, #18263B)",
           border: "1px solid var(--border, #33465f)",
-          borderRadius: "var(--radius-lg, 12px)",
-          padding: "24px",
+          borderRadius: "var(--radius-lg, 14px)",
+          padding: "22px 24px",
           display: "flex",
           flexDirection: "column",
-          gap: "20px",
-          boxShadow: "var(--shadow-card)",
-        }}
-      >
-        {/* Header with Title and Chart View Switcher */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" }}>
-          <div>
-            <h2 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary, #ffffff)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>Category-wise Analytics</span>
-            </h2>
-            <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-              Multi-dimensional evaluation across configured feedback categories derived from PostgreSQL responses.
-            </p>
-          </div>
-
-          {/* Interactive Chart Type Switcher */}
-          <div
-            style={{
-              display: "inline-flex",
-              background: "var(--bg-elevated, #22334A)",
-              border: "1px solid var(--border, #33465f)",
-              borderRadius: "8px",
-              padding: "3px",
-              gap: "2px",
-              flexWrap: "wrap",
-            }}
-          >
-            {[
-              { id: "BAR", label: "📊 Bar Chart" },
-              { id: "RADAR", label: "🕸 Radar Chart" },
-              { id: "DISTRIBUTION", label: "📶 Rating Distribution" },
-              { id: "GAUGES", label: "⭕ Circular Gauges" },
-            ].map((tab) => {
-              const active = categoryChartView === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setCategoryChartView(tab.id)}
-                  style={{
-                    padding: "6px 14px",
-                    fontSize: "12px",
-                    fontWeight: active ? 700 : 500,
-                    borderRadius: "6px",
-                    border: "none",
-                    cursor: "pointer",
-                    background: active ? "var(--primary, #2563eb)" : "transparent",
-                    color: active ? "#ffffff" : "var(--text-secondary, #94a3b8)",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {analyticsLoading ? (
-          <div style={{ padding: "50px", display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
-            <Spinner size="md" />
-            <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>Loading category analytics...</span>
-          </div>
-        ) : analyticsError ? (
-          <div style={{ padding: "24px", color: "var(--danger, #fca5a5)", fontSize: "13px", textAlign: "center" }}>
-            {analyticsError}
-          </div>
-        ) : !analytics?.categories || analytics.categories.length === 0 ? (
-          <div style={{ padding: "36px", textAlign: "center", color: "var(--text-muted, #94a3b8)", fontSize: "13px" }}>
-            No configured survey categories found.
-          </div>
-        ) : (
-          <div>
-            {/* View: Bar Chart */}
-            {categoryChartView === "BAR" && (
-              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "24px" }}>
-                <CategoryBarChart categories={analytics.categories} />
-              </div>
-            )}
-
-            {/* View: Radar Chart */}
-            {categoryChartView === "RADAR" && (
-              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "24px", display: "flex", justifyContent: "center" }}>
-                <CategoryRadarChart categories={analytics.categories} />
-              </div>
-            )}
-
-            {/* View: Rating Distribution */}
-            {categoryChartView === "DISTRIBUTION" && (
-              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "22px" }}>
-                <CategoryDistributionChart categories={analytics.categories} />
-              </div>
-            )}
-
-            {/* View: Circular Gauges */}
-            {categoryChartView === "GAUGES" && (
-              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "24px" }}>
-                <CategoryRadialGauges categories={analytics.categories} />
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ── Project-wise Analytics (Added Section D) ────────────────────── */}
-      <div
-        style={{
-          background: "var(--bg-card, #18263B)",
-          border: "1px solid var(--border, #33465f)",
-          borderRadius: "var(--radius-lg, 12px)",
-          padding: "24px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "18px",
+          gap: "16px",
           boxShadow: "var(--shadow-card)",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
           <div>
-            <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-primary, #ffffff)", margin: 0 }}>
-              Project-wise CSAT Performance
+            <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-primary, #ffffff)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>📊 Category CSAT Performance</span>
             </h2>
             <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-              Response rates and average satisfaction ratings calculated from completed stakeholder surveys.
+              Average client satisfaction across feedback evaluation categories.
             </p>
           </div>
 
-          <div style={{ display: "inline-flex", background: "var(--bg-elevated, #22334A)", border: "1px solid var(--border, #33465f)", borderRadius: "8px", padding: "3px" }}>
+          {/* Toggle button to expand/collapse secondary visualization views */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {showAdvancedCharts && (
+              <div
+                style={{
+                  display: "inline-flex",
+                  background: "var(--bg-elevated, #22334A)",
+                  border: "1px solid var(--border, #33465f)",
+                  borderRadius: "8px",
+                  padding: "2px",
+                  gap: "2px",
+                }}
+              >
+                {[
+                  { id: "BAR", label: "Bar" },
+                  { id: "RADAR", label: "Radar" },
+                  { id: "DISTRIBUTION", label: "Distribution" },
+                  { id: "GAUGES", label: "Gauges" },
+                ].map((tab) => {
+                  const active = categoryChartView === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setCategoryChartView(tab.id)}
+                      style={{
+                        padding: "4px 10px",
+                        fontSize: "11px",
+                        fontWeight: active ? 700 : 500,
+                        borderRadius: "6px",
+                        border: "none",
+                        cursor: "pointer",
+                        background: active ? "var(--primary, #2563eb)" : "transparent",
+                        color: active ? "#ffffff" : "var(--text-secondary, #94a3b8)",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             <button
               type="button"
-              onClick={() => setProjectAttentionFilter("ALL")}
+              onClick={() => {
+                const nextState = !showAdvancedCharts;
+                setShowAdvancedCharts(nextState);
+                if (!nextState) setCategoryChartView("BAR");
+              }}
               style={{
-                padding: "4px 10px",
                 fontSize: "12px",
                 fontWeight: 600,
-                border: "none",
-                borderRadius: "6px",
+                padding: "6px 12px",
+                borderRadius: "8px",
+                border: "1px solid var(--border, #33465f)",
+                background: showAdvancedCharts ? "rgba(37, 99, 235, 0.15)" : "var(--bg-elevated, #22334A)",
+                color: showAdvancedCharts ? "var(--primary-lt, #60a5fa)" : "var(--text-muted, #94a3b8)",
                 cursor: "pointer",
-                background: projectAttentionFilter === "ALL" ? "var(--primary-badge-bg)" : "transparent",
-                color: projectAttentionFilter === "ALL" ? "var(--primary)" : "var(--text-muted, #94a3b8)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all 0.15s ease",
               }}
             >
-              All Projects ({analytics?.projects?.length || 0})
-            </button>
-            <button
-              type="button"
-              onClick={() => setProjectAttentionFilter("ATTENTION")}
-              style={{
-                padding: "4px 10px",
-                fontSize: "12px",
-                fontWeight: 600,
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-                background: projectAttentionFilter === "ATTENTION" ? "var(--badge-danger-bg)" : "transparent",
-                color: projectAttentionFilter === "ATTENTION" ? "var(--danger)" : "var(--text-muted, #94a3b8)",
-              }}
-            >
-              Needs Attention ({analytics?.projects?.filter((p) => p.has_low_rating || p.has_pending).length || 0})
+              <span>{showAdvancedCharts ? "Hide Secondary Views ▲" : "Explore More Chart Views ▼"}</span>
             </button>
           </div>
         </div>
@@ -679,495 +763,569 @@ export default function SurveysPage() {
         {analyticsLoading ? (
           <div style={{ padding: "40px", display: "flex", justifyContent: "center", alignItems: "center", gap: "10px" }}>
             <Spinner size="md" />
-            <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>Loading project analytics...</span>
+            <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>Loading category ratings...</span>
           </div>
-        ) : projectMetricsList.length === 0 ? (
+        ) : analyticsError ? (
+          <div style={{ padding: "20px", color: "var(--danger, #fca5a5)", fontSize: "13px", textAlign: "center" }}>
+            {analyticsError}
+          </div>
+        ) : !analytics?.categories || analytics.categories.length === 0 ? (
           <div style={{ padding: "30px", textAlign: "center", color: "var(--text-muted, #94a3b8)", fontSize: "13px" }}>
-            No project metrics match the current view.
+            No category evaluation data available.
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
-              <thead>
-                <tr style={{ background: "var(--bg-table-header)", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  <th style={{ padding: "12px 16px", fontWeight: 700 }}>Project / Client</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 700 }}>Surveys Sent</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 700 }}>Responses</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 700, minWidth: "160px" }}>Response Rate</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 700 }}>Average CSAT</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 700, textAlign: "right" }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projectMetricsList.map((p) => {
-                  const hasRating = p.average_csat !== null;
-                  return (
-                    <tr
-                      key={p.project_id}
-                      style={{ borderBottom: "1px solid var(--table-row-border)", transition: "background 0.15s ease" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-table-row-hover)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                    >
-                      <td style={{ padding: "12px 16px" }}>
-                        <Link
-                          to={`/projects/${p.project_id}`}
-                          style={{ fontWeight: 600, color: "var(--primary-lt, #60a5fa)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                        >
-                          <span>{p.project_name}</span>
-                          <span style={{ fontSize: "10px" }}>↗</span>
-                        </Link>
-                        <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", marginTop: "2px" }}>
-                          {p.client_name}
-                        </div>
-                      </td>
-                      <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-primary, #ffffff)" }}>
-                        {p.surveys_sent}
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <span style={{ fontWeight: 600, color: "var(--success, #22c55e)" }}>{p.submitted_responses}</span>
-                        {p.awaiting_responses > 0 && (
-                          <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", marginLeft: "6px" }}>
-                            ({p.awaiting_responses} pending)
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontSize: "12px", fontWeight: 700, minWidth: "36px", color: "var(--text-primary)" }}>
-                            {p.response_rate}%
-                          </span>
-                          <div style={{ flex: 1, height: "6px", background: "var(--bg-track)", borderRadius: "3px", overflow: "hidden" }}>
-                            <div
-                              style={{
-                                height: "100%",
-                                width: `${p.response_rate}%`,
-                                background: p.response_rate >= 70 ? "var(--success, #22c55e)" : p.response_rate >= 40 ? "var(--primary, #38bdf8)" : "var(--warning, #f59e0b)",
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        {hasRating ? (
-                          <span
-                            style={{
-                              fontSize: "12px",
-                              fontWeight: 700,
-                              padding: "2px 8px",
-                              borderRadius: "6px",
-                              background: p.average_csat >= 4.0 ? "rgba(34, 197, 94, 0.15)" : p.average_csat >= 3.0 ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                              color: p.average_csat >= 4.0 ? "#22c55e" : p.average_csat >= 3.0 ? "#fbbf24" : "#ef4444",
-                              border: `1px solid ${p.average_csat >= 4.0 ? "rgba(34, 197, 94, 0.3)" : p.average_csat >= 3.0 ? "rgba(245, 158, 11, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
-                            }}
-                          >
-                            ★ {p.average_csat.toFixed(2)}
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
-                            No ratings yet
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                        {p.has_low_rating ? (
-                          <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: "rgba(239, 68, 68, 0.15)", color: "#fca5a5", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
-                            ⚠️ Low CSAT
-                          </span>
-                        ) : p.has_pending ? (
-                          <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: "rgba(245, 158, 11, 0.15)", color: "#fcd34d", border: "1px solid rgba(245, 158, 11, 0.3)" }}>
-                            ⏳ {p.awaiting_responses} Pending
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "6px", background: "rgba(34, 197, 94, 0.1)", color: "#86efac" }}>
-                            ✓ Healthy
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div>
+            {/* View: Bar Chart (Primary) */}
+            {categoryChartView === "BAR" && (
+              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "20px" }}>
+                <CategoryBarChart categories={analytics.categories} />
+              </div>
+            )}
+
+            {/* View: Radar Chart (Secondary) */}
+            {categoryChartView === "RADAR" && (
+              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "20px", display: "flex", justifyContent: "center" }}>
+                <CategoryRadarChart categories={analytics.categories} />
+              </div>
+            )}
+
+            {/* View: Rating Distribution (Secondary) */}
+            {categoryChartView === "DISTRIBUTION" && (
+              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "20px" }}>
+                <CategoryDistributionChart categories={analytics.categories} />
+              </div>
+            )}
+
+            {/* View: Circular Gauges (Secondary) */}
+            {categoryChartView === "GAUGES" && (
+              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "20px" }}>
+                <CategoryRadialGauges categories={analytics.categories} />
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* ── SECTION E: EXACT ORIGINAL SURVEY REGISTRY (100% UNCHANGED) ──── */}
-      {/* Filter and Search Bar */}
+      {/* ── Compact Tabbed Table: Projects Performance vs Dispatched Surveys ─ */}
       <div
         style={{
           background: "var(--bg-card, #18263B)",
           border: "1px solid var(--border, #33465f)",
           borderRadius: "var(--radius-lg, 14px)",
-          padding: "16px 20px",
-          display: "flex",
-          gap: "14px",
-          alignItems: "center",
-          flexWrap: "wrap",
           boxShadow: "var(--shadow-card)",
-        }}
-      >
-        <div style={{ flex: 1, minWidth: "220px" }}>
-          <Input
-            id="surveySearch"
-            placeholder="Search by client, project, or contact..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <div style={{ width: "175px" }}>
-          <Select
-            id="statusFilter"
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            options={[
-              { value: "ALL", label: "All Statuses" },
-              { value: "Dispatched", label: "Dispatched" },
-              { value: "Awaiting Response", label: "Awaiting Response" },
-              { value: "Follow-up Sent", label: "Follow-up Sent" },
-              { value: "Completed", label: "Completed" },
-            ]}
-          />
-        </div>
-
-        <div style={{ width: "160px" }}>
-          <Select
-            id="phaseFilter"
-            value={selectedPhase}
-            onChange={(e) => setSelectedPhase(e.target.value)}
-            options={[
-              { value: "ALL", label: "All Phases" },
-              ...SURVEY_PHASES.map((p) => ({ value: p.value, label: p.label })),
-            ]}
-          />
-        </div>
-
-        <div style={{ width: "180px" }}>
-          <Select
-            id="clientFilter"
-            value={selectedClientFilter}
-            onChange={(e) => setSelectedClientFilter(e.target.value)}
-            options={[
-              { value: "ALL", label: "All Clients" },
-              ...clients.map((c) => ({ value: String(c.id), label: c.name })),
-            ]}
-          />
-        </div>
-
-        {(searchQuery || selectedPhase !== "ALL" || selectedStatus !== "ALL" || selectedClientFilter !== "ALL") && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSearchQuery("");
-              setSelectedPhase("ALL");
-              setSelectedStatus("ALL");
-              setSelectedClientFilter("ALL");
-            }}
-          >
-            Clear Filters
-          </Button>
-        )}
-      </div>
-
-      {/* Main Surveys Table */}
-      <div
-        style={{
-          background: "var(--bg-card, #18263B)",
-          border: "1px solid var(--border, #33465f)",
-          borderRadius: "var(--radius-lg, 14px)",
           overflow: "hidden",
-          boxShadow: "var(--shadow-card)",
         }}
       >
-        {loading ? (
-          <div style={{ padding: "60px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px" }}>
-            <Spinner size="lg" />
-            <span style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)" }}>Loading surveys...</span>
-          </div>
-        ) : error ? (
-          <div style={{ padding: "40px", textAlign: "center", color: "var(--danger, #fca5a5)" }}>
-            <p>{error}</p>
-            <Button variant="secondary" size="sm" onClick={() => fetchSurveys(true)} style={{ marginTop: "12px" }}>
-              Retry
-            </Button>
-          </div>
-        ) : filteredSurveys.length === 0 ? (
-          <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "14px" }}>
-            <div style={{ fontSize: "36px", opacity: 0.5 }}>📋</div>
-            <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary, #ffffff)", margin: 0 }}>
-              No surveys found
-            </h3>
-            <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", maxWidth: "400px", margin: 0 }}>
-              {surveys.length === 0
-                ? "No satisfaction surveys have been dispatched yet. Go to Create Survey to launch your first survey."
-                : "No surveys match your current search and filter criteria."}
-            </p>
-          </div>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table
+        {/* Unified Table Header Tabs */}
+        <div
+          style={{
+            padding: "14px 20px",
+            borderBottom: "1px solid var(--border, #33465f)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "12px",
+            background: "var(--bg-elevated, #1a293f)",
+          }}
+        >
+          {/* Main Tabs */}
+          <div style={{ display: "inline-flex", gap: "8px" }}>
+            <button
+              type="button"
+              onClick={() => setActiveTableTab("surveys")}
               style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                textAlign: "left",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 16px",
                 fontSize: "13px",
+                fontWeight: activeTableTab === "surveys" ? 700 : 500,
+                borderRadius: "8px",
+                border: "none",
+                cursor: "pointer",
+                background: activeTableTab === "surveys" ? "var(--primary, #2563eb)" : "transparent",
+                color: activeTableTab === "surveys" ? "#ffffff" : "var(--text-muted, #94a3b8)",
+                boxShadow: activeTableTab === "surveys" ? "0 2px 6px rgba(37, 99, 235, 0.4)" : "none",
+                transition: "all 0.15s ease",
               }}
             >
-              <thead>
-                <tr
-                  style={{
-                    background: "var(--bg-table-header)",
-                    borderBottom: "1px solid var(--border)",
-                    color: "var(--text-secondary)",
-                    fontSize: "11px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.6px",
-                  }}
-                >
-                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client & Project</th>
-                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Phase</th>
-                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Status</th>
-                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client Contact</th>
-                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Sent Date</th>
-                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>RESPONSE STATUS</th>
-                  <th style={{ padding: "14px 18px", fontWeight: 700, textAlign: "right" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSurveys.map((survey) => {
-                  const isCompleted = survey.status === "Completed";
-                  const isResponded = survey.response_status === "responded" || (isCompleted && Boolean(survey.completed_at));
-                  const isExportingThis = exportingSurveyId === survey.id;
-                  const surveyStatus = getSurveyStatus(survey);
-                  const fullUrl = `${window.location.origin}/s/${survey.unique_token}`;
-                  const shortDisplayUrl = `.../s/${survey.unique_token.substring(0, 8)}...`;
+              <span>✉️ Dispatched Surveys</span>
+              <span
+                style={{
+                  fontSize: "11px",
+                  padding: "1px 6px",
+                  borderRadius: "10px",
+                  background: activeTableTab === "surveys" ? "rgba(255,255,255,0.25)" : "var(--bg-card, #18263B)",
+                  color: "#ffffff",
+                }}
+              >
+                {filteredSurveys.length}
+              </span>
+            </button>
 
-                  return (
-                    <tr
-                      key={survey.id}
-                      style={{
-                        borderBottom: "1px solid var(--table-row-border)",
-                        transition: "background 0.15s ease",
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-table-row-hover)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                    >
-                      {/* Client & Project with role-guarded link to inside project analytics */}
-                      <td style={{ padding: "14px 18px" }}>
-                        <div style={{ fontWeight: 600, color: "var(--text-primary, #ffffff)" }}>
-                          {survey.client?.name || "Client"}
-                        </div>
-                        {survey.project ? (
-                          user?.role === "Admin" ? (
+            <button
+              type="button"
+              onClick={() => setActiveTableTab("projects")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: activeTableTab === "projects" ? 700 : 500,
+                borderRadius: "8px",
+                border: "none",
+                cursor: "pointer",
+                background: activeTableTab === "projects" ? "var(--primary, #2563eb)" : "transparent",
+                color: activeTableTab === "projects" ? "#ffffff" : "var(--text-muted, #94a3b8)",
+                boxShadow: activeTableTab === "projects" ? "0 2px 6px rgba(37, 99, 235, 0.4)" : "none",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <span>📁 Projects Performance</span>
+              <span
+                style={{
+                  fontSize: "11px",
+                  padding: "1px 6px",
+                  borderRadius: "10px",
+                  background: activeTableTab === "projects" ? "rgba(255,255,255,0.25)" : "var(--bg-card, #18263B)",
+                  color: "#ffffff",
+                }}
+              >
+                {projectMetricsList.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Sub-filter: Attention switch for Projects Tab */}
+          {activeTableTab === "projects" && (
+            <div style={{ display: "inline-flex", background: "var(--bg-card, #18263B)", border: "1px solid var(--border, #33465f)", borderRadius: "8px", padding: "3px" }}>
+              <button
+                type="button"
+                onClick={() => setProjectAttentionFilter("ALL")}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  background: projectAttentionFilter === "ALL" ? "var(--primary-badge-bg)" : "transparent",
+                  color: projectAttentionFilter === "ALL" ? "var(--primary)" : "var(--text-muted, #94a3b8)",
+                }}
+              >
+                All Projects ({analytics?.projects?.length || 0})
+              </button>
+              <button
+                type="button"
+                onClick={() => setProjectAttentionFilter("ATTENTION")}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  background: projectAttentionFilter === "ATTENTION" ? "var(--badge-danger-bg)" : "transparent",
+                  color: projectAttentionFilter === "ATTENTION" ? "var(--danger)" : "var(--text-muted, #94a3b8)",
+                }}
+              >
+                Needs Attention ({analytics?.projects?.filter((p) => p.has_low_rating || p.has_pending).length || 0})
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ── TAB CONTENT 1: Projects Performance Table ── */}
+        {activeTableTab === "projects" && (
+          <div>
+            {analyticsLoading ? (
+              <div style={{ padding: "40px", display: "flex", justifyContent: "center", alignItems: "center", gap: "10px" }}>
+                <Spinner size="md" />
+                <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>Loading project analytics...</span>
+              </div>
+            ) : projectMetricsList.length === 0 ? (
+              <div style={{ padding: "36px", textAlign: "center", color: "var(--text-muted, #94a3b8)", fontSize: "13px" }}>
+                No project performance metrics match your current scope or filters.
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                  <thead>
+                    <tr style={{ background: "var(--bg-table-header)", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      <th style={{ padding: "12px 18px", fontWeight: 700 }}>Project / Client</th>
+                      <th style={{ padding: "12px 18px", fontWeight: 700 }}>Surveys Sent</th>
+                      <th style={{ padding: "12px 18px", fontWeight: 700 }}>Responses</th>
+                      <th style={{ padding: "12px 18px", fontWeight: 700, minWidth: "160px" }}>Response Rate</th>
+                      <th style={{ padding: "12px 18px", fontWeight: 700 }}>Average CSAT</th>
+                      <th style={{ padding: "12px 18px", fontWeight: 700 }}>Status</th>
+                      <th style={{ padding: "12px 18px", fontWeight: 700, textAlign: "right" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectMetricsList.map((p) => {
+                      const hasRating = p.average_csat !== null;
+                      return (
+                        <tr
+                          key={p.project_id}
+                          style={{ borderBottom: "1px solid var(--table-row-border)", transition: "background 0.15s ease" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-table-row-hover)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <td style={{ padding: "12px 18px" }}>
+                            <div style={{ fontWeight: 600, color: "var(--text-primary, #ffffff)" }}>
+                              {p.project_name}
+                            </div>
+                            <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", marginTop: "2px" }}>
+                              {p.client_name}
+                            </div>
+                          </td>
+                          <td style={{ padding: "12px 18px", fontWeight: 600, color: "var(--text-primary, #ffffff)" }}>
+                            {p.surveys_sent}
+                          </td>
+                          <td style={{ padding: "12px 18px" }}>
+                            <span style={{ fontWeight: 600, color: "var(--success, #22c55e)" }}>{p.submitted_responses}</span>
+                            {p.awaiting_responses > 0 && (
+                              <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", marginLeft: "6px" }}>
+                                ({p.awaiting_responses} pending)
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: "12px 18px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <span style={{ fontSize: "12px", fontWeight: 700, minWidth: "36px", color: "var(--text-primary)" }}>
+                                {p.response_rate}%
+                              </span>
+                              <div style={{ flex: 1, height: "6px", background: "var(--bg-track)", borderRadius: "3px", overflow: "hidden" }}>
+                                <div
+                                  style={{
+                                    height: "100%",
+                                    width: `${p.response_rate}%`,
+                                    background: p.response_rate >= 70 ? "var(--success, #22c55e)" : p.response_rate >= 40 ? "var(--primary, #38bdf8)" : "var(--warning, #f59e0b)",
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ padding: "12px 18px" }}>
+                            {hasRating ? (
+                              <span
+                                style={{
+                                  fontSize: "12px",
+                                  fontWeight: 700,
+                                  padding: "2px 8px",
+                                  borderRadius: "6px",
+                                  background: p.average_csat >= 4.0 ? "rgba(34, 197, 94, 0.15)" : p.average_csat >= 3.0 ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                                  color: p.average_csat >= 4.0 ? "#22c55e" : p.average_csat >= 3.0 ? "#fbbf24" : "#ef4444",
+                                  border: `1px solid ${p.average_csat >= 4.0 ? "rgba(34, 197, 94, 0.3)" : p.average_csat >= 3.0 ? "rgba(245, 158, 11, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+                                }}
+                              >
+                                ★ {p.average_csat.toFixed(2)}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
+                                No ratings yet
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: "12px 18px" }}>
+                            {p.has_low_rating ? (
+                              <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: "rgba(239, 68, 68, 0.15)", color: "#fca5a5", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
+                                ⚠️ Low CSAT
+                              </span>
+                            ) : p.has_pending ? (
+                              <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: "rgba(245, 158, 11, 0.15)", color: "#fcd34d", border: "1px solid rgba(245, 158, 11, 0.3)" }}>
+                                ⏳ {p.awaiting_responses} Pending
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "6px", background: "rgba(34, 197, 94, 0.1)", color: "#86efac" }}>
+                                ✓ Healthy
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: "12px 18px", textAlign: "right" }}>
                             <Link
-                              to={`/projects/${survey.project.id}`}
+                              to={`/projects/${p.project_id}/analytics`}
                               style={{
-                                fontSize: "12px",
-                                color: "var(--primary-lt, #60a5fa)",
-                                marginTop: "2px",
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: "4px",
-                                textDecoration: "none",
-                                fontWeight: 500,
-                              }}
-                              title="View project analytics dashboard"
-                            >
-                              <span>{survey.project.name}</span>
-                              <span style={{ fontSize: "10px" }}>↗</span>
-                            </Link>
-                          ) : (
-                            <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", marginTop: "2px" }}>
-                              {survey.project.name}
-                            </div>
-                          )
-                        ) : (
-                          <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)" }}>—</div>
-                        )}
-                      </td>
-
-                      {/* Phase */}
-                      <td style={{ padding: "14px 18px" }}>
-                        <Badge variant="count">{survey.phase}</Badge>
-                      </td>
-
-                      {/* Single Unified Status */}
-                      <td style={{ padding: "14px 18px" }}>
-                        <Badge variant={surveyStatus.variant}>
-                          {surveyStatus.label}
-                        </Badge>
-                      </td>
-
-                      {/* Client Contact */}
-                      <td style={{ padding: "14px 18px" }}>
-                        {survey.client_contact_name ? (
-                          <div>
-                            <div style={{ fontWeight: 600, color: "var(--text-primary, #fff)", fontSize: "12px" }}>
-                              {survey.client_contact_name}
-                            </div>
-                            <div style={{ fontSize: "11px", color: "var(--text-secondary, #64748b)" }}>
-                              {survey.client_contact_email}
-                            </div>
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
-                            —
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Sent Date */}
-                      <td style={{ padding: "14px 18px", color: "var(--text-secondary, #94a3b8)", fontSize: "12px", whiteSpace: "nowrap" }}>
-                        {survey.sent_at ? new Date(survey.sent_at).toLocaleDateString() : new Date(survey.created_at).toLocaleDateString()}
-                      </td>
-
-                      {/* Response Status (Replaced CSAT Rating) */}
-                      <td style={{ padding: "14px 18px" }}>
-                        {isResponded ? (
-                          <div
-                            style={{ position: "relative", display: "inline-block" }}
-                            onMouseEnter={() => setHoveredSurveyId(survey.id)}
-                            onMouseLeave={() => setHoveredSurveyId(null)}
-                          >
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "6px",
                                 fontSize: "12px",
-                                fontWeight: 700,
+                                fontWeight: 600,
                                 padding: "4px 10px",
                                 borderRadius: "6px",
-                                background: "var(--badge-success-bg)",
-                                color: "var(--badge-success-text)",
-                                border: "1px solid var(--badge-success-border)",
-                                cursor: "pointer",
+                                background: "rgba(37, 99, 235, 0.1)",
+                                border: "1px solid rgba(37, 99, 235, 0.25)",
+                                color: "var(--primary-lt, #60a5fa)",
+                                textDecoration: "none",
                                 transition: "all 0.15s ease",
                               }}
                             >
-                              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "currentColor" }} />
-                              Responded
-                            </span>
+                              <span>Analytics</span>
+                              <span style={{ fontSize: "10px" }}>↗</span>
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
-                            {/* Hover Tooltip / Popover with accessible navigation link */}
-                            {hoveredSurveyId === survey.id && (
-                              <div
+        {/* ── TAB CONTENT 2: Dispatched Surveys ── */}
+        {activeTableTab === "surveys" && (
+          <div>
+            {/* Filter and Search Bar */}
+            <div
+              style={{
+                padding: "16px 20px",
+                borderBottom: "1px solid var(--border, #33465f)",
+                display: "flex",
+                gap: "14px",
+                alignItems: "center",
+                flexWrap: "wrap",
+                background: "var(--bg-card, #18263B)",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: "220px" }}>
+                <Input
+                  id="surveySearch"
+                  placeholder="Search by client, project, or contact..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <div style={{ width: "175px" }}>
+                <Select
+                  id="statusFilter"
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  options={[
+                    { value: "ALL", label: "All Statuses" },
+                    { value: "Dispatched", label: "Dispatched" },
+                    { value: "Awaiting Response", label: "Awaiting Response" },
+                    { value: "Follow-up Sent", label: "Follow-up Sent" },
+                    { value: "Completed", label: "Completed" },
+                  ]}
+                />
+              </div>
+
+              <div style={{ width: "160px" }}>
+                <Select
+                  id="phaseFilter"
+                  value={selectedPhase}
+                  onChange={(e) => setSelectedPhase(e.target.value)}
+                  options={[
+                    { value: "ALL", label: "All Phases" },
+                    ...SURVEY_PHASES.map((p) => ({ value: p.value, label: p.label })),
+                  ]}
+                />
+              </div>
+
+              <div style={{ width: "180px" }}>
+                <Select
+                  id="clientFilter"
+                  value={selectedClientFilter}
+                  onChange={(e) => setSelectedClientFilter(e.target.value)}
+                  options={[
+                    { value: "ALL", label: "All Clients" },
+                    ...clients.map((c) => ({ value: String(c.id), label: c.name })),
+                  ]}
+                />
+              </div>
+
+              {(searchQuery || selectedPhase !== "ALL" || selectedStatus !== "ALL" || selectedClientFilter !== "ALL") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSelectedPhase("ALL");
+                    setSelectedStatus("ALL");
+                    setSelectedClientFilter("ALL");
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+
+            {/* Main Surveys Table */}
+            {loading ? (
+              <div style={{ padding: "60px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+                <Spinner size="lg" />
+                <span style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)" }}>Loading surveys...</span>
+              </div>
+            ) : error ? (
+              <div style={{ padding: "40px", textAlign: "center", color: "var(--danger, #fca5a5)" }}>
+                <p>{error}</p>
+                <Button variant="secondary" size="sm" onClick={() => fetchSurveys(true)} style={{ marginTop: "12px" }}>
+                  Retry
+                </Button>
+              </div>
+            ) : filteredSurveys.length === 0 ? (
+              <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "14px" }}>
+                <div style={{ fontSize: "36px", opacity: 0.5 }}>📋</div>
+                <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary, #ffffff)", margin: 0 }}>
+                  No surveys found
+                </h3>
+                <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", maxWidth: "400px", margin: 0 }}>
+                  {surveys.length === 0
+                    ? "No satisfaction surveys have been dispatched yet. Go to Create Survey to launch your first survey."
+                    : "No surveys match your current search and filter criteria."}
+                </p>
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    textAlign: "left",
+                    fontSize: "13px",
+                  }}
+                >
+                  <thead>
+                    <tr
+                      style={{
+                        background: "var(--bg-table-header)",
+                        borderBottom: "1px solid var(--border)",
+                        color: "var(--text-secondary)",
+                        fontSize: "11px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.6px",
+                      }}
+                    >
+                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client</th>
+                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Project</th>
+                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Phase</th>
+                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Status</th>
+                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Average CSAT</th>
+                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client Contact</th>
+                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Sent Date</th>
+                      <th style={{ padding: "14px 18px", fontWeight: 700, textAlign: "right" }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSurveys.map((survey) => {
+                      return (
+                        <tr
+                          key={survey.id}
+                          style={{
+                            borderBottom: "1px solid var(--table-row-border)",
+                            transition: "background 0.15s ease",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-table-row-hover)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        >
+                          {/* Client */}
+                          <td style={{ padding: "14px 18px", fontWeight: 600, color: "var(--text-primary, #ffffff)" }}>
+                            {survey.client?.name || "—"}
+                          </td>
+
+                          {/* Project */}
+                          <td style={{ padding: "14px 18px" }}>
+                            {survey.project ? (
+                              <Link
+                                to={`/projects/${survey.project.id}/analytics`}
                                 style={{
-                                  position: "absolute",
-                                  top: "calc(100% + 6px)",
-                                  left: "0",
-                                  background: "var(--bg-elevated, #0f172a)",
-                                  border: "1px solid var(--border)",
-                                  borderRadius: "8px",
-                                  padding: "8px 12px",
-                                  boxShadow: "var(--shadow-md)",
-                                  zIndex: 100,
-                                  whiteSpace: "nowrap",
+                                  fontSize: "13px",
+                                  color: "var(--primary-lt, #60a5fa)",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  textDecoration: "none",
+                                  fontWeight: 500,
                                 }}
+                                title="View dedicated project analytics dashboard"
                               >
+                                <span>{survey.project.name}</span>
+                                <span style={{ fontSize: "10px" }}>↗</span>
+                              </Link>
+                            ) : (
+                              <span style={{ color: "var(--text-muted, #94a3b8)" }}>—</span>
+                            )}
+                          </td>
+
+                          {/* Phase */}
+                          <td style={{ padding: "14px 18px" }}>
+                            <Badge variant="count">{survey.phase}</Badge>
+                          </td>
+
+                          {/* Status */}
+                          <td style={{ padding: "14px 18px" }}>
+                            <Badge variant={survey.status === "Completed" ? "success" : survey.status === "Sent" ? "info" : "neutral"}>
+                              {survey.status}
+                            </Badge>
+                          </td>
+
+                          {/* Average CSAT */}
+                          <td style={{ padding: "14px 18px", fontWeight: 700, color: survey.average_score ? "var(--success, #22c55e)" : "var(--text-muted, #94a3b8)" }}>
+                            {survey.average_score ? `${Number(survey.average_score).toFixed(2)} ★` : "—"}
+                          </td>
+
+                          {/* Client Contact */}
+                          <td style={{ padding: "14px 18px", color: "var(--text-secondary, #94a3b8)", fontSize: "12px" }}>
+                            {survey.client_contact_email || "—"}
+                          </td>
+
+                          {/* Sent Date */}
+                          <td style={{ padding: "14px 18px", color: "var(--text-secondary, #94a3b8)", fontSize: "12px", whiteSpace: "nowrap" }}>
+                            {survey.sent_at ? new Date(survey.sent_at).toLocaleDateString() : (survey.created_at ? new Date(survey.created_at).toLocaleDateString() : "—")}
+                          </td>
+
+                          {/* Actions */}
+                          <td style={{ padding: "14px 18px", textAlign: "right" }}>
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
+                              {survey.client_contact_email && survey.status !== "Completed" && (
+                                <ResendMailButton
+                                  onClick={() => handleResendEmail(survey)}
+                                  loading={resendingSurveyId === survey.id}
+                                  title={`Trigger/Resend invitation email to ${survey.client_contact_email}`}
+                                />
+                              )}
+
+                              {survey.status === "Completed" && (
                                 <Link
-                                  to={`/responses/${survey.response_id || survey.id}`}
+                                  to={`/responses/${survey.id}`}
+                                  title="View submitted client response details"
                                   style={{
                                     display: "inline-flex",
                                     alignItems: "center",
-                                    gap: "6px",
-                                    color: "var(--primary-lt, #60a5fa)",
+                                    gap: "5px",
                                     fontSize: "12px",
                                     fontWeight: 600,
+                                    color: "var(--primary)",
                                     textDecoration: "none",
+                                    padding: "0 10px",
+                                    height: "32px",
+                                    borderRadius: "6px",
+                                    border: "1px solid var(--border)",
+                                    background: "var(--primary-badge-bg)",
+                                    transition: "all 0.15s ease",
                                   }}
-                                  title="Open client feedback evaluation response"
-                                  aria-label="View Client Response"
                                 >
-                                  <span>👁 View Client Response</span>
-                                  <span style={{ fontSize: "11px" }}>↗</span>
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                  </svg>
+                                  <span>View Response</span>
                                 </Link>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              fontSize: "12px",
-                              fontWeight: 600,
-                              padding: "4px 10px",
-                              borderRadius: "6px",
-                              background: "var(--bg-hover, rgba(148, 163, 184, 0.1))",
-                              color: "var(--text-dim, #64748b)",
-                              border: "1px solid var(--border, rgba(148, 163, 184, 0.2))",
-                            }}
-                          >
-                            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "currentColor" }} />
-                            Awaiting Response
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Actions: Shortened URL Link with copy/open + Matching Export CSV Button */}
-                      <td style={{ padding: "14px 18px", textAlign: "right" }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
-                          {/* Trigger / Resend Email Button */}
-                          {survey.client_contact_email && survey.status !== "Completed" && (
-                            <ResendMailButton
-                              onClick={() => handleResendEmail(survey)}
-                              loading={resendingSurveyId === survey.id}
-                              title={`Trigger/Resend invitation email to ${survey.client_contact_email}`}
-                            />
-                          )}
-
-                          {/* Redesigned Export CSV Button */}
-                          <ExportCsvButton
-                            onClick={() => handleExportSingleSurvey(survey, "csv")}
-                            loading={isExportingThis}
-                            title={`Export survey results for ${survey.project?.name || "Project"} as CSV`}
-                          />
-
-                          {/* Quick preview open in new tab */}
-                          <a
-                            href={fullUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Open client response form in new tab"
-                            style={{
-                              color: "var(--text-secondary, #64748b)",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              width: "32px",
-                              height: "32px",
-                              borderRadius: "6px",
-                              border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
-                              background: "var(--bg-hover, rgba(10, 22, 40, 0.5))",
-                              textDecoration: "none",
-                              transition: "all 0.15s ease",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = "var(--primary)";
-                              e.currentTarget.style.borderColor = "var(--border-strong)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = "var(--text-secondary)";
-                              e.currentTarget.style.borderColor = "var(--border)";
-                            }}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                              <polyline points="15 3 21 3 21 9"></polyline>
-                              <line x1="10" y1="14" x2="21" y2="3"></line>
-                            </svg>
-                          </a>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>

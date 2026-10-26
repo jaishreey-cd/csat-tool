@@ -20,12 +20,13 @@ export default function AppLayout() {
           flexDirection: "column",
           marginLeft: "var(--sidebar-w, 260px)",
           minWidth: 0,
+          paddingTop: "var(--topbar-h, 68px)",
           transition: "margin-left 0.25s ease",
         }}
       >
         <Topbar onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
 
-        <main style={{ flex: 1, padding: "28px 32px" }}>
+        <main style={{ flex: 1, padding: "28px 32px", minWidth: 0 }}>
           <Outlet />
         </main>
       </div>

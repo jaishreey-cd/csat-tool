@@ -108,7 +108,24 @@ export default function CreateSurveyPage() {
   const [contactEmail, setContactEmail] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Fetch clients on mount
+  // PostgreSQL Question Templates State
+  const [dbQuestions, setDbQuestions] = useState([]);
+
+  const loadDbQuestions = async () => {
+    try {
+      const res = await questionsApi.getQuestions({}, true);
+      if (res?.questions) {
+        setDbQuestions(res.questions);
+      }
+    } catch (err) {
+      console.warn("Could not load question templates from DB:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadDbQuestions();
+  }, []);
+
   // Fetch clients on mount with cache support
   useEffect(() => {
     const fetchClients = async () => {
@@ -217,7 +234,7 @@ export default function CreateSurveyPage() {
     setCustomQuestionText("");
     setCustomQuestionError("");
 
-    // Persist to database Question Bank for sure
+    // Persist to database Question Bank in PostgreSQL
     try {
       await questionsApi.createQuestion({
         section_number: activeSectionTab,
@@ -227,6 +244,7 @@ export default function CreateSurveyPage() {
         applicable_phases: "ALL",
         display_order: currentList.length + 1,
       });
+      await loadDbQuestions();
     } catch (err) {
       console.warn("Question template saved locally; background DB sync:", err);
     }
@@ -992,10 +1010,29 @@ export default function CreateSurveyPage() {
                   )}
                 </div>
 
-                {/* Add from 25-Question Bank Dropdown */}
+                {/* Add from Question Bank Dropdown (Static + PostgreSQL Database) */}
                 {(() => {
-                  const availableBank = (currentSection.questions || []).filter(
-                    (bq) => !currentSelected.some((sq) => sq.question_text === bq.text)
+                  const sectionDbQuestions = (dbQuestions || [])
+                    .filter((dq) => dq.section_number === currentSection.number)
+                    .map((dq) => ({ id: `db-${dq.id}`, text: dq.question_text }));
+
+                  const staticBank = (currentSection.questions || []).map((bq) => ({
+                    id: `static-${bq.id}`,
+                    text: bq.text,
+                  }));
+
+                  const allBankQuestions = [];
+                  const seenTexts = new Set();
+                  [...sectionDbQuestions, ...staticBank].forEach((q) => {
+                    const norm = q.text.trim();
+                    if (!seenTexts.has(norm)) {
+                      seenTexts.add(norm);
+                      allBankQuestions.push(q);
+                    }
+                  });
+
+                  const availableBank = allBankQuestions.filter(
+                    (bq) => !currentSelected.some((sq) => sq.question_text.trim() === bq.text.trim())
                   );
 
                   return (
@@ -1010,7 +1047,7 @@ export default function CreateSurveyPage() {
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #94a3b8)", textTransform: "uppercase" }}>
-                          + Add Question from Bank ({availableBank.length} Available of 25)
+                          + Add Question from Bank ({availableBank.length} Available in PostgreSQL & Bank)
                         </span>
                         {atLimit && (
                           <span style={{ fontSize: "11px", color: "var(--warning, #b45309)", fontWeight: 600 }}>

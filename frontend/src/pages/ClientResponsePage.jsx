@@ -13,6 +13,7 @@ export default function ClientResponsePage() {
   const [responseDetail, setResponseDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -46,6 +47,71 @@ export default function ClientResponsePage() {
       isMounted = false;
     };
   }, [targetId]);
+
+  const handleExportCsv = () => {
+    if (!responseDetail) return;
+    try {
+      setExporting(true);
+      const csvRows = [];
+      const escape = (val) => {
+        if (val == null) return '""';
+        const str = String(val).replace(/"/g, '""');
+        return `"${str}"`;
+      };
+
+      csvRows.push(["CSAT CLIENT EVALUATION RESPONSE REPORT"]);
+      csvRows.push([]);
+      csvRows.push(["Client Name", responseDetail.client_name || "—"]);
+      csvRows.push(["Project Name", responseDetail.project_name || "—"]);
+      csvRows.push(["Phase", responseDetail.phase || "—"]);
+      csvRows.push(["Submission Date", responseDetail.submission_date || "—"]);
+      csvRows.push(["Client Contact Name", responseDetail.client_contact_name || "—"]);
+      csvRows.push(["Client Contact Email", responseDetail.client_contact_email || "—"]);
+      csvRows.push(["Overall CSAT Score", responseDetail.overall_score != null ? `${responseDetail.overall_score.toFixed(2)} / 5.0` : "—"]);
+      csvRows.push(["Overall Satisfaction %", responseDetail.overall_percentage != null ? `${responseDetail.overall_percentage}%` : "—"]);
+      csvRows.push([]);
+      csvRows.push(["--- DETAILED SECTION EVALUATIONS ---"]);
+      csvRows.push(["Section #", "Section Title", "Question", "Response Type", "Rating / Answer", "Text Comment"]);
+
+      (responseDetail.sections || []).forEach((sec) => {
+        (sec.questions || []).forEach((q) => {
+          csvRows.push([
+            sec.section_number,
+            sec.section_title,
+            q.question_text,
+            q.response_type,
+            q.rating_score != null ? `${q.rating_score} / 5` : (q.text_answer || "—"),
+            q.text_answer || "",
+          ]);
+        });
+      });
+
+      if (responseDetail.additional_comments && responseDetail.additional_comments.length > 0) {
+        csvRows.push([]);
+        csvRows.push(["--- QUALITATIVE / ADDITIONAL COMMENTS ---"]);
+        csvRows.push(["Comment"]);
+        responseDetail.additional_comments.forEach((c) => {
+          csvRows.push([c]);
+        });
+      }
+
+      const csvContent = "\uFEFF" + csvRows.map((r) => r.map(escape).join(",")).join("\r\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const cleanProject = (responseDetail.project_name || "Client_Response").replace(/[^a-zA-Z0-9_-]/g, "_");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `${cleanProject}_CSAT_Response.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export response CSV failed:", err);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const renderStars = (score) => {
     if (score == null) return <span style={{ color: "var(--text-dim, #64748b)" }}>—</span>;
@@ -180,7 +246,36 @@ export default function ClientResponsePage() {
           ← Back to CSAT Dashboard
         </Button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {/* Export CSV Button inside View Response Route */}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleExportCsv}
+            disabled={exporting}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "12px",
+              fontWeight: 600,
+              background: "var(--badge-success-bg, rgba(34, 197, 94, 0.12))",
+              border: "1px solid var(--badge-success-border, rgba(34, 197, 94, 0.35))",
+              color: "var(--success, #22c55e)",
+              padding: "6px 14px",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+            title="Download complete client response data as CSV"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>{exporting ? "Exporting..." : "Export CSV"}</span>
+          </Button>
+
           <span style={{ fontFamily: "monospace", fontSize: "12px", color: "var(--text-dim, #64748b)" }}>
             Code: {survey_code}
           </span>

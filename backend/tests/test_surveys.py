@@ -133,3 +133,39 @@ def test_dispatch_and_submit_public_survey(client, test_user, test_client_and_pr
     resubmit_resp = client.post(f"/api/surveys/public/{unique_token}/submit", json={"answers": answers})
     assert resubmit_resp.status_code == 400
 
+def test_added_survey_questions_reflected_in_database(client, test_user, test_client_and_project, db):
+    """Test that adding new/custom questions to a survey reflects only additions in postgres question_templates."""
+    from app.models.question_template import QuestionTemplate
+    db_client, db_project = test_client_and_project
+    login_resp = client.post(
+        "/api/auth/login",
+        json={"email": "testadmin@example.com", "password": "Password123!"}
+    )
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    custom_text = "Brand New Custom Quality Assessment Question?"
+    questions = [
+        {"section_number": 1, "section_title": "Project Management", "question_text": custom_text, "response_type": "star_rating"},
+        {"section_number": 2, "section_title": "Technical Competence", "question_text": "Code standard?", "response_type": "star_rating"},
+        {"section_number": 3, "section_title": "Team Responsiveness", "question_text": "Communication speed?", "response_type": "star_rating"},
+        {"section_number": 4, "section_title": "Delivery & Execution", "question_text": "UAT readiness?", "response_type": "star_rating"},
+        {"section_number": 5, "section_title": "Value & Impact", "question_text": "ROI achieved?", "response_type": "star_rating"},
+    ]
+
+    resp = client.post("/api/surveys", json={
+        "client_id": db_client.id,
+        "project_id": db_project.id,
+        "phase": "Weekly",
+        "questions": questions
+    }, headers=headers)
+    assert resp.status_code == 201
+
+    # Verify that custom_text was automatically inserted into QuestionTemplate in postgres
+    template = db.query(QuestionTemplate).filter(
+        QuestionTemplate.question_text == custom_text
+    ).first()
+    assert template is not None
+    assert template.section_number == 1
+    assert template.response_type == "star_rating"
+

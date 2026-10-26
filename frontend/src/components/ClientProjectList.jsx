@@ -460,7 +460,7 @@ export default function ClientProjectList({
                               {/* Project Name */}
                               <div style={{ minWidth: 0 }}>
                                 <Link
-                                  to={`/projects/${proj.id}`}
+                                  to={`/projects/${proj.id}/analytics`}
                                   onClick={(e) => e.stopPropagation()}
                                   style={{
                                     textDecoration: "none",

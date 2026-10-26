@@ -7,7 +7,7 @@ import Button from "../components/Button";
 import Badge from "../components/Badge";
 import Spinner from "../components/Spinner";
 import Toast from "../components/Toast";
-import { ResendMailButton, ExportCsvButton } from "../components/SurveyActionButtons";
+import { ResendMailButton } from "../components/SurveyActionButtons";
 
 export default function UserResultsPage() {
   const [surveys, setSurveys] = useState(() => {
@@ -17,7 +17,6 @@ export default function UserResultsPage() {
   const [loading, setLoading] = useState(() => {
     return !surveysApi.getCachedSurveys();
   });
-  const [exportingId, setExportingId] = useState(null);
   const [sendingEmailId, setSendingEmailId] = useState(null);
   const [toast, setToast] = useState({ message: "", type: "info" });
   const [filterPhase, setFilterPhase] = useState("ALL");
@@ -70,24 +69,6 @@ export default function UserResultsPage() {
     }
   };
 
-  const handleExportCsv = async (survey) => {
-    try {
-      setExportingId(survey.id);
-      await analyticsApi.exportSurveysRegistry({
-        survey_id: survey.id,
-        format: "csv",
-      });
-      const projName = sanitizeFilename(survey.project?.name || "Survey_Results");
-      setToast({ message: `Exported ${projName}.csv successfully.`, type: "success" });
-    } catch (err) {
-      setToast({ message: "Failed to download export file.", type: "danger" });
-    } finally {
-      setExportingId(null);
-    }
-  };
-
-
-
   const filteredSurveys = useMemo(() => {
     return surveys.filter((s) => {
       if (filterPhase === "ALL") return true;
@@ -107,8 +88,8 @@ export default function UserResultsPage() {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px" }}>
         <div>
-          <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-            My Survey Results & Performance
+          <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ color: "var(--primary, #3b82f6)" }}>•</span> Survey Results
           </h1>
           <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginTop: "6px" }}>
             Real-time CSAT feedback, response rates, and client ratings for your authorized surveys.
@@ -232,6 +213,7 @@ export default function UserResultsPage() {
                   <th style={{ padding: "12px 14px", fontWeight: 700 }}>Status</th>
                   <th style={{ padding: "12px 14px", fontWeight: 700 }}>Average CSAT</th>
                   <th style={{ padding: "12px 14px", fontWeight: 700 }}>Client Contact</th>
+                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Sent Date</th>
                   <th style={{ padding: "12px 14px", textAlign: "right", fontWeight: 700 }}>Actions</th>
                 </tr>
               </thead>
@@ -265,9 +247,11 @@ export default function UserResultsPage() {
                     <td style={{ padding: "12px", color: "var(--text-secondary)" }}>
                       {s.client_contact_email || "—"}
                     </td>
+                    <td style={{ padding: "12px", color: "var(--text-secondary)", fontSize: "12px", whiteSpace: "nowrap" }}>
+                      {s.sent_at ? new Date(s.sent_at).toLocaleDateString() : (s.created_at ? new Date(s.created_at).toLocaleDateString() : "—")}
+                    </td>
                     <td style={{ padding: "12px", textAlign: "right" }}>
                       <div style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
-
                         {s.client_contact_email && s.status !== "Completed" && (
                           <ResendMailButton
                             onClick={() => handleResendEmail(s)}
@@ -308,11 +292,6 @@ export default function UserResultsPage() {
                             View Response
                           </Link>
                         )}
-                        <ExportCsvButton
-                          onClick={() => handleExportCsv(s)}
-                          loading={exportingId === s.id}
-                          title={`Export survey results for ${s.project?.name || "Project"} as CSV`}
-                        />
                       </div>
                     </td>
                   </tr>

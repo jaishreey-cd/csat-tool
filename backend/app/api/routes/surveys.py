@@ -1,9 +1,11 @@
 from typing import Optional, List
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_user
 from app.models.user import User
+from app.models.survey import Survey
+from app.services.analytics_service import is_admin_user
 from app.schemas.survey import (
     SurveyCreate,
     SurveyResponse,
@@ -91,6 +93,15 @@ def get_survey_client_response_by_response_id(
     db: Session = Depends(get_db),
 ):
     """Protected endpoint to fetch submitted client feedback details by response ID."""
+    if not is_admin_user(current_user):
+        survey = db.query(Survey.creator_id, Survey.reviewer_id).filter(Survey.id == response_id).first()
+        if not survey:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey response not found")
+        if survey.creator_id != current_user.id and survey.reviewer_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You do not have permission to view this response."
+            )
     return get_client_response_detail(db, survey_id=response_id)
 
 @router.get("/{survey_id}/response", response_model=ClientResponseDetail)
@@ -100,6 +111,15 @@ def get_survey_client_response_by_survey_id(
     db: Session = Depends(get_db),
 ):
     """Protected endpoint to fetch submitted client feedback details by survey ID."""
+    if not is_admin_user(current_user):
+        survey = db.query(Survey.creator_id, Survey.reviewer_id).filter(Survey.id == survey_id).first()
+        if not survey:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey response not found")
+        if survey.creator_id != current_user.id and survey.reviewer_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You do not have permission to view this response."
+            )
     return get_client_response_detail(db, survey_id=survey_id)
 
 @router.get("/{survey_id}", response_model=SurveyResponse)
@@ -109,7 +129,14 @@ def get_survey_details(
     db: Session = Depends(get_db),
 ):
     """Get single survey with its configured questions."""
-    return get_survey_by_id(db, survey_id)
+    survey = get_survey_by_id(db, survey_id)
+    if not is_admin_user(current_user):
+        if survey.creator_id != current_user.id and survey.reviewer_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You do not have permission to view this survey."
+            )
+    return survey
 
 @router.post("/{survey_id}/submit-approval", response_model=SurveyResponse)
 def submit_survey(

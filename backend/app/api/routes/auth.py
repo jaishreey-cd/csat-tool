@@ -142,17 +142,6 @@ def create_authorized_user(
         db.refresh(existing)
         return UserResponse.model_validate(existing)
 
-    # For a new user grant: verify active PMO limit
-    active_pmos = db.query(User).filter(
-        User.email != initial_admin_email,
-        User.is_active == True
-    ).count()
-    if active_pmos >= 3:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Maximum limit of 3 PMOs reached. You cannot grant access to more than 3 PMO users."
-        )
-
     new_user = User(
         email=normalized_email,
         full_name=payload.full_name or normalized_email.split("@")[0].title(),

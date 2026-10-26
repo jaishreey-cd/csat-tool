@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Badge from "../components/Badge";
 import Button from "../components/Button";
@@ -7,6 +7,10 @@ import Toast from "../components/Toast";
 import EmptyState from "../components/EmptyState";
 import ErrorState from "../components/ErrorState";
 import analyticsApi from "../api/analyticsApi";
+import CategoryRadarChart from "../components/charts/CategoryRadarChart";
+import CategoryBarChart from "../components/charts/CategoryBarChart";
+import CategoryDistributionChart from "../components/charts/CategoryDistributionChart";
+import CategoryRadialGauges from "../components/charts/CategoryRadialGauges";
 
 export default function ProjectAnalyticsPage() {
   const { projectId } = useParams();
@@ -16,7 +20,8 @@ export default function ProjectAnalyticsPage() {
   const [data, setData] = useState(() => cachedData);
   const [loading, setLoading] = useState(() => !cachedData);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("phases"); // 'phases' | 'overview' | 'feedback' | 'timeline'
+  const [activeTab, setActiveTab] = useState("phases"); // 'phases' | 'categories' | 'overview' | 'feedback' | 'timeline'
+  const [categoryChartView, setCategoryChartView] = useState("BAR"); // 'BAR' | 'RADAR' | 'DISTRIBUTION' | 'GAUGES'
   const [commentSearch, setCommentSearch] = useState("");
   const [exportingFormat, setExportingFormat] = useState(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -59,6 +64,21 @@ export default function ProjectAnalyticsPage() {
     }
   }, [projectId]);
 
+  // Map project sections to category charts structure
+  const categoriesForCharts = useMemo(() => {
+    if (!data?.sections) return [];
+    return data.sections.map((s) => ({
+      section_number: s.section_number,
+      category_name: s.section_title,
+      average_rating: s.average_score,
+      total_ratings: s.total_ratings,
+      csat_percentage: s.total_ratings > 0
+        ? Math.round((((s.rating_distribution?.["4"] || 0) + (s.rating_distribution?.["5"] || 0)) / s.total_ratings) * 100)
+        : null,
+      rating_distribution: s.rating_distribution || {},
+    }));
+  }, [data?.sections]);
+
   if (loading) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "360px", gap: "16px" }}>
@@ -69,16 +89,60 @@ export default function ProjectAnalyticsPage() {
   }
 
   if (error) {
-    return <ErrorState message={error} onRetry={fetchAnalytics} />;
+    const is403 = String(error).toLowerCase().includes("access denied") || String(error).includes("403");
+    if (is403) {
+      return (
+        <div style={{ maxWidth: "600px", margin: "60px auto", padding: "36px", background: "var(--bg-surface, #18263B)", border: "1px solid var(--border, #33465f)", borderRadius: "var(--radius-lg, 14px)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", boxShadow: "var(--shadow-card)" }}>
+          <div style={{ fontSize: "44px" }}>🔒</div>
+          <h2 style={{ fontSize: "20px", fontWeight: 700, color: "var(--text-primary, #ffffff)", margin: 0 }}>Access Restricted</h2>
+          <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: 0, lineHeight: 1.6 }}>
+            You do not have authorization to view analytics for this project. Only administrators and assigned project owners / survey creators can access this project's CSAT metrics.
+          </p>
+          <Button variant="primary" onClick={() => navigate("/dashboard")} style={{ marginTop: "8px" }}>
+            ← Return to Dashboard
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard")}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--primary-lt, #60a5fa)",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+              padding: "4px 0",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px"
+            }}
+          >
+            ← Back to Dashboard
+          </button>
+        </div>
+        <ErrorState message={error} onRetry={fetchAnalytics} />
+      </div>
+    );
   }
 
   if (!data) {
     return (
-      <EmptyState
-        title="Project Not Found"
-        description="The requested project analytics could not be located."
-        icon="📁"
-      />
+      <div style={{ maxWidth: "600px", margin: "60px auto", padding: "36px", background: "var(--bg-surface, #18263B)", border: "1px solid var(--border, #33465f)", borderRadius: "var(--radius-lg, 14px)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", boxShadow: "var(--shadow-card)" }}>
+        <EmptyState
+          title="Project Not Found"
+          description="The requested project analytics could not be located or may have been archived."
+          icon="📁"
+        />
+        <Button variant="secondary" onClick={() => navigate("/dashboard")}>
+          ← Return to Dashboard
+        </Button>
+      </div>
     );
   }
 
@@ -561,6 +625,39 @@ export default function ProjectAnalyticsPage() {
 
         <button
           type="button"
+          onClick={() => setActiveTab("categories")}
+          style={{
+            background: "transparent",
+            border: "none",
+            borderBottom: activeTab === "categories" ? "2px solid var(--primary-lt, #60a5fa)" : "2px solid transparent",
+            color: activeTab === "categories" ? "#ffffff" : "var(--text-muted, #94a3b8)",
+            padding: "8px 16px",
+            fontSize: "13px",
+            fontWeight: 600,
+            cursor: "pointer",
+            transition: "all 0.15s ease",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <span>Category Visualizations</span>
+          <span
+            style={{
+              background: "rgba(37, 99, 235, 0.2)",
+              color: "#93c5fd",
+              padding: "1px 7px",
+              borderRadius: "9999px",
+              fontSize: "11px",
+              fontWeight: 700,
+            }}
+          >
+            Charts
+          </span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab("overview")}
           style={{
             background: "transparent",
@@ -765,6 +862,103 @@ export default function ProjectAnalyticsPage() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* ── TAB: CATEGORY-WISE ANALYTICS & VISUALIZATIONS ───────────── */}
+      {activeTab === "categories" && (
+        <div
+          style={{
+            background: "var(--bg-card, #18263B)",
+            border: "1px solid var(--border, #33465f)",
+            borderRadius: "var(--radius-lg, 12px)",
+            padding: "24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+            boxShadow: "var(--shadow-card)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" }}>
+            <div>
+              <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-primary, #ffffff)", margin: 0 }}>
+                Category-wise CSAT Performance
+              </h3>
+              <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+                Multi-dimensional feedback ratings across core categories for {data.project_name}.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: "inline-flex",
+                background: "var(--bg-elevated, #22334A)",
+                border: "1px solid var(--border, #33465f)",
+                borderRadius: "8px",
+                padding: "3px",
+                gap: "2px",
+                flexWrap: "wrap",
+              }}
+            >
+              {[
+                { id: "BAR", label: "📊 Bar Chart" },
+                { id: "RADAR", label: "🕸 Radar Chart" },
+                { id: "DISTRIBUTION", label: "📶 Rating Distribution" },
+                { id: "GAUGES", label: "⭕ Circular Gauges" },
+              ].map((tab) => {
+                const active = categoryChartView === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setCategoryChartView(tab.id)}
+                    style={{
+                      padding: "6px 14px",
+                      fontSize: "12px",
+                      fontWeight: active ? 700 : 500,
+                      borderRadius: "6px",
+                      border: "none",
+                      cursor: "pointer",
+                      background: active ? "var(--primary, #2563eb)" : "transparent",
+                      color: active ? "#ffffff" : "var(--text-secondary, #94a3b8)",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {categoriesForCharts.length === 0 ? (
+            <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted, #94a3b8)", fontSize: "13px" }}>
+              No completed ratings recorded for this project yet.
+            </div>
+          ) : (
+            <div>
+              {categoryChartView === "BAR" && (
+                <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "24px" }}>
+                  <CategoryBarChart categories={categoriesForCharts} />
+                </div>
+              )}
+              {categoryChartView === "RADAR" && (
+                <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "24px", display: "flex", justifyContent: "center" }}>
+                  <CategoryRadarChart categories={categoriesForCharts} />
+                </div>
+              )}
+              {categoryChartView === "DISTRIBUTION" && (
+                <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "22px" }}>
+                  <CategoryDistributionChart categories={categoriesForCharts} />
+                </div>
+              )}
+              {categoryChartView === "GAUGES" && (
+                <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "24px" }}>
+                  <CategoryRadialGauges categories={categoriesForCharts} />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

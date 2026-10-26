@@ -213,10 +213,9 @@ def export_project_analytics(db: Session, project_id: int, format: str = "csv") 
 
         # Survey Registry Table
         writer.writerow(["=== PROJECT SURVEY REGISTRY ==="])
-        writer.writerow(["Survey Code", "Phase", "Status", "Average Score", "Client Contact", "Contact Email", "Sent At", "Completed At"])
+        writer.writerow(["Phase", "Status", "Average Score", "Client Contact", "Contact Email", "Sent At", "Completed At"])
         for item in analytics.timeline:
             writer.writerow([
-                item.survey_code,
                 item.phase,
                 item.status,
                 f"{item.average_score:.2f}" if item.average_score is not None else "-",
@@ -229,10 +228,9 @@ def export_project_analytics(db: Session, project_id: int, format: str = "csv") 
 
         # Qualitative Feedback
         writer.writerow(["=== QUALITATIVE CLIENT FEEDBACK & COMMENTS ==="])
-        writer.writerow(["Survey Code", "Phase", "Question", "Client Comment", "Contact Name", "Contact Email", "Submitted At"])
+        writer.writerow(["Phase", "Question", "Client Comment", "Contact Name", "Contact Email", "Submitted At"])
         for c in analytics.qualitative_comments:
             writer.writerow([
-                c.survey_code,
                 c.phase,
                 c.question_text,
                 c.text_answer,
@@ -242,7 +240,7 @@ def export_project_analytics(db: Session, project_id: int, format: str = "csv") 
             ])
 
         content = output.getvalue().encode("utf-8")
-        filename = f"{sanitize_filename(analytics.project_name)}.csv"
+        filename = f"{safe_code}_CSAT_Report.csv"
         return content, filename, "text/csv"
 
 # ── Surveys Registry Export ─────────────────────────────────────────────────
