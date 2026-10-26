@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import authApi from "../api/authApi";
+import clientsApi from "../api/clientsApi";
 
 const AuthContext = createContext(null);
 
@@ -54,6 +55,7 @@ export function AuthProvider({ children }) {
     // Persist JWT and user profile in localStorage
     localStorage.setItem("csat_token", data.access_token);
     localStorage.setItem("csat_user", JSON.stringify(data.user));
+    clientsApi.invalidateCache();
     setToken(data.access_token);
     setUser(data.user);
     return data;
@@ -62,6 +64,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     localStorage.removeItem("csat_token");
     localStorage.removeItem("csat_user");
+    clientsApi.invalidateCache();
     setToken(null);
     setUser(null);
   }, []);

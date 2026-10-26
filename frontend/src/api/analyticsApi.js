@@ -85,6 +85,13 @@ const analyticsApi = {
     });
     triggerDownload(response, `CSAT_Portfolio_Overview.${format}`);
   },
+
+  assignProjectPmos: async (projectId, userIds) => {
+    const response = await axiosClient.put(`/analytics/projects/${projectId}/assign-pmos`, {
+      user_ids: userIds,
+    });
+    return response.data;
+  },
 };
 
 export default analyticsApi;

@@ -1,12 +1,25 @@
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_user, require_admin
 from app.models.user import User
 from app.models.survey import Survey
-from app.schemas.analytics import ProjectAnalyticsResponse, SystemOverviewResponse, DashboardAnalyticsResponse
-from app.services.analytics_service import get_project_analytics, get_system_overview, get_dashboard_analytics, is_admin_user
+from app.models.project_pmo import ProjectPmoAssignment
+from app.schemas.analytics import (
+    ProjectAnalyticsResponse,
+    SystemOverviewResponse,
+    DashboardAnalyticsResponse,
+    AssignedPmo,
+    ProjectPmoAssignRequest,
+)
+from app.services.analytics_service import (
+    get_project_analytics,
+    get_system_overview,
+    get_dashboard_analytics,
+    is_admin_user,
+    assign_project_pmos,
+)
 from app.services.export_service import (
     export_project_analytics,
     export_surveys_registry,
@@ -22,6 +35,7 @@ def fetch_dashboard_analytics(
     phase: Optional[str] = Query(None, description="Filter by feedback phase"),
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    pmo_user_id: Optional[int] = Query(None, description="Filter by assigned PMO user ID"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -36,6 +50,7 @@ def fetch_dashboard_analytics(
         phase=phase,
         start_date=start_date,
         end_date=end_date,
+        pmo_user_id=pmo_user_id,
         current_user=current_user,
     )
 
@@ -102,19 +117,37 @@ def fetch_project_analytics(
     """
     Fetch comprehensive CSAT analytics, section breakdown, qualitative comments,
     and survey timeline for an individual project.
-    Access: Admins, and the project's owner/creator. Anyone else gets a 403.
+    Access: Admins, and the project's assigned PMO(s) or survey creator. Anyone else gets a 403.
     """
     if not is_admin_user(current_user):
-        user_has_access = db.query(Survey.id).filter(
+        is_assigned = db.query(ProjectPmoAssignment.id).filter(
+            ProjectPmoAssignment.project_id == project_id,
+            ProjectPmoAssignment.user_id == current_user.id
+        ).first() is not None
+
+        is_creator = db.query(Survey.id).filter(
             Survey.project_id == project_id,
             (Survey.creator_id == current_user.id) | (Survey.reviewer_id == current_user.id)
-        ).first()
-        if not user_has_access:
+        ).first() is not None
+
+        if not is_assigned and not is_creator:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied: You do not have permission to view analytics for this project."
             )
     return get_project_analytics(db, project_id=project_id)
+
+@router.put("/projects/{project_id}/assign-pmos", response_model=List[AssignedPmo])
+def update_project_pmo_assignments(
+    project_id: int,
+    payload: ProjectPmoAssignRequest,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+):
+    """
+    Assign or update PMO users for a project (Admin only).
+    """
+    return assign_project_pmos(db, project_id=project_id, user_ids=payload.user_ids)
 
 @router.get("/projects/{project_id}/export")
 def download_project_analytics_export(
@@ -125,14 +158,20 @@ def download_project_analytics_export(
 ):
     """
     Export project analytics report (KPIs, Section scores, Question distributions, Comments) to CSV or Excel (XLSX).
-    Access: Admins, and the project's owner/creator. Anyone else gets a 403.
+    Access: Admins, and the project's assigned PMO(s) or survey creator. Anyone else gets a 403.
     """
     if not is_admin_user(current_user):
-        user_has_access = db.query(Survey.id).filter(
+        is_assigned = db.query(ProjectPmoAssignment.id).filter(
+            ProjectPmoAssignment.project_id == project_id,
+            ProjectPmoAssignment.user_id == current_user.id
+        ).first() is not None
+
+        is_creator = db.query(Survey.id).filter(
             Survey.project_id == project_id,
             (Survey.creator_id == current_user.id) | (Survey.reviewer_id == current_user.id)
-        ).first()
-        if not user_has_access:
+        ).first() is not None
+
+        if not is_assigned and not is_creator:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied: You do not have permission to export analytics for this project."

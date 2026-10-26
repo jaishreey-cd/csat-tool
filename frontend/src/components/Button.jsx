@@ -86,6 +86,9 @@ export default function Button({
     userSelect: "none",
     outline: "none",
     letterSpacing: "-0.1px",
+    whiteSpace: "nowrap",
+    boxSizing: "border-box",
+    lineHeight: "1",
     ...sizeStyles[size],
     ...getVariantStyle(),
     ...style,
@@ -107,8 +110,12 @@ export default function Button({
       className={className}
       {...props}
     >
-      {loading ? <Spinner size="sm" /> : icon}
-      <span>{children}</span>
+      {loading ? (
+        <Spinner size="sm" />
+      ) : icon ? (
+        <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>{icon}</span>
+      ) : null}
+      <span style={{ whiteSpace: "nowrap" }}>{children}</span>
     </button>
   );
 }

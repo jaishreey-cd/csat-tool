@@ -8,10 +8,12 @@ from app.models.client import Client
 from app.models.project import Project
 from app.models.import_batch import ImportBatch
 from app.models.survey import Survey
+from app.models.project_pmo import ProjectPmoAssignment
+from app.models.user import User
 from app.schemas.client import ClientResponse, ProjectResponse, ClientListResponse
 
 # Lightweight in-memory cache for clients tree
-_clients_cache: Dict[Tuple[str, bool], Tuple[float, ClientListResponse]] = {}
+_clients_cache: Dict[Tuple[str, bool, Optional[int]], Tuple[float, ClientListResponse]] = {}
 _CACHE_TTL = 30.0  # seconds
 
 def invalidate_clients_cache():
@@ -41,15 +43,19 @@ def get_clients_data_last_updated(db: Session) -> Optional[datetime]:
 def get_clients_tree(
     db: Session,
     search: Optional[str] = None,
-    include_archived: bool = False
+    include_archived: bool = False,
+    current_user: Optional[User] = None,
 ) -> ClientListResponse:
     """
     Query clients and their nested projects.
     Filters active records by default, supporting search on client/project name & code.
+    If current_user is a PMO User (non-admin), restricts projects strictly to those assigned
+    to the user or where they created surveys, and omits clients with zero accessible projects.
     Uses selectinload to eliminate N+1 queries and caches results in memory for high performance.
     """
     clean_search = search.strip().lower() if search and search.strip() else ""
-    cache_key = (clean_search, bool(include_archived))
+    user_cache_id = current_user.id if (current_user and current_user.role and "admin" not in current_user.role.lower()) else None
+    cache_key = (clean_search, bool(include_archived), user_cache_id)
     now = time.time()
 
     if cache_key in _clients_cache:
@@ -105,6 +111,21 @@ def get_clients_tree(
         if s.project_id not in project_survey_map:
             project_survey_map[s.project_id] = s
 
+    # Determine project access for PMO user
+    accessible_proj_ids = None
+    if current_user and current_user.role and "admin" not in current_user.role.lower():
+        assigned_proj_ids = set(
+            pid[0] for pid in db.query(ProjectPmoAssignment.project_id)
+            .filter(ProjectPmoAssignment.user_id == current_user.id)
+            .all()
+        )
+        created_proj_ids = set(
+            pid[0] for pid in db.query(Survey.project_id)
+            .filter(Survey.creator_id == current_user.id)
+            .all()
+        )
+        accessible_proj_ids = assigned_proj_ids | created_proj_ids
+
     client_responses: List[ClientResponse] = []
     total_projects_count = 0
 
@@ -113,6 +134,13 @@ def get_clients_tree(
         proj_query = [p for p in c.projects]
         if not include_archived:
             proj_query = [p for p in proj_query if p.is_active]
+
+        if accessible_proj_ids is not None:
+            proj_query = [p for p in proj_query if p.id in accessible_proj_ids]
+
+        # PMO user should only see clients that have at least one assigned/accessible project
+        if accessible_proj_ids is not None and len(proj_query) == 0:
+            continue
 
         # Sort projects by project_code
         proj_query.sort(key=lambda p: (p.project_code or p.name).lower())

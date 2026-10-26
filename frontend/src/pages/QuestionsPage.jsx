@@ -222,7 +222,7 @@ export default function QuestionsPage() {
         </div>
 
         <Button variant="primary" onClick={openCreateModal}>
-          + Add New Question
+          + Add Question
         </Button>
       </div>
 
@@ -410,7 +410,7 @@ export default function QuestionsPage() {
                           fontSize: "11px",
                           background: "var(--bg-hover, rgba(15, 23, 42, 0.6))",
                           border: "1px solid var(--border, rgba(96, 165, 250, 0.2))",
-                          color: "var(--primary-lt, #1d4ed8)",
+                          color: "var(--primary-lt, #60a5fa)",
                           padding: "2px 8px",
                           borderRadius: "12px",
                         }}
@@ -426,22 +426,9 @@ export default function QuestionsPage() {
                   <Button variant="secondary" size="sm" onClick={() => openEditModal(q)}>
                     Edit
                   </Button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteConfirmId(q.id)}
-                    style={{
-                      background: "rgba(239, 68, 68, 0.15)",
-                      border: "1px solid rgba(239, 68, 68, 0.3)",
-                      color: "#fca5a5",
-                      borderRadius: "6px",
-                      padding: "6px 12px",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                    }}
-                  >
+                  <Button variant="danger" size="sm" onClick={() => setDeleteConfirmId(q.id)}>
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </div>
             );
@@ -480,26 +467,17 @@ export default function QuestionsPage() {
             <p style={{ color: "var(--text-muted, #cbd5e1)", fontSize: "14px", lineHeight: 1.5, margin: "0 0 20px 0" }}>
               Are you sure you want to delete this question? This question will be <strong>permanently removed from the database</strong>.
             </p>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", alignItems: "center" }}>
               <Button variant="secondary" size="sm" onClick={() => setDeleteConfirmId(null)}>
                 Cancel
               </Button>
-              <button
-                type="button"
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => handleDelete(deleteConfirmId)}
-                style={{
-                  background: "#dc2626",
-                  color: "#ffffff",
-                  border: "none",
-                  borderRadius: "6px",
-                  padding: "8px 16px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
               >
                 Yes, Permanently Delete
-              </button>
+              </Button>
             </div>
           </div>
         </div>

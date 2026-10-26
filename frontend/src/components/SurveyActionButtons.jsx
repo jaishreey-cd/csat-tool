@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 
 /**
  * Shared Action Button styles ensuring consistent height, padding,
- * border radius, alignment, and hover/active states across all three buttons.
+ * border radius, alignment, and hover/active states across all action buttons.
  */
 const BASE_BUTTON_STYLE = {
   display: "inline-flex",
@@ -10,16 +11,18 @@ const BASE_BUTTON_STYLE = {
   justifyContent: "center",
   gap: "6px",
   height: "32px",
+  minWidth: "128px",
   padding: "0 12px",
   borderRadius: "6px",
   fontSize: "12px",
   fontWeight: 600,
-  lineHeight: 1,
+  lineHeight: "1",
   whiteSpace: "nowrap",
   cursor: "pointer",
   transition: "all 0.15s ease",
   outline: "none",
   userSelect: "none",
+  boxSizing: "border-box",
 };
 
 /**
@@ -108,7 +111,7 @@ export function CopyLinkButton({
       border: isHovered
         ? "1px solid var(--border-strong, rgba(56, 189, 248, 0.55))"
         : "1px solid var(--border, rgba(56, 189, 248, 0.28))",
-      color: isHovered ? "var(--primary-hover, #1d4ed8)" : "var(--primary, #2563eb)",
+      color: isHovered ? "var(--primary-hover, #60a5fa)" : "var(--primary, #3b82f6)",
       boxShadow: isHovered ? "0 2px 10px rgba(37, 99, 235, 0.15)" : "none",
       ...(isFocused ? { ring: "2px solid var(--primary-glow)" } : {}),
       ...style,
@@ -196,7 +199,7 @@ export function ResendMailButton({
       : isHovered
       ? "1px solid var(--border-strong, rgba(96, 165, 250, 0.55))"
       : "1px solid var(--border, rgba(96, 165, 250, 0.28))",
-    color: isDisabled ? "var(--text-dim, rgba(147, 197, 253, 0.5))" : isHovered ? "var(--primary-hover, #1d4ed8)" : "var(--primary, #2563eb)",
+    color: isDisabled ? "var(--text-dim, rgba(147, 197, 253, 0.5))" : isHovered ? "var(--primary-hover, #60a5fa)" : "var(--primary, #3b82f6)",
     boxShadow: isHovered && !isDisabled ? "0 2px 10px rgba(37, 99, 235, 0.15)" : "none",
     cursor: isDisabled ? "not-allowed" : "pointer",
     opacity: isDisabled ? 0.7 : 1,
@@ -219,7 +222,7 @@ export function ResendMailButton({
     >
       {loading ? (
         <svg
-          style={{ animation: "spin 1s linear infinite" }}
+          style={{ animation: "spin 1s linear infinite", flexShrink: 0 }}
           width="13"
           height="13"
           viewBox="0 0 24 24"
@@ -233,6 +236,7 @@ export function ResendMailButton({
         </svg>
       ) : (
         <svg
+          style={{ flexShrink: 0 }}
           width="13"
           height="13"
           viewBox="0 0 24 24"
@@ -247,7 +251,7 @@ export function ResendMailButton({
           <polyline points="22,6 12,13 2,6" />
         </svg>
       )}
-      <span>{loading ? "Sending..." : "Resend Mail"}</span>
+      <span style={{ whiteSpace: "nowrap" }}>{loading ? "Sending..." : "Resend Mail"}</span>
     </button>
   );
 }
@@ -283,7 +287,7 @@ export function ExportCsvButton({
       : isHovered
       ? "1px solid var(--badge-success-text, #22c55e)"
       : "1px solid var(--badge-success-border, rgba(16, 185, 129, 0.28))",
-    color: isDisabled ? "var(--text-dim, rgba(110, 231, 183, 0.5))" : isHovered ? "var(--badge-success-text, #15803d)" : "var(--badge-success-text, #22c55e)",
+    color: isDisabled ? "var(--text-dim, rgba(110, 231, 183, 0.5))" : isHovered ? "var(--badge-success-text, #34d399)" : "var(--badge-success-text, #22c55e)",
     boxShadow: isHovered && !isDisabled ? "0 2px 10px rgba(34, 197, 94, 0.15)" : "none",
     cursor: isDisabled ? "not-allowed" : "pointer",
     opacity: isDisabled ? 0.7 : 1,
@@ -335,7 +339,67 @@ export function ExportCsvButton({
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
       )}
-      <span>{loading ? "Exporting..." : "Export CSV"}</span>
+      <span style={{ whiteSpace: "nowrap" }}>{loading ? "Exporting..." : "Export CSV"}</span>
     </button>
   );
 }
+
+/**
+ * View Response Button
+ * - Matches the shared Action Button design system
+ * - Equal height (32px), minWidth (128px), padding, border radius, and icon + label alignment
+ * - Single-line text with whiteSpace: nowrap and vertically centered eye icon
+ */
+export function ViewResponseButton({
+  to,
+  title = "View submitted client response details",
+  className = "",
+  style = {},
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <Link
+      to={to}
+      title={title}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
+      style={{
+        ...BASE_BUTTON_STYLE,
+        background: isHovered
+          ? "var(--bg-hover, rgba(96, 165, 250, 0.2))"
+          : "var(--primary-badge-bg, rgba(96, 165, 250, 0.1))",
+        border: isHovered
+          ? "1px solid var(--border-strong, rgba(96, 165, 250, 0.55))"
+          : "1px solid var(--border, rgba(96, 165, 250, 0.28))",
+        color: isHovered ? "var(--primary-hover, #60a5fa)" : "var(--primary, #3b82f6)",
+        boxShadow: isHovered ? "0 2px 10px rgba(37, 99, 235, 0.15)" : "none",
+        textDecoration: "none",
+        ...style,
+      }}
+      className={className}
+      aria-label="View Response"
+    >
+      <svg
+        width="13"
+        height="13"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ flexShrink: 0 }}
+        aria-hidden="true"
+      >
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+      <span style={{ whiteSpace: "nowrap" }}>View Response</span>
+    </Link>
+  );
+}
+

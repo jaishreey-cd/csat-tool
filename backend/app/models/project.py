@@ -29,6 +29,7 @@ class Project(Base):
 
     # Relationships
     client = relationship("Client", back_populates="projects")
+    pmo_assignments = relationship("ProjectPmoAssignment", back_populates="project", cascade="all, delete-orphan", lazy="joined")
 
     def __repr__(self):
         return f"<Project id={self.id} code={self.project_code} name={self.name}>"

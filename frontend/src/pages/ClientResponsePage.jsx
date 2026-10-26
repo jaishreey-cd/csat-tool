@@ -59,39 +59,60 @@ export default function ClientResponsePage() {
         return `"${str}"`;
       };
 
-      csvRows.push(["CSAT CLIENT EVALUATION RESPONSE REPORT"]);
-      csvRows.push([]);
-      csvRows.push(["Client Name", responseDetail.client_name || "—"]);
-      csvRows.push(["Project Name", responseDetail.project_name || "—"]);
-      csvRows.push(["Phase", responseDetail.phase || "—"]);
-      csvRows.push(["Submission Date", responseDetail.submission_date || "—"]);
-      csvRows.push(["Client Contact Name", responseDetail.client_contact_name || "—"]);
-      csvRows.push(["Client Contact Email", responseDetail.client_contact_email || "—"]);
-      csvRows.push(["Overall CSAT Score", responseDetail.overall_score != null ? `${responseDetail.overall_score.toFixed(2)} / 5.0` : "—"]);
-      csvRows.push(["Overall Satisfaction %", responseDetail.overall_percentage != null ? `${responseDetail.overall_percentage}%` : "—"]);
-      csvRows.push([]);
-      csvRows.push(["--- DETAILED SECTION EVALUATIONS ---"]);
-      csvRows.push(["Section #", "Section Title", "Question", "Response Type", "Rating / Answer", "Text Comment"]);
+      // Clean standardized CSV header
+      csvRows.push([
+        "Project Name",
+        "Client Name",
+        "Phase",
+        "Submission Date",
+        "Client Contact Name",
+        "Client Contact Email",
+        "Overall CSAT Score",
+        "Section #",
+        "Section Title",
+        "Question",
+        "Response Type",
+        "Rating (1-5)",
+        "Text Answer",
+      ]);
 
       (responseDetail.sections || []).forEach((sec) => {
         (sec.questions || []).forEach((q) => {
           csvRows.push([
+            responseDetail.project_name || "—",
+            responseDetail.client_name || "—",
+            responseDetail.phase || "—",
+            responseDetail.submission_date || "—",
+            responseDetail.client_contact_name || "—",
+            responseDetail.client_contact_email || "—",
+            responseDetail.overall_score != null ? responseDetail.overall_score.toFixed(2) : "—",
             sec.section_number,
             sec.section_title,
             q.question_text,
             q.response_type,
-            q.rating_score != null ? `${q.rating_score} / 5` : (q.text_answer || "—"),
+            q.rating_score != null ? q.rating_score : "",
             q.text_answer || "",
           ]);
         });
       });
 
       if (responseDetail.additional_comments && responseDetail.additional_comments.length > 0) {
-        csvRows.push([]);
-        csvRows.push(["--- QUALITATIVE / ADDITIONAL COMMENTS ---"]);
-        csvRows.push(["Comment"]);
-        responseDetail.additional_comments.forEach((c) => {
-          csvRows.push([c]);
+        responseDetail.additional_comments.forEach((comment) => {
+          csvRows.push([
+            responseDetail.project_name || "—",
+            responseDetail.client_name || "—",
+            responseDetail.phase || "—",
+            responseDetail.submission_date || "—",
+            responseDetail.client_contact_name || "—",
+            responseDetail.client_contact_email || "—",
+            responseDetail.overall_score != null ? responseDetail.overall_score.toFixed(2) : "—",
+            6,
+            "Qualitative Feedback & General Comments",
+            "General Comments",
+            "Text",
+            "",
+            comment,
+          ]);
         });
       }
 
@@ -99,9 +120,9 @@ export default function ClientResponsePage() {
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const cleanProject = (responseDetail.project_name || "Client_Response").replace(/[^a-zA-Z0-9_-]/g, "_");
+      const cleanProject = (responseDetail.project_name || "Project").trim().replace(/[/\\?%*:|"<>]/g, "_");
       link.setAttribute("href", url);
-      link.setAttribute("download", `${cleanProject}_CSAT_Response.csv`);
+      link.setAttribute("download", `${cleanProject}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -262,23 +283,25 @@ export default function ClientResponsePage() {
               background: "var(--badge-success-bg, rgba(34, 197, 94, 0.12))",
               border: "1px solid var(--badge-success-border, rgba(34, 197, 94, 0.35))",
               color: "var(--success, #22c55e)",
-              padding: "6px 14px",
+              padding: "0 14px",
+              height: "36px",
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
               borderRadius: "8px",
               cursor: "pointer",
             }}
             title="Download complete client response data as CSV"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            <span>{exporting ? "Exporting..." : "Export CSV"}</span>
+            <span style={{ whiteSpace: "nowrap", lineHeight: 1 }}>{exporting ? "Exporting..." : "Export CSV"}</span>
           </Button>
 
-          <span style={{ fontFamily: "monospace", fontSize: "12px", color: "var(--text-dim, #64748b)" }}>
-            Code: {survey_code}
-          </span>
+
           <span
             style={{
               display: "inline-flex",
@@ -373,7 +396,7 @@ export default function ClientResponsePage() {
               Project
             </div>
             <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--primary)", marginTop: "4px" }}>
-              {project_name} {project_code ? `(${project_code})` : ""}
+              {project_name}
             </div>
           </div>
 
@@ -556,7 +579,7 @@ export default function ClientResponsePage() {
           }}
         >
           <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px 0" }}>
-            💬 Key Client Comments & Takeaways ({additional_comments.length})
+            Key Client Comments & Takeaways ({additional_comments.length})
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {additional_comments.map((comment, i) => (

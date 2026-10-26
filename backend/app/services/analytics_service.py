@@ -9,6 +9,7 @@ from app.models.project import Project
 from app.models.client import Client
 from app.models.user import User
 from app.models.survey import Survey, SurveyQuestion, SurveyAnswer
+from app.models.project_pmo import ProjectPmoAssignment
 from app.schemas.analytics import (
     ProjectAnalyticsResponse,
     SectionScore,
@@ -19,6 +20,7 @@ from app.schemas.analytics import (
     PhaseScore,
     CategoryScore,
     ProjectMetric,
+    AssignedPmo,
     DashboardAnalyticsResponse,
 )
 
@@ -250,14 +252,27 @@ def get_dashboard_analytics(
     phase: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    pmo_user_id: Optional[int] = None,
     current_user: Optional[User] = None,
 ) -> DashboardAnalyticsResponse:
     """
     Fetch comprehensive dashboard analytics including overall metrics,
     dynamically loaded category rating averages, and project-level breakdown.
-    Strictly enforces role-based access control (Admin vs PMO User).
+    Strictly enforces role-based access control (Admin vs PMO User) and PMO assignment mapping.
     """
     from sqlalchemy.orm import joinedload
+
+    # Fetch active PMO users for Admin filter switcher
+    active_pmos = (
+        db.query(User)
+        .filter(User.is_active.is_(True))
+        .order_by(User.full_name, User.email)
+        .all()
+    )
+    pmo_users_list = [
+        AssignedPmo(id=u.id, full_name=u.full_name or u.email, email=u.email)
+        for u in active_pmos
+    ]
 
     query = (
         db.query(Survey)
@@ -267,14 +282,37 @@ def get_dashboard_analytics(
         )
     )
 
-    # 1. Role-Based Access Scoping: PMO Users see only their permitted surveys
-    if current_user and not is_admin_user(current_user):
-        user_survey_filter = (Survey.creator_id == current_user.id) | (Survey.reviewer_id == current_user.id)
+    # 1. Role-Based Access Scoping: PMO Users see only their permitted surveys / assigned projects
+    target_pmo_id = current_user.id if (current_user and not is_admin_user(current_user)) else pmo_user_id
+    assigned_pids = []
+
+    if target_pmo_id is not None:
+        assigned_pids = [
+            r[0] for r in db.query(ProjectPmoAssignment.project_id)
+            .filter(ProjectPmoAssignment.user_id == target_pmo_id)
+            .all()
+        ]
+
+        if assigned_pids:
+            user_survey_filter = (
+                (Survey.creator_id == target_pmo_id) |
+                (Survey.reviewer_id == target_pmo_id) |
+                (Survey.project_id.in_(assigned_pids))
+            )
+        else:
+            user_survey_filter = (
+                (Survey.creator_id == target_pmo_id) |
+                (Survey.reviewer_id == target_pmo_id)
+            )
+
         if project_id is not None:
-            user_has_access = db.query(Survey.id).filter(
-                Survey.project_id == project_id,
-                user_survey_filter
-            ).first()
+            user_has_access = (
+                (project_id in assigned_pids) or
+                db.query(Survey.id).filter(
+                    Survey.project_id == project_id,
+                    (Survey.creator_id == target_pmo_id) | (Survey.reviewer_id == target_pmo_id)
+                ).first() is not None
+            )
             if not user_has_access:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -447,6 +485,12 @@ def get_dashboard_analytics(
             p_avg = None
             p_pct = None
 
+        assigned_pmos = [
+            AssignedPmo(id=a.user.id, full_name=a.user.full_name or a.user.email, email=a.user.email)
+            for a in (proj.pmo_assignments or [])
+            if a.user
+        ] if proj else []
+
         projects_list.append(
             ProjectMetric(
                 project_id=pid,
@@ -462,8 +506,40 @@ def get_dashboard_analytics(
                 csat_percentage=p_pct,
                 has_low_rating=(p_avg is not None and p_avg < 3.5),
                 has_pending=(a_cnt > 0),
+                assigned_pmos=assigned_pmos,
             )
         )
+
+    # If scoped to a specific PMO, also include their assigned projects that haven't sent surveys yet
+    if target_pmo_id is not None and assigned_pids:
+        for apid in assigned_pids:
+            if apid not in project_map:
+                aproj = db.query(Project).filter(Project.id == apid).first()
+                if aproj:
+                    assigned_pmos = [
+                        AssignedPmo(id=a.user.id, full_name=a.user.full_name or a.user.email, email=a.user.email)
+                        for a in (aproj.pmo_assignments or [])
+                        if a.user
+                    ]
+                    projects_list.append(
+                        ProjectMetric(
+                            project_id=aproj.id,
+                            project_name=aproj.name,
+                            project_code=aproj.project_code,
+                            client_id=aproj.client_id,
+                            client_name=aproj.client.name if aproj.client else "Client",
+                            surveys_sent=0,
+                            submitted_responses=0,
+                            awaiting_responses=0,
+                            response_rate=0.0,
+                            average_csat=None,
+                            csat_percentage=None,
+                            has_low_rating=False,
+                            has_pending=False,
+                            assigned_pmos=assigned_pmos,
+                        )
+                    )
+
     projects_list.sort(key=lambda p: (p.submitted_responses, p.surveys_sent), reverse=True)
 
     return DashboardAnalyticsResponse(
@@ -476,5 +552,34 @@ def get_dashboard_analytics(
         response_rate=response_rate,
         categories=categories_list,
         projects=projects_list,
+        pmo_users=pmo_users_list,
     )
+
+def assign_project_pmos(db: Session, project_id: int, user_ids: List[int]) -> List[AssignedPmo]:
+    """Assign or update PMO users for a project."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Project with ID {project_id} not found."
+        )
+
+    # Clear existing assignments for this project
+    db.query(ProjectPmoAssignment).filter(ProjectPmoAssignment.project_id == project_id).delete()
+
+    # Add updated assignments
+    for uid in user_ids:
+        u = db.query(User).filter(User.id == uid, User.is_active.is_(True)).first()
+        if u:
+            assignment = ProjectPmoAssignment(project_id=project_id, user_id=uid)
+            db.add(assignment)
+
+    db.commit()
+    db.refresh(project)
+
+    return [
+        AssignedPmo(id=a.user.id, full_name=a.user.full_name or a.user.email, email=a.user.email)
+        for a in (project.pmo_assignments or [])
+        if a.user
+    ]
 

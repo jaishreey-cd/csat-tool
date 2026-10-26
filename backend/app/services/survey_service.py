@@ -10,6 +10,7 @@ from app.models.survey import Survey, SurveyQuestion, SurveyAnswer
 from app.models.question_template import QuestionTemplate
 from app.models.client import Client
 from app.models.project import Project
+from app.models.project_pmo import ProjectPmoAssignment
 from app.models.user import User
 from app.schemas.survey import (
     SurveyCreate,
@@ -32,7 +33,12 @@ def invalidate_surveys_cache():
     """Clear surveys list cache upon survey creation or state mutation."""
     _surveys_cache.clear()
 
-def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Survey:
+def create_survey(
+    db: Session,
+    survey_in: SurveyCreate,
+    creator_id: int,
+    current_user: Optional[User] = None,
+) -> Survey:
     """
     Create a new CSAT survey with strict section and question limits.
     Rules:
@@ -41,6 +47,8 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
       - No section can be skipped (all 6 sections must have >= 1 question).
       - Maximum 30 questions in total.
       - Sections 1-5 use star ratings; Section 6 is free-text.
+      - PMO Users must be assigned to the project.
+      - Phase uniqueness: each project phase can only be handled once.
     """
     # 1. Verify Client and Project
     client = db.query(Client).filter(Client.id == survey_in.client_id, Client.is_active.is_(True)).first()
@@ -57,6 +65,22 @@ def create_survey(db: Session, survey_in: SurveyCreate, creator_id: int) -> Surv
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Project not found, archived, or does not belong to the selected client"
         )
+
+    # Permission check for PMO user: must be assigned to this project
+    if current_user and current_user.role and "admin" not in current_user.role.lower():
+        is_assigned = db.query(ProjectPmoAssignment.id).filter(
+            ProjectPmoAssignment.project_id == project.id,
+            ProjectPmoAssignment.user_id == current_user.id
+        ).first() is not None
+        has_created = db.query(Survey.id).filter(
+            Survey.project_id == project.id,
+            Survey.creator_id == current_user.id
+        ).first() is not None
+        if not is_assigned and not has_created:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"You are not assigned to create surveys for project '{project.name}'."
+            )
 
     # 2. Validate Questions across 6 sections
     section_counts = {sec: 0 for sec in range(1, 7)}
@@ -218,8 +242,16 @@ def get_surveys(
     if current_user:
         is_admin = bool(current_user.role and "admin" in current_user.role.lower())
         if not is_admin:
+            assigned_project_ids = [
+                row[0]
+                for row in db.query(ProjectPmoAssignment.project_id)
+                .filter(ProjectPmoAssignment.user_id == current_user.id)
+                .all()
+            ]
             query = query.filter(
-                (Survey.creator_id == current_user.id) | (Survey.reviewer_id == current_user.id)
+                (Survey.creator_id == current_user.id)
+                | (Survey.reviewer_id == current_user.id)
+                | (Survey.project_id.in_(assigned_project_ids))
             )
 
     if status_filter:

@@ -445,7 +445,7 @@ export default function CreateSurveyPage() {
               flex: 1,
               background: "transparent",
               border: "none",
-              color: "var(--primary-lt, #1d4ed8)",
+              color: "var(--primary-lt, #60a5fa)",
               fontSize: "13px",
               fontFamily: "monospace",
               outline: "none",
@@ -656,7 +656,7 @@ export default function CreateSurveyPage() {
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: isSelected ? "var(--primary, #1d4ed8)" : "var(--text-dim, #64748b)", textTransform: "uppercase" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: isSelected ? "var(--primary, #60a5fa)" : "var(--text-dim, #64748b)", textTransform: "uppercase" }}>
                         Phase {phase.order} of 4
                       </span>
                       <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)" }}>
@@ -1298,7 +1298,6 @@ export default function CreateSurveyPage() {
             >
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "16px" }}>👁</span>
                   <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
                     Step 4: Preview & Dispatch Survey
                   </h3>

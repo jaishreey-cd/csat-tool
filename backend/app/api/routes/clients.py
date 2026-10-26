@@ -22,4 +22,4 @@ def get_clients(
     Supports ?include_archived=true toggle.
     Returns clients_data_last_updated timestamp.
     """
-    return get_clients_tree(db, search=search, include_archived=include_archived)
+    return get_clients_tree(db, search=search, include_archived=include_archived, current_user=current_user)

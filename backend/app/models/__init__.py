@@ -5,6 +5,7 @@ from app.models.import_batch import ImportBatch
 from app.models.import_change import ImportChange
 from app.models.survey import Survey, SurveyQuestion, SurveyAnswer
 from app.models.question_template import QuestionTemplate
+from app.models.project_pmo import ProjectPmoAssignment
 
 __all__ = [
     "User",
@@ -16,4 +17,5 @@ __all__ = [
     "SurveyQuestion",
     "SurveyAnswer",
     "QuestionTemplate",
+    "ProjectPmoAssignment",
 ]

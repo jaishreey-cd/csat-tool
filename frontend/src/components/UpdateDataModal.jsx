@@ -632,10 +632,7 @@ function DiffExpandList({ title, items = [], showChanges = false }) {
           }}
         >
           <div>
-            <code style={{ color: "var(--primary-lt, #60a5fa)", marginRight: "8px" }}>
-              {item.entity_code}
-            </code>
-            <span style={{ color: "var(--text-main, #e2e8f0)" }}>{item.name}</span>
+            <span style={{ color: "var(--text-main, #e2e8f0)", fontWeight: 500 }}>{item.name}</span>
           </div>
 
           {showChanges && item.changes && item.changes.length > 0 && (

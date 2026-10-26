@@ -396,7 +396,7 @@ export default function DashboardPage() {
         <div style={{ position: "relative", flex: 1, minWidth: "260px", maxWidth: "480px" }}>
           <input
             type="text"
-            placeholder="Search by client or project name / code..."
+            placeholder="Search by client or project name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{

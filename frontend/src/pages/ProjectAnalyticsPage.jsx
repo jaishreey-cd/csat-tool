@@ -24,14 +24,12 @@ export default function ProjectAnalyticsPage() {
   const [categoryChartView, setCategoryChartView] = useState("BAR"); // 'BAR' | 'RADAR' | 'DISTRIBUTION' | 'GAUGES'
   const [commentSearch, setCommentSearch] = useState("");
   const [exportingFormat, setExportingFormat] = useState(null);
-  const [showExportMenu, setShowExportMenu] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "info" });
 
-  const handleExport = async (format) => {
-    setExportingFormat(format);
-    setShowExportMenu(false);
+  const handleExportCsv = async () => {
+    setExportingFormat("csv");
     try {
-      await analyticsApi.exportProjectAnalytics(projectId, format);
+      await analyticsApi.exportProjectAnalytics(projectId, "csv");
     } catch (err) {
       console.error("Export error:", err);
       setToast({ message: "Failed to download export report. Please try again.", type: "danger" });
@@ -197,100 +195,57 @@ export default function ProjectAnalyticsPage() {
             fontWeight: 600,
             cursor: "pointer",
             padding: "4px 0",
+            whiteSpace: "nowrap",
           }}
         >
           <span>←</span>
           <span>Back to Dashboard</span>
         </button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", position: "relative" }}>
-          {/* Export Report Dropdown */}
-          <div style={{ position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={!!exportingFormat}
+            onClick={handleExportCsv}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              whiteSpace: "nowrap",
+              height: "36px",
+              padding: "0 14px",
+              fontSize: "13px",
+              fontWeight: 500,
+              lineHeight: 1,
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ fontSize: "14px", lineHeight: 1 }}>{exportingFormat ? "⏳" : "📥"}</span>
+            <span style={{ whiteSpace: "nowrap", lineHeight: 1 }}>
+              {exportingFormat ? "Exporting CSV..." : "Export CSV"}
+            </span>
+          </Button>
+
+          <Link to={`/surveys/new?client=${data.client_id}&project=${data.project_id}`} style={{ textDecoration: "none" }}>
             <Button
-              variant="secondary"
+              variant="primary"
               size="sm"
-              disabled={!!exportingFormat}
-              onClick={() => setShowExportMenu(!showExportMenu)}
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                whiteSpace: "nowrap",
+                height: "36px",
+                padding: "0 14px",
+                fontSize: "13px",
+                fontWeight: 500,
+                lineHeight: 1,
+                flexShrink: 0,
+              }}
             >
-              <span>{exportingFormat ? "⏳" : "📥"}</span>
-              <span>{exportingFormat ? `Exporting ${exportingFormat.toUpperCase()}...` : "Export Report ▾"}</span>
-            </Button>
-
-            {showExportMenu && (
-              <div
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  top: "calc(100% + 6px)",
-                  background: "var(--bg-surface, #0d1b2a)",
-                  border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.3))",
-                  borderRadius: "8px",
-                  boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-                  padding: "6px",
-                  zIndex: 50,
-                  minWidth: "170px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "4px",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => handleExport("xlsx")}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "8px 12px",
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: "6px",
-                    color: "var(--text-white, #ffffff)",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    textAlign: "left",
-                    transition: "background 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(96, 165, 250, 0.15)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <span style={{ color: "#22c55e", fontWeight: 700 }}>📊</span>
-                  <span>Excel (.xlsx)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleExport("csv")}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "8px 12px",
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: "6px",
-                    color: "var(--text-white, #ffffff)",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    textAlign: "left",
-                    transition: "background 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(96, 165, 250, 0.15)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <span style={{ color: "#38bdf8", fontWeight: 700 }}>📄</span>
-                  <span>CSV (.csv)</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          <Link to={`/surveys/new?client=${data.client_id}&project=${data.project_id}`}>
-            <Button variant="primary" size="sm" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-              <span>＋</span>
-              <span>Create Survey</span>
+              <span style={{ fontSize: "14px", lineHeight: 1 }}>＋</span>
+              <span style={{ whiteSpace: "nowrap", lineHeight: 1 }}>Create Survey</span>
             </Button>
           </Link>
         </div>
@@ -588,6 +543,7 @@ export default function ProjectAnalyticsPage() {
           gap: "8px",
           borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
           paddingBottom: "2px",
+          overflowX: "auto",
         }}
       >
         <button
@@ -606,6 +562,8 @@ export default function ProjectAnalyticsPage() {
             display: "inline-flex",
             alignItems: "center",
             gap: "6px",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           <span>Phase-wise CSAT (%)</span>
@@ -639,6 +597,8 @@ export default function ProjectAnalyticsPage() {
             display: "inline-flex",
             alignItems: "center",
             gap: "6px",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           <span>Category Visualizations</span>
@@ -669,6 +629,8 @@ export default function ProjectAnalyticsPage() {
             fontWeight: 600,
             cursor: "pointer",
             transition: "all 0.15s ease",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           Section Breakdown
@@ -690,6 +652,8 @@ export default function ProjectAnalyticsPage() {
             display: "inline-flex",
             alignItems: "center",
             gap: "6px",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           <span>Client Comments</span>
@@ -721,6 +685,8 @@ export default function ProjectAnalyticsPage() {
             display: "inline-flex",
             alignItems: "center",
             gap: "6px",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           <span>Survey History</span>
@@ -901,10 +867,10 @@ export default function ProjectAnalyticsPage() {
               }}
             >
               {[
-                { id: "BAR", label: "📊 Bar Chart" },
-                { id: "RADAR", label: "🕸 Radar Chart" },
-                { id: "DISTRIBUTION", label: "📶 Rating Distribution" },
-                { id: "GAUGES", label: "⭕ Circular Gauges" },
+                { id: "BAR", label: "Bar Chart" },
+                { id: "RADAR", label: "Radar Chart" },
+                { id: "DISTRIBUTION", label: "Rating Distribution" },
+                { id: "GAUGES", label: "Circular Gauges" },
               ].map((tab) => {
                 const active = categoryChartView === tab.id;
                 return (
@@ -922,6 +888,7 @@ export default function ProjectAnalyticsPage() {
                       background: active ? "var(--primary, #2563eb)" : "transparent",
                       color: active ? "#ffffff" : "var(--text-secondary, #94a3b8)",
                       transition: "all 0.15s ease",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {tab.label}
@@ -1094,7 +1061,7 @@ export default function ProjectAnalyticsPage() {
                 color: "var(--text-dim, #64748b)",
               }}
             >
-              💬 No qualitative comments recorded for this project yet.
+              No qualitative comments recorded for this project yet.
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>

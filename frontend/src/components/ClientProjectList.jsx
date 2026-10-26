@@ -520,56 +520,50 @@ export default function ClientProjectList({
                                   <Link
                                     to={`/surveys?search=${encodeURIComponent(proj.name)}`}
                                     onClick={(e) => e.stopPropagation()}
-                                    style={{ textDecoration: "none" }}
+                                    className="survey-view-btn"
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "5px",
+                                      whiteSpace: "nowrap",
+                                      background: "rgba(6, 182, 212, 0.12)",
+                                      border: "1px solid rgba(6, 182, 212, 0.3)",
+                                      color: "var(--accent, #06b6d4)",
+                                      borderRadius: "var(--radius-sm, 6px)",
+                                      padding: "5px 12px",
+                                      fontSize: "11px",
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                      textDecoration: "none",
+                                      transition: "all 0.15s ease",
+                                    }}
                                   >
-                                    <button
-                                      type="button"
-                                      className="survey-view-btn"
-                                      style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: "5px",
-                                        background: "rgba(6, 182, 212, 0.12)",
-                                        border: "1px solid rgba(6, 182, 212, 0.3)",
-                                        color: "var(--accent, #06b6d4)",
-                                        borderRadius: "var(--radius-sm, 6px)",
-                                        padding: "5px 12px",
-                                        fontSize: "11px",
-                                        fontWeight: 600,
-                                        cursor: "pointer",
-                                        transition: "all 0.15s ease",
-                                      }}
-                                    >
-                                      View Survey
-                                    </button>
+                                    View Survey
                                   </Link>
                                 ) : (
                                   <Link
                                     to={`/surveys/new?client=${client.id}&project=${proj.id}`}
                                     onClick={(e) => e.stopPropagation()}
-                                    style={{ textDecoration: "none" }}
+                                    className="survey-action-btn"
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "5px",
+                                      whiteSpace: "nowrap",
+                                      background: "rgba(37, 99, 235, 0.15)",
+                                      border: "1px solid rgba(96, 165, 250, 0.3)",
+                                      color: "var(--primary-lt, #60a5fa)",
+                                      borderRadius: "var(--radius-sm, 6px)",
+                                      padding: "5px 12px",
+                                      fontSize: "11px",
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                      textDecoration: "none",
+                                      transition: "all 0.15s ease",
+                                    }}
                                   >
-                                    <button
-                                      type="button"
-                                      className="survey-action-btn"
-                                      style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: "5px",
-                                        background: "rgba(37, 99, 235, 0.15)",
-                                        border: "1px solid rgba(96, 165, 250, 0.3)",
-                                        color: "var(--primary-lt, #60a5fa)",
-                                        borderRadius: "var(--radius-sm, 6px)",
-                                        padding: "5px 12px",
-                                        fontSize: "11px",
-                                        fontWeight: 600,
-                                        cursor: "pointer",
-                                        transition: "all 0.15s ease",
-                                      }}
-                                    >
-                                      <span>＋</span>
-                                      <span>Survey</span>
-                                    </button>
+                                    <span>＋</span>
+                                    <span style={{ whiteSpace: "nowrap" }}>Survey</span>
                                   </Link>
                                 )}
                               </div>

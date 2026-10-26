@@ -32,7 +32,7 @@ export default function Logo({ size = "md", showText = true, className = "" }) {
       />
 
       {showText && (
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+        <div style={{ display: "inline-flex", alignItems: "center" }}>
           <span
             style={{
               fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
@@ -46,17 +46,6 @@ export default function Logo({ size = "md", showText = true, className = "" }) {
           >
             CSAT
           </span>
-          <span
-            style={{
-              width: current.dotSize,
-              height: current.dotSize,
-              borderRadius: "50%",
-              backgroundColor: "var(--primary-lt, #60a5fa)",
-              boxShadow: "0 0 10px rgba(96, 165, 250, 0.6)",
-              display: "inline-block",
-            }}
-            aria-hidden="true"
-          />
         </div>
       )}
     </div>

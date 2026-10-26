@@ -85,19 +85,8 @@ export default function Topbar({ onToggleSidebar }) {
             letterSpacing: "-0.3px",
             display: "flex",
             alignItems: "center",
-            gap: "10px",
           }}
         >
-          <span
-            style={{
-              width: "7px",
-              height: "7px",
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, var(--accent, #38bdf8), var(--primary, #60a5fa))",
-              boxShadow: "0 0 8px rgba(37, 99, 235, 0.6)",
-              flexShrink: 0,
-            }}
-          />
           {currentTitle}
         </h1>
       </div>

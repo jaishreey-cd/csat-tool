@@ -84,6 +84,14 @@ class CategoryScore(BaseModel):
     csat_percentage: Optional[float] = None
     rating_distribution: Dict[str, int] = {}
 
+class AssignedPmo(BaseModel):
+    id: int
+    full_name: Optional[str] = None
+    email: str
+
+class ProjectPmoAssignRequest(BaseModel):
+    user_ids: List[int]
+
 class ProjectMetric(BaseModel):
     project_id: int
     project_name: str
@@ -98,6 +106,7 @@ class ProjectMetric(BaseModel):
     csat_percentage: Optional[float] = None
     has_low_rating: bool = False
     has_pending: bool = False
+    assigned_pmos: List[AssignedPmo] = []
 
 class DashboardAnalyticsResponse(BaseModel):
     total_surveys: int
@@ -109,6 +118,7 @@ class DashboardAnalyticsResponse(BaseModel):
     response_rate: float = 0.0
     categories: List[CategoryScore] = []
     projects: List[ProjectMetric] = []
+    pmo_users: List[AssignedPmo] = []
     definition_note: str = (
         "CSAT percentage represents the share of valid submitted ratings that are 4 or 5 on a 5-point scale. "
         "Pending surveys and unanswered questions are strictly excluded from rating averages."

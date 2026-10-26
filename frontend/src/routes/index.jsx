@@ -61,8 +61,8 @@ export default function AppRoutes() {
           }
         />
 
-        {/* User Survey Results Route */}
-        <Route path="/results" element={<UserResultsPage />} />
+        {/* User Survey Results Route redirected to unified dashboard */}
+        <Route path="/results" element={<Navigate to="/dashboard" replace />} />
 
         {/* Inside Project Analytics Dashboard */}
         <Route path="/projects/:projectId/analytics" element={<ProjectAnalyticsPage />} />

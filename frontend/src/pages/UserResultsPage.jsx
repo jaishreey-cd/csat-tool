@@ -7,7 +7,7 @@ import Button from "../components/Button";
 import Badge from "../components/Badge";
 import Spinner from "../components/Spinner";
 import Toast from "../components/Toast";
-import { ResendMailButton } from "../components/SurveyActionButtons";
+import { ResendMailButton, ViewResponseButton } from "../components/SurveyActionButtons";
 
 export default function UserResultsPage() {
   const [surveys, setSurveys] = useState(() => {
@@ -88,8 +88,8 @@ export default function UserResultsPage() {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "28px" }}>
         <div>
-          <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ color: "var(--primary, #3b82f6)" }}>•</span> Survey Results
+          <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center" }}>
+            Survey Results
           </h1>
           <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginTop: "6px" }}>
             Real-time CSAT feedback, response rates, and client ratings for your authorized surveys.
@@ -206,15 +206,15 @@ export default function UserResultsPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
               <thead>
-                <tr style={{ background: "var(--bg-table-header)", borderBottom: "1px solid var(--border)", textAlign: "left", color: "var(--text-muted)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.6px" }}>
-                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Client</th>
-                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Project</th>
-                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Phase</th>
-                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Status</th>
-                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Average CSAT</th>
-                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Client Contact</th>
-                  <th style={{ padding: "12px 14px", fontWeight: 700 }}>Sent Date</th>
-                  <th style={{ padding: "12px 14px", textAlign: "right", fontWeight: 700 }}>Actions</th>
+                <tr style={{ background: "var(--bg-table-header)", borderBottom: "1px solid var(--border)", textAlign: "left", color: "var(--text-secondary)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client</th>
+                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Project</th>
+                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Phase</th>
+                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Status</th>
+                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Average CSAT</th>
+                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client Contact</th>
+                  <th style={{ padding: "14px 18px", fontWeight: 700 }}>Sent Date</th>
+                  <th style={{ padding: "14px 18px", textAlign: "right", fontWeight: 700, minWidth: "160px", whiteSpace: "nowrap" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -229,29 +229,51 @@ export default function UserResultsPage() {
                     onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-table-row-hover)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    <td style={{ padding: "12px", fontWeight: 600, color: "var(--text-primary)" }}>{s.client?.name || "—"}</td>
-                    <td style={{ padding: "12px" }}>{s.project?.name || "—"}</td>
-                    <td style={{ padding: "12px" }}>
-                      <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "10px", background: "var(--primary-badge-bg)", color: "var(--primary)" }}>
-                        {s.phase}
-                      </span>
+                    <td style={{ padding: "14px 18px", fontWeight: 600, color: "var(--text-primary, #ffffff)" }}>
+                      {s.client?.name || "—"}
                     </td>
-                    <td style={{ padding: "12px" }}>
+                    <td style={{ padding: "14px 18px" }}>
+                      {s.project ? (
+                        <Link
+                          to={`/projects/${s.project.id}/analytics`}
+                          style={{
+                            fontSize: "13px",
+                            color: "var(--primary-lt, #60a5fa)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            textDecoration: "none",
+                            fontWeight: 500,
+                            whiteSpace: "nowrap",
+                          }}
+                          title="View dedicated project analytics dashboard"
+                        >
+                          <span>{s.project.name}</span>
+                          <span style={{ fontSize: "10px" }}>↗</span>
+                        </Link>
+                      ) : (
+                        <span style={{ color: "var(--text-muted, #94a3b8)" }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ padding: "14px 18px" }}>
+                      <Badge variant="count">{s.phase}</Badge>
+                    </td>
+                    <td style={{ padding: "14px 18px" }}>
                       <Badge variant={s.status === "Completed" ? "success" : s.status === "Sent" ? "info" : "neutral"}>
                         {s.status}
                       </Badge>
                     </td>
-                    <td style={{ padding: "12px", fontWeight: 700, color: s.average_score ? "var(--success)" : "var(--text-muted)" }}>
+                    <td style={{ padding: "14px 18px", fontWeight: 700, color: s.average_score ? "var(--success, #22c55e)" : "var(--text-muted, #94a3b8)" }}>
                       {s.average_score ? `${Number(s.average_score).toFixed(2)} ★` : "—"}
                     </td>
-                    <td style={{ padding: "12px", color: "var(--text-secondary)" }}>
+                    <td style={{ padding: "14px 18px", color: "var(--text-secondary, #94a3b8)", fontSize: "12px" }}>
                       {s.client_contact_email || "—"}
                     </td>
-                    <td style={{ padding: "12px", color: "var(--text-secondary)", fontSize: "12px", whiteSpace: "nowrap" }}>
+                    <td style={{ padding: "14px 18px", color: "var(--text-secondary, #94a3b8)", fontSize: "12px", whiteSpace: "nowrap" }}>
                       {s.sent_at ? new Date(s.sent_at).toLocaleDateString() : (s.created_at ? new Date(s.created_at).toLocaleDateString() : "—")}
                     </td>
-                    <td style={{ padding: "12px", textAlign: "right" }}>
-                      <div style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
+                    <td style={{ padding: "14px 18px", textAlign: "right", whiteSpace: "nowrap" }}>
+                      <div style={{ display: "inline-flex", gap: "8px", alignItems: "center", justifyContent: "flex-end" }}>
                         {s.client_contact_email && s.status !== "Completed" && (
                           <ResendMailButton
                             onClick={() => handleResendEmail(s)}
@@ -260,37 +282,7 @@ export default function UserResultsPage() {
                           />
                         )}
                         {s.status === "Completed" && (
-                          <Link
-                            to={`/responses/${s.id}`}
-                            title="View submitted client response details"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "5px",
-                              fontSize: "12px",
-                              fontWeight: 600,
-                              color: "var(--primary)",
-                              textDecoration: "none",
-                              padding: "0 10px",
-                              height: "32px",
-                              borderRadius: "6px",
-                              border: "1px solid var(--border)",
-                              background: "var(--primary-badge-bg)",
-                              transition: "all 0.15s ease",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.borderColor = "var(--primary)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.borderColor = "var(--border)";
-                            }}
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="12" r="3" />
-                            </svg>
-                            View Response
-                          </Link>
+                          <ViewResponseButton to={`/responses/${s.id}`} />
                         )}
                       </div>
                     </td>

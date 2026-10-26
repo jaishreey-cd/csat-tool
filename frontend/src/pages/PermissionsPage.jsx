@@ -484,7 +484,7 @@ export default function PermissionsPage() {
                   <th style={{ padding: "14px 20px", fontWeight: 700 }}>Full Name</th>
                   <th style={{ padding: "14px 20px", fontWeight: 700 }}>Role</th>
                   <th style={{ padding: "14px 20px", fontWeight: 700 }}>Status</th>
-                  <th style={{ padding: "14px 20px", fontWeight: 700, textAlign: "right" }}>Actions</th>
+                  <th style={{ padding: "14px 20px", fontWeight: 700, textAlign: "right", minWidth: "140px", whiteSpace: "nowrap" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -543,7 +543,7 @@ export default function PermissionsPage() {
                         </span>
                       </td>
 
-                      <td style={{ padding: "14px 20px", textAlign: "right" }}>
+                      <td style={{ padding: "14px 20px", textAlign: "right", whiteSpace: "nowrap" }}>
                         {isInitialAdmin ? (
                           <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
                             Permanent Owner
@@ -555,12 +555,20 @@ export default function PermissionsPage() {
                             disabled={!u.is_active && (u.role || "").trim().toLowerCase() === "admin" && adminCountInfo.active_admin_count >= 3}
                             title={!u.is_active && (u.role || "").trim().toLowerCase() === "admin" && adminCountInfo.active_admin_count >= 3 ? "3-Admin limit reached. Revoke another Admin first." : undefined}
                             style={{
-                              background: "transparent",
-                              border: `1px solid ${u.is_active ? "rgba(248, 113, 113, 0.3)" : "rgba(74, 222, 128, 0.3)"}`,
+                              background: u.is_active ? "rgba(239, 68, 68, 0.08)" : "rgba(34, 197, 94, 0.08)",
+                              border: `1px solid ${u.is_active ? "rgba(248, 113, 113, 0.35)" : "rgba(74, 222, 128, 0.35)"}`,
                               color: u.is_active ? "#f87171" : "#4ade80",
                               opacity: !u.is_active && (u.role || "").trim().toLowerCase() === "admin" && adminCountInfo.active_admin_count >= 3 ? 0.5 : 1,
-                              padding: "4px 10px",
-                              borderRadius: "4px",
+                              padding: "0 12px",
+                              height: "32px",
+                              minWidth: "120px",
+                              whiteSpace: "nowrap",
+                              boxSizing: "border-box",
+                              lineHeight: "1",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              borderRadius: "6px",
                               fontSize: "12px",
                               cursor: !u.is_active && (u.role || "").trim().toLowerCase() === "admin" && adminCountInfo.active_admin_count >= 3 ? "not-allowed" : "pointer",
                               fontWeight: 600,

@@ -63,7 +63,7 @@ def export_project_analytics(db: Session, project_id: int, format: str = "csv") 
         ws1.title = "Project CSAT Summary"
 
         # Title Block
-        ws1.cell(row=1, column=1, value=f"{analytics.project_name} ({analytics.project_code})").font = TITLE_FONT
+        ws1.cell(row=1, column=1, value=f"{analytics.project_name}").font = TITLE_FONT
         ws1.cell(row=2, column=1, value=f"Client: {analytics.client_name} | Generated CSAT Performance Report").font = SUBTITLE_FONT
 
         # KPI Block
@@ -122,7 +122,7 @@ def export_project_analytics(db: Session, project_id: int, format: str = "csv") 
 
         # ── Sheet 2: Surveys History ───────────────────────────────────────
         ws2 = wb.create_sheet(title="Survey Registry")
-        ws2_headers = ["Survey Code", "Phase", "Status", "CSAT Score", "Client Contact", "Contact Email", "Sent At", "Completed At"]
+        ws2_headers = ["Phase", "Status", "CSAT Score", "Client Contact", "Contact Email", "Sent At", "Completed At"]
         for c_idx, h in enumerate(ws2_headers, start=1):
             cell = ws2.cell(row=1, column=c_idx, value=h)
             cell.font = HEADER_FONT
@@ -130,7 +130,6 @@ def export_project_analytics(db: Session, project_id: int, format: str = "csv") 
 
         for r_idx, item in enumerate(analytics.timeline, start=2):
             vals = [
-                item.survey_code,
                 item.phase,
                 item.status,
                 f"{item.average_score:.2f}" if item.average_score is not None else "-",
@@ -184,7 +183,6 @@ def export_project_analytics(db: Session, project_id: int, format: str = "csv") 
         # Header Block
         writer.writerow(["=== CSAT PROJECT PERFORMANCE REPORT ==="])
         writer.writerow(["Project Name", analytics.project_name])
-        writer.writerow(["Project Code", analytics.project_code])
         writer.writerow(["Client", analytics.client_name])
         writer.writerow(["Delivery Team", analytics.team_name or "N/A"])
         writer.writerow(["Overall CSAT Score", f"{analytics.overall_csat:.2f}" if analytics.overall_csat is not None else "N/A"])
@@ -239,9 +237,10 @@ def export_project_analytics(db: Session, project_id: int, format: str = "csv") 
                 c.submitted_at or "-",
             ])
 
-        content = output.getvalue().encode("utf-8")
-        filename = f"{safe_code}_CSAT_Report.csv"
-        return content, filename, "text/csv"
+        content = ("\ufeff" + output.getvalue()).encode("utf-8")
+        safe_name = sanitize_filename(analytics.project_name)
+        filename = f"{safe_name}.csv"
+        return content, filename, "text/csv; charset=utf-8"
 
 # ── Surveys Registry Export ─────────────────────────────────────────────────
 def export_surveys_registry(
@@ -358,7 +357,6 @@ def export_portfolio_overview(db: Session, format: str = "csv") -> Tuple[bytes, 
     overview = get_system_overview(db)
 
     headers = [
-        "Project Code",
         "Project Name",
         "Client Name",
         "Project Manager",
@@ -393,7 +391,6 @@ def export_portfolio_overview(db: Session, format: str = "csv") -> Tuple[bytes, 
             resp_rate = round(len(p_completed) / len(p_surveys) * 100, 1) if p_surveys else 0.0
 
             vals = [
-                p.project_code,
                 p.name,
                 p.client.name if p.client else "-",
                 p.team_name or "-",
@@ -435,7 +432,6 @@ def export_portfolio_overview(db: Session, format: str = "csv") -> Tuple[bytes, 
             resp_rate = round(len(p_completed) / len(p_surveys) * 100, 1) if p_surveys else 0.0
 
             writer.writerow([
-                p.project_code,
                 p.name,
                 p.client.name if p.client else "-",
                 p.team_name or "-",

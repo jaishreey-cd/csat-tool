@@ -10,7 +10,7 @@ import Input from "../components/Input";
 import Select from "../components/Select";
 import Spinner from "../components/Spinner";
 import Toast from "../components/Toast";
-import { ResendMailButton } from "../components/SurveyActionButtons";
+import { ResendMailButton, ViewResponseButton } from "../components/SurveyActionButtons";
 import { SURVEY_PHASES } from "../data/questionBank";
 import CategoryRadarChart from "../components/charts/CategoryRadarChart";
 import CategoryBarChart from "../components/charts/CategoryBarChart";
@@ -70,9 +70,47 @@ export default function SurveysPage({ scope = null }) {
   const [analyticsDatePreset, setAnalyticsDatePreset] = useState("ALL");
   const [categoryChartView, setCategoryChartView] = useState("BAR");
   const [projectAttentionFilter, setProjectAttentionFilter] = useState("ALL");
+  const [selectedPmoId, setSelectedPmoId] = useState("");
+  const [assignModalProject, setAssignModalProject] = useState(null);
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState([]);
+  const [assigningPmos, setAssigningPmos] = useState(false);
+
+  const openAssignModal = (project) => {
+    setAssignModalProject(project);
+    const currentIds = (project.assigned_pmos || []).map((u) => u.id);
+    setSelectedAssigneeIds(currentIds);
+  };
+
+  const handleToggleAssignee = (userId) => {
+    setSelectedAssigneeIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const handleSaveAssignments = async () => {
+    if (!assignModalProject) return;
+    try {
+      setAssigningPmos(true);
+      await analyticsApi.assignProjectPmos(assignModalProject.project_id, selectedAssigneeIds);
+      setToast({
+        message: `PMO assignments updated for ${assignModalProject.project_name}!`,
+        type: "success",
+      });
+      setAssignModalProject(null);
+      fetchAnalytics(analyticsDatePreset, selectedProjectId, selectedPmoId);
+    } catch (err) {
+      console.error("Failed to assign PMOs:", err);
+      setToast({
+        message: err?.response?.data?.detail || "Failed to update PMO assignments.",
+        type: "danger",
+      });
+    } finally {
+      setAssigningPmos(false);
+    }
+  };
 
   // Fetch Dashboard Analytics with role scoping & project filter
-  const fetchAnalytics = useCallback(async (preset = analyticsDatePreset, projId = selectedProjectId) => {
+  const fetchAnalytics = useCallback(async (preset = analyticsDatePreset, projId = selectedProjectId, pmoId = selectedPmoId) => {
     setAnalyticsLoading(true);
     setAnalyticsError("");
 
@@ -98,6 +136,7 @@ export default function SurveysPage({ scope = null }) {
       if (start_date) params.start_date = start_date;
       if (end_date) params.end_date = end_date;
       if (projId && projId !== "ALL") params.project_id = Number(projId);
+      if (pmoId && pmoId !== "ALL" && pmoId !== "") params.pmo_user_id = Number(pmoId);
       const data = await analyticsApi.getDashboardAnalytics(params);
       setAnalytics(data);
     } catch (err) {
@@ -106,7 +145,7 @@ export default function SurveysPage({ scope = null }) {
     } finally {
       setAnalyticsLoading(false);
     }
-  }, [analyticsDatePreset, selectedProjectId]);
+  }, [analyticsDatePreset, selectedProjectId, selectedPmoId]);
 
   // Fetch surveys and clients independently (Original logic preserved)
   const fetchSurveys = async (force = false) => {
@@ -326,7 +365,7 @@ export default function SurveysPage({ scope = null }) {
               }}
             >
               <option value="ALL">
-                {isAdmin ? "🌐 All Projects (Portfolio)" : "📁 All My Projects"}
+                {isAdmin ? "All Projects (Portfolio)" : "All My Projects"}
               </option>
               {availableProjects.map((p) => (
                 <option key={p.project_id} value={String(p.project_id)}>
@@ -335,6 +374,44 @@ export default function SurveysPage({ scope = null }) {
               ))}
             </select>
           </div>
+
+          {/* PMO Filter Switcher (Admin Only) */}
+          {isAdmin && analytics?.pmo_users && analytics.pmo_users.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
+                PMO:
+              </span>
+              <select
+                id="pmo-filter-select"
+                value={selectedPmoId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedPmoId(val);
+                  fetchAnalytics(analyticsDatePreset, selectedProjectId, val);
+                }}
+                style={{
+                  height: "36px",
+                  padding: "0 12px",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  background: "var(--bg-card, #18263B)",
+                  border: "1px solid var(--border, #33465f)",
+                  color: "var(--text-primary, #ffffff)",
+                  cursor: "pointer",
+                  outline: "none",
+                  boxShadow: "var(--shadow-sm)",
+                }}
+              >
+                <option value="">All PMOs</option>
+                {analytics.pmo_users.map((u) => (
+                  <option key={u.id} value={String(u.id)}>
+                    {u.full_name || u.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Date Filter Tabs for Analytics */}
           <div
@@ -371,6 +448,7 @@ export default function SurveysPage({ scope = null }) {
                     borderRadius: "7px",
                     border: "none",
                     cursor: "pointer",
+                    whiteSpace: "nowrap",
                     background: active ? "linear-gradient(135deg, var(--primary), var(--primary-hover))" : "transparent",
                     color: active ? "#ffffff" : "var(--text-muted, #94a3b8)",
                     boxShadow: active ? "0 2px 8px rgba(37, 99, 235, 0.4)" : "none",
@@ -401,7 +479,6 @@ export default function SurveysPage({ scope = null }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ fontSize: "20px" }}>🎯</span>
             <div>
               <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary, #ffffff)" }}>
                 Viewing Scoped Analytics: {selectedProjectObj.project_name}
@@ -422,6 +499,7 @@ export default function SurveysPage({ scope = null }) {
                 fontWeight: 700,
                 padding: "6px 14px",
                 borderRadius: "6px",
+                whiteSpace: "nowrap",
                 background: "var(--primary, #2563eb)",
                 color: "#ffffff",
                 textDecoration: "none",
@@ -442,6 +520,7 @@ export default function SurveysPage({ scope = null }) {
                 fontWeight: 600,
                 padding: "6px 12px",
                 borderRadius: "6px",
+                whiteSpace: "nowrap",
                 background: "transparent",
                 border: "1px solid var(--border, #33465f)",
                 color: "var(--text-muted, #94a3b8)",
@@ -682,7 +761,7 @@ export default function SurveysPage({ scope = null }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
           <div>
             <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-primary, #ffffff)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>📊 Category CSAT Performance</span>
+              <span>Category CSAT Performance</span>
             </h2>
             <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
               Average client satisfaction across feedback evaluation categories.
@@ -721,6 +800,7 @@ export default function SurveysPage({ scope = null }) {
                         borderRadius: "6px",
                         border: "none",
                         cursor: "pointer",
+                        whiteSpace: "nowrap",
                         background: active ? "var(--primary, #2563eb)" : "transparent",
                         color: active ? "#ffffff" : "var(--text-secondary, #94a3b8)",
                         transition: "all 0.15s ease",
@@ -752,6 +832,7 @@ export default function SurveysPage({ scope = null }) {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
+                whiteSpace: "nowrap",
                 transition: "all 0.15s ease",
               }}
             >
@@ -844,13 +925,14 @@ export default function SurveysPage({ scope = null }) {
                 borderRadius: "8px",
                 border: "none",
                 cursor: "pointer",
+                whiteSpace: "nowrap",
                 background: activeTableTab === "surveys" ? "var(--primary, #2563eb)" : "transparent",
                 color: activeTableTab === "surveys" ? "#ffffff" : "var(--text-muted, #94a3b8)",
                 boxShadow: activeTableTab === "surveys" ? "0 2px 6px rgba(37, 99, 235, 0.4)" : "none",
                 transition: "all 0.15s ease",
               }}
             >
-              <span>✉️ Dispatched Surveys</span>
+              <span>Dispatched Surveys</span>
               <span
                 style={{
                   fontSize: "11px",
@@ -877,24 +959,14 @@ export default function SurveysPage({ scope = null }) {
                 borderRadius: "8px",
                 border: "none",
                 cursor: "pointer",
+                whiteSpace: "nowrap",
                 background: activeTableTab === "projects" ? "var(--primary, #2563eb)" : "transparent",
                 color: activeTableTab === "projects" ? "#ffffff" : "var(--text-muted, #94a3b8)",
                 boxShadow: activeTableTab === "projects" ? "0 2px 6px rgba(37, 99, 235, 0.4)" : "none",
                 transition: "all 0.15s ease",
               }}
             >
-              <span>📁 Projects Performance</span>
-              <span
-                style={{
-                  fontSize: "11px",
-                  padding: "1px 6px",
-                  borderRadius: "10px",
-                  background: activeTableTab === "projects" ? "rgba(255,255,255,0.25)" : "var(--bg-card, #18263B)",
-                  color: "#ffffff",
-                }}
-              >
-                {projectMetricsList.length}
-              </span>
+              <span>Projects Performance</span>
             </button>
           </div>
 
@@ -911,6 +983,7 @@ export default function SurveysPage({ scope = null }) {
                   border: "none",
                   borderRadius: "6px",
                   cursor: "pointer",
+                  whiteSpace: "nowrap",
                   background: projectAttentionFilter === "ALL" ? "var(--primary-badge-bg)" : "transparent",
                   color: projectAttentionFilter === "ALL" ? "var(--primary)" : "var(--text-muted, #94a3b8)",
                 }}
@@ -927,6 +1000,7 @@ export default function SurveysPage({ scope = null }) {
                   border: "none",
                   borderRadius: "6px",
                   cursor: "pointer",
+                  whiteSpace: "nowrap",
                   background: projectAttentionFilter === "ATTENTION" ? "var(--badge-danger-bg)" : "transparent",
                   color: projectAttentionFilter === "ATTENTION" ? "var(--danger)" : "var(--text-muted, #94a3b8)",
                 }}
@@ -955,6 +1029,7 @@ export default function SurveysPage({ scope = null }) {
                   <thead>
                     <tr style={{ background: "var(--bg-table-header)", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                       <th style={{ padding: "12px 18px", fontWeight: 700 }}>Project / Client</th>
+                      <th style={{ padding: "12px 18px", fontWeight: 700 }}>Assigned PMO</th>
                       <th style={{ padding: "12px 18px", fontWeight: 700 }}>Surveys Sent</th>
                       <th style={{ padding: "12px 18px", fontWeight: 700 }}>Responses</th>
                       <th style={{ padding: "12px 18px", fontWeight: 700, minWidth: "160px" }}>Response Rate</th>
@@ -979,6 +1054,54 @@ export default function SurveysPage({ scope = null }) {
                             </div>
                             <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", marginTop: "2px" }}>
                               {p.client_name}
+                            </div>
+                          </td>
+                          <td style={{ padding: "12px 18px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                              {(p.assigned_pmos && p.assigned_pmos.length > 0) ? (
+                                p.assigned_pmos.map((u) => (
+                                  <span
+                                    key={u.id}
+                                    style={{
+                                      fontSize: "11px",
+                                      fontWeight: 600,
+                                      padding: "2px 8px",
+                                      borderRadius: "12px",
+                                      background: "rgba(37, 99, 235, 0.15)",
+                                      border: "1px solid rgba(59, 130, 246, 0.35)",
+                                      color: "var(--primary-lt, #60a5fa)",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                    title={u.email}
+                                  >
+                                    {u.full_name || u.email}
+                                  </span>
+                                ))
+                              ) : (
+                                <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
+                                  Unassigned
+                                </span>
+                              )}
+                              {isAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => openAssignModal(p)}
+                                  title="Assign PMO users to this project"
+                                  style={{
+                                    background: "transparent",
+                                    border: "1px dashed var(--border-strong, rgba(96, 165, 250, 0.4))",
+                                    color: "var(--text-muted, #94a3b8)",
+                                    fontSize: "11px",
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  + Assign
+                                </button>
+                              )}
                             </div>
                           </td>
                           <td style={{ padding: "12px 18px", fontWeight: 600, color: "var(--text-primary, #ffffff)" }}>
@@ -1055,6 +1178,7 @@ export default function SurveysPage({ scope = null }) {
                                 fontWeight: 600,
                                 padding: "4px 10px",
                                 borderRadius: "6px",
+                                whiteSpace: "nowrap",
                                 background: "rgba(37, 99, 235, 0.1)",
                                 border: "1px solid rgba(37, 99, 235, 0.25)",
                                 color: "var(--primary-lt, #60a5fa)",
@@ -1143,6 +1267,7 @@ export default function SurveysPage({ scope = null }) {
                 <Button
                   variant="ghost"
                   size="sm"
+                  style={{ whiteSpace: "nowrap" }}
                   onClick={() => {
                     setSearchQuery("");
                     setSelectedPhase("ALL");
@@ -1208,7 +1333,7 @@ export default function SurveysPage({ scope = null }) {
                       <th style={{ padding: "14px 18px", fontWeight: 700 }}>Average CSAT</th>
                       <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client Contact</th>
                       <th style={{ padding: "14px 18px", fontWeight: 700 }}>Sent Date</th>
-                      <th style={{ padding: "14px 18px", fontWeight: 700, textAlign: "right" }}>Actions</th>
+                      <th style={{ padding: "14px 18px", fontWeight: 700, textAlign: "right", minWidth: "160px", whiteSpace: "nowrap" }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1280,7 +1405,7 @@ export default function SurveysPage({ scope = null }) {
                           </td>
 
                           {/* Actions */}
-                          <td style={{ padding: "14px 18px", textAlign: "right" }}>
+                          <td style={{ padding: "14px 18px", textAlign: "right", whiteSpace: "nowrap" }}>
                             <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
                               {survey.client_contact_email && survey.status !== "Completed" && (
                                 <ResendMailButton
@@ -1291,31 +1416,7 @@ export default function SurveysPage({ scope = null }) {
                               )}
 
                               {survey.status === "Completed" && (
-                                <Link
-                                  to={`/responses/${survey.id}`}
-                                  title="View submitted client response details"
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "5px",
-                                    fontSize: "12px",
-                                    fontWeight: 600,
-                                    color: "var(--primary)",
-                                    textDecoration: "none",
-                                    padding: "0 10px",
-                                    height: "32px",
-                                    borderRadius: "6px",
-                                    border: "1px solid var(--border)",
-                                    background: "var(--primary-badge-bg)",
-                                    transition: "all 0.15s ease",
-                                  }}
-                                >
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                  </svg>
-                                  <span>View Response</span>
-                                </Link>
+                                <ViewResponseButton to={`/responses/${survey.id}`} />
                               )}
                             </div>
                           </td>
@@ -1401,6 +1502,141 @@ export default function SurveysPage({ scope = null }) {
               </Button>
               <Button variant="primary" size="sm" disabled={sendingFollowup} onClick={handleSendFollowup}>
                 {sendingFollowup ? "Sending..." : "Send Follow-up"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign PMO Modal (Admin Only) */}
+      {assignModalProject && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setAssignModalProject(null);
+          }}
+        >
+          <div
+            style={{
+              background: "var(--bg-surface, #0d1b2a)",
+              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.35))",
+              borderRadius: "14px",
+              padding: "24px 28px",
+              maxWidth: "480px",
+              width: "100%",
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+              <div>
+                <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+                  Assign PMO to Project
+                </h3>
+                <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+                  {assignModalProject.project_name} ({assignModalProject.client_name})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignModalProject(null)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text-muted, #94a3b8)",
+                  fontSize: "20px",
+                  cursor: "pointer",
+                  lineHeight: 1,
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <p style={{ fontSize: "12px", color: "var(--text-secondary, #cbd5e1)", marginBottom: "14px", lineHeight: 1.5 }}>
+              Select one or more PMO managers who are responsible for this project and its CSAT surveys:
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                maxHeight: "260px",
+                overflowY: "auto",
+                padding: "8px",
+                borderRadius: "8px",
+                background: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+                marginBottom: "20px",
+              }}
+            >
+              {analytics?.pmo_users && analytics.pmo_users.length > 0 ? (
+                analytics.pmo_users.map((u) => {
+                  const checked = selectedAssigneeIds.includes(u.id);
+                  return (
+                    <label
+                      key={u.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        background: checked ? "rgba(37, 99, 235, 0.18)" : "transparent",
+                        border: `1px solid ${checked ? "rgba(59, 130, 246, 0.35)" : "transparent"}`,
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => handleToggleAssignee(u.id)}
+                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-white, #ffffff)" }}>
+                          {u.full_name || u.email}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)" }}>
+                          {u.email}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })
+              ) : (
+                <div style={{ padding: "16px", textAlign: "center", color: "var(--text-muted, #94a3b8)", fontSize: "12px" }}>
+                  No active users found. Grant access on Permissions page.
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", alignItems: "center" }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setAssignModalProject(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                loading={assigningPmos}
+                onClick={handleSaveAssignments}
+              >
+                Save Assignments
               </Button>
             </div>
           </div>
