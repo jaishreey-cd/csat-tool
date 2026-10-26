@@ -39,8 +39,8 @@ export default function Topbar({ onToggleSidebar }) {
     <header
       style={{
         height: "var(--topbar-h, 68px)",
-        background: "rgba(13, 27, 42, 0.85)",
-        borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.12))",
+        background: "var(--bg-header, #172235)",
+        borderBottom: "1px solid var(--border, #33465f)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -50,6 +50,7 @@ export default function Topbar({ onToggleSidebar }) {
         zIndex: 30,
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
+        transition: "background 0.25s ease, border-color 0.25s ease",
       }}
     >
       {/* Left: Mobile hamburger & Page Title */}
@@ -62,7 +63,7 @@ export default function Topbar({ onToggleSidebar }) {
           style={{
             background: "transparent",
             border: "none",
-            color: "var(--text-main, #e2e8f0)",
+            color: "var(--text-primary, #f1f5f9)",
             fontSize: "20px",
             cursor: "pointer",
             display: "none",
@@ -76,7 +77,7 @@ export default function Topbar({ onToggleSidebar }) {
           style={{
             fontSize: "17px",
             fontWeight: 700,
-            color: "var(--text-white, #ffffff)",
+            color: "var(--text-primary, #ffffff)",
             margin: 0,
             letterSpacing: "-0.3px",
             display: "flex",
@@ -89,7 +90,7 @@ export default function Topbar({ onToggleSidebar }) {
               width: "7px",
               height: "7px",
               borderRadius: "50%",
-              background: "linear-gradient(135deg, var(--accent, #06b6d4), var(--primary, #2563eb))",
+              background: "linear-gradient(135deg, var(--accent, #38bdf8), var(--primary, #60a5fa))",
               boxShadow: "0 0 8px rgba(37, 99, 235, 0.6)",
               flexShrink: 0,
             }}
@@ -109,8 +110,8 @@ export default function Topbar({ onToggleSidebar }) {
               gap: "8px",
               padding: "4px 10px 4px 5px",
               borderRadius: "9999px",
-              background: "var(--bg-hover, rgba(14, 30, 50, 0.6))",
-              border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+              background: "var(--bg-elevated, #22334A)",
+              border: "1px solid var(--border, #33465f)",
             }}
             title={`Logged in as ${user.full_name || user.email} (${user.role})`}
           >
@@ -119,7 +120,7 @@ export default function Topbar({ onToggleSidebar }) {
                 width: "22px",
                 height: "22px",
                 borderRadius: "50%",
-                background: "linear-gradient(135deg, var(--accent, #06b6d4), var(--primary, #2563eb))",
+                background: "linear-gradient(135deg, var(--accent, #38bdf8), var(--primary, #60a5fa))",
                 color: "#ffffff",
                 display: "flex",
                 alignItems: "center",
@@ -135,7 +136,7 @@ export default function Topbar({ onToggleSidebar }) {
               style={{
                 fontSize: "12px",
                 fontWeight: 600,
-                color: "var(--text-main, #e2e8f0)",
+                color: "var(--text-secondary, #b7c4d8)",
               }}
             >
               {user.role}

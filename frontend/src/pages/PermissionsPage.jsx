@@ -365,7 +365,7 @@ export default function PermissionsPage() {
       >
         <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+            <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
               Authorized Users ({users.length})
             </h4>
 
@@ -373,10 +373,10 @@ export default function PermissionsPage() {
             <div
               style={{
                 display: "inline-flex",
-                background: "rgba(10, 22, 40, 0.7)",
+                background: "var(--bg-elevated)",
                 borderRadius: "8px",
                 padding: "3px",
-                border: "1px solid rgba(96, 165, 250, 0.2)",
+                border: "1px solid var(--border)",
                 gap: "4px",
               }}
             >
@@ -390,8 +390,8 @@ export default function PermissionsPage() {
                   fontWeight: 600,
                   borderRadius: "6px",
                   border: "none",
-                  background: userFilter === "current" ? "rgba(37, 99, 235, 0.3)" : "transparent",
-                  color: userFilter === "current" ? "#93c5fd" : "var(--text-dim, #64748b)",
+                  background: userFilter === "current" ? "var(--primary-badge-bg)" : "transparent",
+                  color: userFilter === "current" ? "var(--primary)" : "var(--text-muted)",
                   cursor: "pointer",
                   display: "inline-flex",
                   alignItems: "center",
@@ -402,8 +402,8 @@ export default function PermissionsPage() {
                 <span>Current Users</span>
                 <span
                   style={{
-                    background: userFilter === "current" ? "#2563eb" : "rgba(255, 255, 255, 0.1)",
-                    color: "#ffffff",
+                    background: userFilter === "current" ? "var(--primary)" : "var(--border)",
+                    color: userFilter === "current" ? "#ffffff" : "var(--text-secondary)",
                     fontSize: "11px",
                     fontWeight: 700,
                     padding: "1px 6px",
@@ -424,8 +424,8 @@ export default function PermissionsPage() {
                   fontWeight: 600,
                   borderRadius: "6px",
                   border: "none",
-                  background: userFilter === "old" ? "rgba(239, 68, 68, 0.25)" : "transparent",
-                  color: userFilter === "old" ? "#fca5a5" : "var(--text-dim, #64748b)",
+                  background: userFilter === "old" ? "var(--badge-danger-bg)" : "transparent",
+                  color: userFilter === "old" ? "var(--danger)" : "var(--text-muted)",
                   cursor: "pointer",
                   display: "inline-flex",
                   alignItems: "center",
@@ -436,8 +436,8 @@ export default function PermissionsPage() {
                 <span>Old Users</span>
                 <span
                   style={{
-                    background: userFilter === "old" ? "#ef4444" : "rgba(255, 255, 255, 0.1)",
-                    color: "#ffffff",
+                    background: userFilter === "old" ? "var(--danger)" : "var(--border)",
+                    color: userFilter === "old" ? "#ffffff" : "var(--text-secondary)",
                     fontSize: "11px",
                     fontWeight: 700,
                     padding: "1px 6px",

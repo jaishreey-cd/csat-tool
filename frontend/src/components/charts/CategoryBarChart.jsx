@@ -49,10 +49,10 @@ export default function CategoryBarChart({ categories = [] }) {
       {/* Legend & Scale Indicator */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px", fontSize: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ width: "14px", height: "14px", borderRadius: "3px", background: "linear-gradient(180deg, #38bdf8, #2563eb)" }} />
-          <span style={{ color: "#e2e8f0", fontWeight: 600 }}>Category Average Rating (Client Submissions)</span>
+          <span style={{ width: "14px", height: "14px", borderRadius: "3px", background: "linear-gradient(180deg, var(--secondary-accent), var(--primary))" }} />
+          <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Category Average Rating (Client Submissions)</span>
         </div>
-        <span style={{ color: "var(--text-dim, #64748b)" }}>Rating Scale: 1.0 (Low) — 5.0 (Exceptional)</span>
+        <span style={{ color: "var(--text-muted)" }}>Rating Scale: 1.0 (Low) — 5.0 (Exceptional)</span>
       </div>
 
       <div style={{ width: "100%", overflowX: "auto" }}>
@@ -92,13 +92,13 @@ export default function CategoryBarChart({ categories = [] }) {
                   y1={y}
                   x2={totalWidth - padding.right}
                   y2={y}
-                  stroke="rgba(96, 165, 250, 0.12)"
+                  stroke="var(--chart-grid)"
                   strokeWidth="1"
                 />
                 <text
                   x={padding.left - 12}
                   y={y + 4}
-                  fill="rgba(148, 163, 184, 0.6)"
+                  fill="var(--chart-text)"
                   fontSize="11"
                   textAnchor="end"
                   fontFamily="inherit"
@@ -143,7 +143,7 @@ export default function CategoryBarChart({ categories = [] }) {
                   y={padding.top}
                   width={slotWidth}
                   height={chartHeight}
-                  fill={isHovered ? "rgba(30, 58, 95, 0.25)" : "transparent"}
+                  fill={isHovered ? "var(--chart-sub-bg)" : "transparent"}
                   rx="8"
                   style={{ transition: "fill 0.15s ease" }}
                 />
@@ -157,15 +157,15 @@ export default function CategoryBarChart({ categories = [] }) {
                       width="60"
                       height="20"
                       rx="5"
-                      fill={isHovered ? "#38bdf8" : "rgba(10, 22, 40, 0.9)"}
-                      stroke={isHovered ? "#38bdf8" : "rgba(96, 165, 250, 0.35)"}
+                      fill={isHovered ? "var(--primary)" : "var(--chart-tooltip-bg)"}
+                      stroke={isHovered ? "var(--primary)" : "var(--chart-tooltip-border)"}
                       strokeWidth="1"
                     />
                     <text
                       x={x + barWidth / 2}
                       y={barY - 12}
                       textAnchor="middle"
-                      fill={isHovered ? "#0a1628" : "#ffffff"}
+                      fill={isHovered ? "#ffffff" : "var(--chart-text-strong)"}
                       fontSize="12"
                       fontWeight="700"
                       fontFamily="inherit"
@@ -178,7 +178,7 @@ export default function CategoryBarChart({ categories = [] }) {
                     x={x + barWidth / 2}
                     y={getY(0.2)}
                     textAnchor="middle"
-                    fill="#64748b"
+                    fill="var(--chart-text)"
                     fontSize="11"
                     fontStyle="italic"
                     fontFamily="inherit"
@@ -208,14 +208,14 @@ export default function CategoryBarChart({ categories = [] }) {
                   x={x + barWidth / 2}
                   y={padding.top + chartHeight + 18}
                   textAnchor="middle"
-                  fill={isHovered ? "#38bdf8" : "#e2e8f0"}
+                  fill={isHovered ? "var(--primary)" : "var(--chart-text-strong)"}
                   fontSize="12"
                   fontWeight={isHovered ? "700" : "600"}
                   fontFamily="inherit"
                 >
                   <tspan x={x + barWidth / 2} dy="0">{titleLine1}</tspan>
                   {titleLine2 && (
-                    <tspan x={x + barWidth / 2} dy="16" fill={isHovered ? "#60a5fa" : "#cbd5e1"}>{titleLine2}</tspan>
+                    <tspan x={x + barWidth / 2} dy="16" fill={isHovered ? "var(--primary)" : "var(--chart-text)"}>{titleLine2}</tspan>
                   )}
                 </text>
 
@@ -224,7 +224,7 @@ export default function CategoryBarChart({ categories = [] }) {
                   x={x + barWidth / 2}
                   y={padding.top + chartHeight + (titleLine2 ? 48 : 34)}
                   textAnchor="middle"
-                  fill="#94a3b8"
+                  fill="var(--chart-text)"
                   fontSize="11"
                   fontFamily="inherit"
                 >
@@ -243,13 +243,13 @@ export default function CategoryBarChart({ categories = [] }) {
             position: "absolute",
             top: "8px",
             right: "12px",
-            background: "#091424",
-            border: "1px solid rgba(56, 189, 248, 0.4)",
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border)",
             borderRadius: "8px",
             padding: "10px 16px",
             fontSize: "12px",
-            color: "#ffffff",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
+            color: "var(--text-primary)",
+            boxShadow: "var(--shadow-card)",
             zIndex: 10,
             display: "flex",
             flexDirection: "column",
@@ -257,15 +257,15 @@ export default function CategoryBarChart({ categories = [] }) {
             pointerEvents: "none",
           }}
         >
-          <div style={{ fontWeight: 700, color: "#38bdf8", fontSize: "13px" }}>
+          <div style={{ fontWeight: 700, color: "var(--primary)", fontSize: "13px" }}>
             {categories[hoveredIndex].category_name}
           </div>
-          <div style={{ display: "flex", gap: "12px", color: "#cbd5e1" }}>
+          <div style={{ display: "flex", gap: "12px", color: "var(--text-secondary)" }}>
             <span>Average Rating: <strong>★ {categories[hoveredIndex].average_rating?.toFixed(2) ?? "—"} / 5.0</strong></span>
             <span>Total Responses: <strong>{categories[hoveredIndex].total_ratings}</strong></span>
           </div>
           {categories[hoveredIndex].rating_distribution && (
-            <div style={{ display: "flex", gap: "8px", marginTop: "4px", fontSize: "11px", color: "#94a3b8" }}>
+            <div style={{ display: "flex", gap: "8px", marginTop: "4px", fontSize: "11px", color: "var(--text-muted)" }}>
               <span>5★: {categories[hoveredIndex].rating_distribution["5"] || 0}</span>
               <span>4★: {categories[hoveredIndex].rating_distribution["4"] || 0}</span>
               <span>3★: {categories[hoveredIndex].rating_distribution["3"] || 0}</span>

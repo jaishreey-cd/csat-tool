@@ -31,11 +31,11 @@ export default function CategoryDistributionChart({ categories = [] }) {
           {["5", "4", "3", "2", "1"].map((star) => (
             <div key={star} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <span style={{ width: "12px", height: "12px", borderRadius: "3px", background: ratingColors[star].bg }} />
-              <span style={{ color: "#cbd5e1" }}>{star}★</span>
+              <span style={{ color: "var(--text-secondary)" }}>{star}★</span>
             </div>
           ))}
         </div>
-        <span style={{ color: "var(--text-dim, #64748b)" }}>Proportional share of submitted answers</span>
+        <span style={{ color: "var(--text-muted)" }}>Proportional share of submitted answers</span>
       </div>
 
       {/* Category Rows */}
@@ -55,33 +55,34 @@ export default function CategoryDistributionChart({ categories = [] }) {
                 display: "flex",
                 flexDirection: "column",
                 gap: "6px",
-                background: "rgba(10, 22, 40, 0.5)",
+                background: "var(--bg-elevated)",
                 padding: "12px 16px",
                 borderRadius: "8px",
-                border: "1px solid rgba(96, 165, 250, 0.1)",
+                border: "1px solid var(--border)",
               }}
             >
               {/* Category Header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontWeight: 600, color: "var(--text-white, #ffffff)" }}>
+                  <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
                     {cat.category_name}
                   </span>
-                  <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
                     ({total} response{total === 1 ? "" : "s"})
                   </span>
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <span style={{ fontSize: "12px", fontWeight: 700, color: csatPct >= 75 ? "#34d399" : csatPct >= 50 ? "#38bdf8" : "#fbbf24" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: csatPct >= 75 ? "var(--success)" : csatPct >= 50 ? "var(--primary)" : "var(--warning)" }}>
                     {csatPct}% CSAT (4-5★)
                   </span>
                   <span
                     style={{
                       fontSize: "12px",
                       fontWeight: 700,
-                      color: cat.average_rating >= 4.0 ? "#22c55e" : "#fbbf24",
-                      background: "rgba(255, 255, 255, 0.06)",
+                      color: cat.average_rating >= 4.0 ? "var(--success)" : "var(--warning)",
+                      background: "var(--bg-card)",
+                      border: "1px solid var(--border)",
                       padding: "2px 8px",
                       borderRadius: "6px",
                     }}
@@ -99,7 +100,7 @@ export default function CategoryDistributionChart({ categories = [] }) {
                     borderRadius: "6px",
                     overflow: "hidden",
                     display: "flex",
-                    background: "rgba(255, 255, 255, 0.05)",
+                    background: "var(--bg-track)",
                   }}
                 >
                   {["5", "4", "3", "2", "1"].map((star) => {
@@ -131,7 +132,7 @@ export default function CategoryDistributionChart({ categories = [] }) {
                   })}
                 </div>
               ) : (
-                <div style={{ height: "18px", borderRadius: "6px", background: "rgba(255, 255, 255, 0.04)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
+                <div style={{ height: "18px", borderRadius: "6px", background: "var(--bg-track)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: "var(--text-muted)", fontStyle: "italic" }}>
                   Awaiting responses
                 </div>
               )}
@@ -144,19 +145,20 @@ export default function CategoryDistributionChart({ categories = [] }) {
       {hoveredRating && (
         <div
           style={{
-            background: "#091424",
-            border: "1px solid rgba(56, 189, 248, 0.4)",
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border)",
             borderRadius: "6px",
             padding: "8px 14px",
             fontSize: "12px",
-            color: "#ffffff",
+            color: "var(--text-primary)",
+            boxShadow: "var(--shadow-card)",
             display: "inline-flex",
             alignItems: "center",
             gap: "10px",
             alignSelf: "flex-start",
           }}
         >
-          <span style={{ fontWeight: 700, color: "#38bdf8" }}>{hoveredRating.category}</span>
+          <span style={{ fontWeight: 700, color: "var(--primary)" }}>{hoveredRating.category}</span>
           <span>{hoveredRating.star} Stars: <strong>{hoveredRating.count}</strong> responses (<strong>{hoveredRating.pct}%</strong>)</span>
         </div>
       )}

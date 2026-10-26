@@ -208,22 +208,22 @@ export default function ClientResponsePage() {
       {/* Hero Header Card */}
       <div
         style={{
-          background: "linear-gradient(135deg, rgba(13, 27, 42, 0.95) 0%, rgba(10, 22, 40, 0.95) 100%)",
-          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+          background: "var(--bg-card)",
+          border: "1px solid var(--border)",
           borderRadius: "12px",
           padding: "28px 32px",
-          boxShadow: "0 8px 30px rgba(0, 0, 0, 0.35)",
+          boxShadow: "var(--shadow-card)",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "20px" }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-              <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--text-white, #ffffff)", margin: 0, letterSpacing: "-0.3px" }}>
+              <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.3px" }}>
                 Client Response Evaluation
               </h1>
               <Badge variant="count">{phase}</Badge>
             </div>
-            <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "0 0 16px 0" }}>
+            <p style={{ fontSize: "14px", color: "var(--text-secondary)", margin: "0 0 16px 0" }}>
               Formal Customer Satisfaction feedback submitted by the client stakeholder.
             </p>
           </div>
@@ -232,21 +232,21 @@ export default function ClientResponsePage() {
           {overall_score != null && (
             <div
               style={{
-                background: "rgba(15, 23, 42, 0.8)",
-                border: "1px solid rgba(251, 191, 36, 0.3)",
+                background: "var(--bg-elevated)",
+                border: "1px solid var(--border)",
                 borderRadius: "10px",
                 padding: "14px 22px",
                 textAlign: "center",
                 minWidth: "150px",
               }}
             >
-              <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-dim, #64748b)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 Overall CSAT Score
               </div>
               <div style={{ fontSize: "28px", fontWeight: 800, color: "#fbbf24", margin: "2px 0" }}>
                 ★ {overall_score.toFixed(1)}
               </div>
-              <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600 }}>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 600 }}>
                 {overall_percentage}% Satisfaction
               </div>
             </div>
@@ -261,46 +261,46 @@ export default function ClientResponsePage() {
             gap: "16px",
             marginTop: "16px",
             paddingTop: "20px",
-            borderTop: "1px solid rgba(96, 165, 250, 0.15)",
+            borderTop: "1px solid var(--border)",
           }}
         >
           <div>
-            <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-dim, #64748b)", textTransform: "uppercase" }}>
+            <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
               Client Organization
             </div>
-            <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", marginTop: "4px" }}>
+            <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", marginTop: "4px" }}>
               {client_name}
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-dim, #64748b)", textTransform: "uppercase" }}>
+            <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
               Project
             </div>
-            <div style={{ fontSize: "15px", fontWeight: 700, color: "#60a5fa", marginTop: "4px" }}>
+            <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--primary)", marginTop: "4px" }}>
               {project_name} {project_code ? `(${project_code})` : ""}
             </div>
           </div>
 
           <div>
-            <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-dim, #64748b)", textTransform: "uppercase" }}>
+            <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
               Client Contact
             </div>
-            <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-white, #ffffff)", marginTop: "4px" }}>
+            <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)", marginTop: "4px" }}>
               {client_contact_name || "—"}
             </div>
             {client_contact_email && (
-              <div style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontFamily: "monospace" }}>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "monospace" }}>
                 {client_contact_email}
               </div>
             )}
           </div>
 
           <div>
-            <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-dim, #64748b)", textTransform: "uppercase" }}>
+            <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
               Submission Date
             </div>
-            <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-white, #ffffff)", marginTop: "4px" }}>
+            <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)", marginTop: "4px" }}>
               {formattedDate}
             </div>
           </div>
@@ -317,19 +317,19 @@ export default function ClientResponsePage() {
             <div
               key={section.section_number}
               style={{
-                background: "var(--bg-surface, #0d1b2a)",
-                border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
+                background: "var(--bg-card)",
+                border: "1px solid var(--border)",
                 borderRadius: "12px",
                 overflow: "hidden",
-                boxShadow: "0 4px 18px rgba(0, 0, 0, 0.25)",
+                boxShadow: "var(--shadow-card)",
               }}
             >
               {/* Section Header */}
               <div
                 style={{
                   padding: "16px 24px",
-                  background: "rgba(10, 22, 40, 0.8)",
-                  borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+                  background: "var(--bg-table-header)",
+                  borderBottom: "1px solid var(--border)",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
@@ -343,8 +343,8 @@ export default function ClientResponsePage() {
                       width: "24px",
                       height: "24px",
                       borderRadius: "6px",
-                      background: "rgba(96, 165, 250, 0.2)",
-                      color: "#93c5fd",
+                      background: "var(--primary-badge-bg)",
+                      color: "var(--primary)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -354,14 +354,14 @@ export default function ClientResponsePage() {
                   >
                     {section.section_number}
                   </span>
-                  <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+                  <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
                     {section.section_title}
                   </h3>
                 </div>
 
                 {!isQualitative && section.average_score != null && (
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)", fontWeight: 600 }}>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>
                       Section Average:
                     </span>
                     <span
@@ -371,8 +371,8 @@ export default function ClientResponsePage() {
                         color: getScoreColor(section.average_score),
                         padding: "2px 8px",
                         borderRadius: "4px",
-                        background: "rgba(15, 23, 42, 0.6)",
-                        border: "1px solid rgba(96, 165, 250, 0.2)",
+                        background: "var(--bg-elevated)",
+                        border: "1px solid var(--border)",
                       }}
                     >
                       ★ {section.average_score.toFixed(1)} / 5.0
@@ -391,7 +391,7 @@ export default function ClientResponsePage() {
                       key={q.question_id || idx}
                       style={{
                         padding: "18px 24px",
-                        borderBottom: idx < questions.length - 1 ? "1px solid rgba(96, 165, 250, 0.08)" : "none",
+                        borderBottom: idx < questions.length - 1 ? "1px solid var(--table-row-border)" : "none",
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "flex-start",
@@ -400,8 +400,8 @@ export default function ClientResponsePage() {
                       }}
                     >
                       <div style={{ flex: "1 1 500px" }}>
-                        <div style={{ fontSize: "14px", fontWeight: 500, color: "#e2e8f0", lineHeight: "1.5" }}>
-                          <span style={{ color: "var(--text-dim, #64748b)", marginRight: "8px", fontWeight: 700 }}>
+                        <div style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary)", lineHeight: "1.5" }}>
+                          <span style={{ color: "var(--text-muted)", marginRight: "8px", fontWeight: 700 }}>
                             {section.section_number}.{idx + 1}
                           </span>
                           {q.question_text}
@@ -413,12 +413,12 @@ export default function ClientResponsePage() {
                             {q.text_answer && q.text_answer.trim() ? (
                               <div
                                 style={{
-                                  background: "rgba(15, 23, 42, 0.75)",
-                                  borderLeft: "3px solid #60a5fa",
+                                  background: "var(--bg-elevated)",
+                                  borderLeft: "3px solid var(--primary)",
                                   borderRadius: "0 8px 8px 0",
                                   padding: "12px 16px",
                                   fontSize: "13px",
-                                  color: "#93c5fd",
+                                  color: "var(--text-primary)",
                                   lineHeight: "1.6",
                                   fontStyle: "italic",
                                 }}
@@ -426,7 +426,7 @@ export default function ClientResponsePage() {
                                 "{q.text_answer.trim()}"
                               </div>
                             ) : (
-                              <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
+                              <span style={{ fontSize: "12px", color: "var(--text-muted)", fontStyle: "italic" }}>
                                 No comment provided by client.
                               </span>
                             )}
@@ -453,14 +453,14 @@ export default function ClientResponsePage() {
       {additional_comments.length > 0 && (
         <div
           style={{
-            background: "var(--bg-surface, #0d1b2a)",
-            border: "1px solid rgba(96, 165, 250, 0.25)",
+            background: "var(--bg-card)",
+            border: "1px solid var(--border)",
             borderRadius: "12px",
             padding: "24px 28px",
-            boxShadow: "0 4px 18px rgba(0, 0, 0, 0.25)",
+            boxShadow: "var(--shadow-card)",
           }}
         >
-          <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: "0 0 14px 0" }}>
+          <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px 0" }}>
             💬 Key Client Comments & Takeaways ({additional_comments.length})
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -468,12 +468,12 @@ export default function ClientResponsePage() {
               <div
                 key={i}
                 style={{
-                  background: "rgba(15, 23, 42, 0.6)",
-                  borderLeft: "3px solid #38bdf8",
+                  background: "var(--bg-elevated)",
+                  borderLeft: "3px solid var(--secondary-accent)",
                   borderRadius: "0 6px 6px 0",
                   padding: "10px 16px",
                   fontSize: "13px",
-                  color: "#e2e8f0",
+                  color: "var(--text-primary)",
                 }}
               >
                 "{comment}"

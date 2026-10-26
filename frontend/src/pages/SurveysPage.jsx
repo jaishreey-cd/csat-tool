@@ -276,7 +276,7 @@ export default function SurveysPage() {
       {/* ── Main Header & Analytics Controls ─────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
         <div>
-          <h1 style={{ fontSize: "26px", fontWeight: 800, color: "var(--text-white, #ffffff)", margin: 0, letterSpacing: "-0.4px" }}>
+          <h1 style={{ fontSize: "26px", fontWeight: 800, color: "var(--text-primary, #ffffff)", margin: 0, letterSpacing: "-0.4px" }}>
             CSAT Dashboard & Analytics
           </h1>
           <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
@@ -288,13 +288,13 @@ export default function SurveysPage() {
         <div
           style={{
             display: "inline-flex",
-            background: "rgba(13, 27, 42, 0.85)",
-            border: "1px solid rgba(96, 165, 250, 0.2)",
+            background: "var(--bg-card, #18263B)",
+            border: "1px solid var(--border, #33465f)",
             borderRadius: "10px",
             padding: "4px",
             gap: "4px",
             backdropFilter: "blur(8px)",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
+            boxShadow: "var(--shadow-sm)",
           }}
         >
           {[
@@ -319,7 +319,7 @@ export default function SurveysPage() {
                   borderRadius: "7px",
                   border: "none",
                   cursor: "pointer",
-                  background: active ? "linear-gradient(135deg, #2563eb, #1d4ed8)" : "transparent",
+                  background: active ? "linear-gradient(135deg, var(--primary), var(--primary-hover))" : "transparent",
                   color: active ? "#ffffff" : "var(--text-muted, #94a3b8)",
                   boxShadow: active ? "0 2px 8px rgba(37, 99, 235, 0.4)" : "none",
                   transition: "all 0.18s ease",
@@ -345,14 +345,14 @@ export default function SurveysPage() {
           className="interactive-card"
           style={{
             position: "relative",
-            background: "linear-gradient(180deg, rgba(14, 28, 48, 0.85) 0%, rgba(10, 20, 36, 0.95) 100%)",
-            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.22))",
+            background: "var(--bg-kpi-card)",
+            border: "1px solid var(--border)",
             borderRadius: "var(--radius-lg, 14px)",
             padding: "22px 20px 20px 20px",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            boxShadow: "var(--shadow-card)",
             overflow: "hidden",
           }}
         >
@@ -370,19 +370,19 @@ export default function SurveysPage() {
             <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
               Overall CSAT Score
             </span>
-            <span style={{ fontSize: "11px", color: "#60a5fa", fontWeight: 600 }}>Ratings ≥ 4 / 5</span>
+            <span style={{ fontSize: "11px", color: "var(--primary, #60a5fa)", fontWeight: 600 }}>Ratings ≥ 4 / 5</span>
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginTop: "2px" }}>
-            <span style={{ fontSize: "32px", fontWeight: 800, color: "#60a5fa", letterSpacing: "-0.5px" }}>
+            <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--primary, #60a5fa)", letterSpacing: "-0.5px" }}>
               {overallCsatPercentage != null ? `${overallCsatPercentage}%` : "—"}
             </span>
             {overallCsatAvg != null && (
-              <span style={{ fontSize: "14px", fontWeight: 700, color: "#fbbf24" }}>
+              <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--warning, #fbbf24)" }}>
                 ★ {overallCsatAvg.toFixed(2)} / 5.0
               </span>
             )}
           </div>
-          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
+          <span style={{ fontSize: "11px", color: "var(--text-secondary, #64748b)" }}>
             Calculated from valid submitted client ratings
           </span>
         </div>
@@ -392,14 +392,14 @@ export default function SurveysPage() {
           className="interactive-card"
           style={{
             position: "relative",
-            background: "linear-gradient(180deg, rgba(14, 28, 48, 0.85) 0%, rgba(10, 20, 36, 0.95) 100%)",
-            border: "1px solid var(--border, rgba(96, 165, 250, 0.16))",
+            background: "var(--bg-kpi-card)",
+            border: "1px solid var(--border)",
             borderRadius: "var(--radius-lg, 14px)",
             padding: "22px 20px 20px 20px",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            boxShadow: "var(--shadow-card)",
             overflow: "hidden",
           }}
         >
@@ -416,10 +416,10 @@ export default function SurveysPage() {
           <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
             Total Surveys Dispatched
           </span>
-          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--text-white, #ffffff)", marginTop: "2px", letterSpacing: "-0.5px" }}>
+          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--text-primary, #ffffff)", marginTop: "2px", letterSpacing: "-0.5px" }}>
             {totalSurveysDispatched}
           </span>
-          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
+          <span style={{ fontSize: "11px", color: "var(--text-secondary, #64748b)" }}>
             Total invitations sent to stakeholders
           </span>
         </div>
@@ -429,14 +429,14 @@ export default function SurveysPage() {
           className="interactive-card"
           style={{
             position: "relative",
-            background: "linear-gradient(180deg, rgba(14, 28, 48, 0.85) 0%, rgba(10, 20, 36, 0.95) 100%)",
-            border: "1px solid var(--border, rgba(96, 165, 250, 0.16))",
+            background: "var(--bg-kpi-card)",
+            border: "1px solid var(--border)",
             borderRadius: "var(--radius-lg, 14px)",
             padding: "22px 20px 20px 20px",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            boxShadow: "var(--shadow-card)",
             overflow: "hidden",
           }}
         >
@@ -461,7 +461,7 @@ export default function SurveysPage() {
           <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--success, #22c55e)", marginTop: "2px", letterSpacing: "-0.5px" }}>
             {totalResponded}
           </span>
-          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
+          <span style={{ fontSize: "11px", color: "var(--text-secondary, #64748b)" }}>
             Valid final client submissions received
           </span>
         </div>
@@ -471,14 +471,14 @@ export default function SurveysPage() {
           className="interactive-card"
           style={{
             position: "relative",
-            background: "linear-gradient(180deg, rgba(14, 28, 48, 0.85) 0%, rgba(10, 20, 36, 0.95) 100%)",
-            border: "1px solid var(--border, rgba(96, 165, 250, 0.16))",
+            background: "var(--bg-kpi-card)",
+            border: "1px solid var(--border)",
             borderRadius: "var(--radius-lg, 14px)",
             padding: "22px 20px 20px 20px",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            boxShadow: "var(--shadow-card)",
             overflow: "hidden",
           }}
         >
@@ -495,10 +495,10 @@ export default function SurveysPage() {
           <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
             Awaiting Response
           </span>
-          <span style={{ fontSize: "32px", fontWeight: 800, color: "#f59e0b", marginTop: "2px", letterSpacing: "-0.5px" }}>
+          <span style={{ fontSize: "32px", fontWeight: 800, color: "var(--warning, #f59e0b)", marginTop: "2px", letterSpacing: "-0.5px" }}>
             {totalAwaiting}
           </span>
-          <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
+          <span style={{ fontSize: "11px", color: "var(--text-secondary, #64748b)" }}>
             Dispatched surveys pending client response
           </span>
         </div>
@@ -507,20 +507,20 @@ export default function SurveysPage() {
       {/* ── Category-wise Analytics (Professional Multi-Chart Suite) ────── */}
       <div
         style={{
-          background: "var(--bg-surface, #0d1b2a)",
-          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+          background: "var(--bg-card, #18263B)",
+          border: "1px solid var(--border, #33465f)",
           borderRadius: "var(--radius-lg, 12px)",
           padding: "24px",
           display: "flex",
           flexDirection: "column",
           gap: "20px",
-          boxShadow: "0 6px 24px rgba(0, 0, 0, 0.25)",
+          boxShadow: "var(--shadow-card)",
         }}
       >
         {/* Header with Title and Chart View Switcher */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" }}>
           <div>
-            <h2 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary, #ffffff)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
               <span>Category-wise Analytics</span>
             </h2>
             <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
@@ -532,8 +532,8 @@ export default function SurveysPage() {
           <div
             style={{
               display: "inline-flex",
-              background: "rgba(10, 22, 40, 0.8)",
-              border: "1px solid rgba(96, 165, 250, 0.2)",
+              background: "var(--bg-elevated, #22334A)",
+              border: "1px solid var(--border, #33465f)",
               borderRadius: "8px",
               padding: "3px",
               gap: "2px",
@@ -560,7 +560,7 @@ export default function SurveysPage() {
                     border: "none",
                     cursor: "pointer",
                     background: active ? "var(--primary, #2563eb)" : "transparent",
-                    color: active ? "#ffffff" : "var(--text-muted, #94a3b8)",
+                    color: active ? "#ffffff" : "var(--text-secondary, #94a3b8)",
                     transition: "all 0.15s ease",
                   }}
                 >
@@ -577,7 +577,7 @@ export default function SurveysPage() {
             <span style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>Loading category analytics...</span>
           </div>
         ) : analyticsError ? (
-          <div style={{ padding: "24px", color: "#fca5a5", fontSize: "13px", textAlign: "center" }}>
+          <div style={{ padding: "24px", color: "var(--danger, #fca5a5)", fontSize: "13px", textAlign: "center" }}>
             {analyticsError}
           </div>
         ) : !analytics?.categories || analytics.categories.length === 0 ? (
@@ -588,28 +588,28 @@ export default function SurveysPage() {
           <div>
             {/* View: Bar Chart */}
             {categoryChartView === "BAR" && (
-              <div style={{ background: "rgba(10, 22, 40, 0.4)", border: "1px solid rgba(96, 165, 250, 0.12)", borderRadius: "10px", padding: "24px" }}>
+              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "24px" }}>
                 <CategoryBarChart categories={analytics.categories} />
               </div>
             )}
 
             {/* View: Radar Chart */}
             {categoryChartView === "RADAR" && (
-              <div style={{ background: "rgba(10, 22, 40, 0.4)", border: "1px solid rgba(96, 165, 250, 0.12)", borderRadius: "10px", padding: "24px", display: "flex", justifyContent: "center" }}>
+              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "24px", display: "flex", justifyContent: "center" }}>
                 <CategoryRadarChart categories={analytics.categories} />
               </div>
             )}
 
             {/* View: Rating Distribution */}
             {categoryChartView === "DISTRIBUTION" && (
-              <div style={{ background: "rgba(10, 22, 40, 0.4)", border: "1px solid rgba(96, 165, 250, 0.12)", borderRadius: "10px", padding: "22px" }}>
+              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "22px" }}>
                 <CategoryDistributionChart categories={analytics.categories} />
               </div>
             )}
 
             {/* View: Circular Gauges */}
             {categoryChartView === "GAUGES" && (
-              <div style={{ background: "rgba(10, 22, 40, 0.4)", border: "1px solid rgba(96, 165, 250, 0.12)", borderRadius: "10px", padding: "24px" }}>
+              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "24px" }}>
                 <CategoryRadialGauges categories={analytics.categories} />
               </div>
             )}
@@ -620,19 +620,19 @@ export default function SurveysPage() {
       {/* ── Project-wise Analytics (Added Section D) ────────────────────── */}
       <div
         style={{
-          background: "var(--bg-surface, #0d1b2a)",
-          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.2))",
+          background: "var(--bg-card, #18263B)",
+          border: "1px solid var(--border, #33465f)",
           borderRadius: "var(--radius-lg, 12px)",
           padding: "24px",
           display: "flex",
           flexDirection: "column",
           gap: "18px",
-          boxShadow: "0 4px 18px rgba(0, 0, 0, 0.2)",
+          boxShadow: "var(--shadow-card)",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
           <div>
-            <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+            <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-primary, #ffffff)", margin: 0 }}>
               Project-wise CSAT Performance
             </h2>
             <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
@@ -640,7 +640,7 @@ export default function SurveysPage() {
             </p>
           </div>
 
-          <div style={{ display: "inline-flex", background: "rgba(10, 22, 40, 0.6)", borderRadius: "8px", padding: "3px" }}>
+          <div style={{ display: "inline-flex", background: "var(--bg-elevated, #22334A)", border: "1px solid var(--border, #33465f)", borderRadius: "8px", padding: "3px" }}>
             <button
               type="button"
               onClick={() => setProjectAttentionFilter("ALL")}
@@ -651,8 +651,8 @@ export default function SurveysPage() {
                 border: "none",
                 borderRadius: "6px",
                 cursor: "pointer",
-                background: projectAttentionFilter === "ALL" ? "rgba(37, 99, 235, 0.3)" : "transparent",
-                color: projectAttentionFilter === "ALL" ? "#60a5fa" : "var(--text-muted, #94a3b8)",
+                background: projectAttentionFilter === "ALL" ? "var(--primary-badge-bg)" : "transparent",
+                color: projectAttentionFilter === "ALL" ? "var(--primary)" : "var(--text-muted, #94a3b8)",
               }}
             >
               All Projects ({analytics?.projects?.length || 0})
@@ -667,8 +667,8 @@ export default function SurveysPage() {
                 border: "none",
                 borderRadius: "6px",
                 cursor: "pointer",
-                background: projectAttentionFilter === "ATTENTION" ? "rgba(239, 68, 68, 0.2)" : "transparent",
-                color: projectAttentionFilter === "ATTENTION" ? "#fca5a5" : "var(--text-muted, #94a3b8)",
+                background: projectAttentionFilter === "ATTENTION" ? "var(--badge-danger-bg)" : "transparent",
+                color: projectAttentionFilter === "ATTENTION" ? "var(--danger)" : "var(--text-muted, #94a3b8)",
               }}
             >
               Needs Attention ({analytics?.projects?.filter((p) => p.has_low_rating || p.has_pending).length || 0})
@@ -689,7 +689,7 @@ export default function SurveysPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
               <thead>
-                <tr style={{ background: "rgba(10, 22, 40, 0.7)", borderBottom: "1px solid rgba(96, 165, 250, 0.15)", color: "var(--text-dim, #64748b)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                <tr style={{ background: "var(--bg-table-header)", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   <th style={{ padding: "12px 16px", fontWeight: 700 }}>Project / Client</th>
                   <th style={{ padding: "12px 16px", fontWeight: 700 }}>Surveys Sent</th>
                   <th style={{ padding: "12px 16px", fontWeight: 700 }}>Responses</th>
@@ -704,8 +704,8 @@ export default function SurveysPage() {
                   return (
                     <tr
                       key={p.project_id}
-                      style={{ borderBottom: "1px solid rgba(96, 165, 250, 0.08)", transition: "background 0.15s ease" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(14, 30, 50, 0.35)")}
+                      style={{ borderBottom: "1px solid var(--table-row-border)", transition: "background 0.15s ease" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-table-row-hover)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
                       <td style={{ padding: "12px 16px" }}>
@@ -720,7 +720,7 @@ export default function SurveysPage() {
                           {p.client_name}
                         </div>
                       </td>
-                      <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-white, #ffffff)" }}>
+                      <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-primary, #ffffff)" }}>
                         {p.surveys_sent}
                       </td>
                       <td style={{ padding: "12px 16px" }}>
@@ -733,15 +733,15 @@ export default function SurveysPage() {
                       </td>
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontSize: "12px", fontWeight: 700, minWidth: "36px", color: "#e2e8f0" }}>
+                          <span style={{ fontSize: "12px", fontWeight: 700, minWidth: "36px", color: "var(--text-primary)" }}>
                             {p.response_rate}%
                           </span>
-                          <div style={{ flex: 1, height: "6px", background: "rgba(255, 255, 255, 0.08)", borderRadius: "3px", overflow: "hidden" }}>
+                          <div style={{ flex: 1, height: "6px", background: "var(--bg-track)", borderRadius: "3px", overflow: "hidden" }}>
                             <div
                               style={{
                                 height: "100%",
                                 width: `${p.response_rate}%`,
-                                background: p.response_rate >= 70 ? "#22c55e" : p.response_rate >= 40 ? "#38bdf8" : "#f59e0b",
+                                background: p.response_rate >= 70 ? "var(--success, #22c55e)" : p.response_rate >= 40 ? "var(--primary, #38bdf8)" : "var(--warning, #f59e0b)",
                               }}
                             />
                           </div>
@@ -796,15 +796,15 @@ export default function SurveysPage() {
       {/* Filter and Search Bar */}
       <div
         style={{
-          background: "linear-gradient(180deg, rgba(14, 28, 48, 0.8) 0%, rgba(10, 20, 36, 0.9) 100%)",
-          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.22))",
+          background: "var(--bg-card, #18263B)",
+          border: "1px solid var(--border, #33465f)",
           borderRadius: "var(--radius-lg, 14px)",
           padding: "16px 20px",
           display: "flex",
           gap: "14px",
           alignItems: "center",
           flexWrap: "wrap",
-          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.25)",
+          boxShadow: "var(--shadow-card)",
         }}
       >
         <div style={{ flex: 1, minWidth: "220px" }}>
@@ -874,11 +874,11 @@ export default function SurveysPage() {
       {/* Main Surveys Table */}
       <div
         style={{
-          background: "linear-gradient(180deg, rgba(13, 27, 42, 0.95) 0%, rgba(10, 20, 36, 0.98) 100%)",
-          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.22))",
+          background: "var(--bg-card, #18263B)",
+          border: "1px solid var(--border, #33465f)",
           borderRadius: "var(--radius-lg, 14px)",
           overflow: "hidden",
-          boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
+          boxShadow: "var(--shadow-card)",
         }}
       >
         {loading ? (
@@ -887,7 +887,7 @@ export default function SurveysPage() {
             <span style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)" }}>Loading surveys...</span>
           </div>
         ) : error ? (
-          <div style={{ padding: "40px", textAlign: "center", color: "#fca5a5" }}>
+          <div style={{ padding: "40px", textAlign: "center", color: "var(--danger, #fca5a5)" }}>
             <p>{error}</p>
             <Button variant="secondary" size="sm" onClick={() => fetchSurveys(true)} style={{ marginTop: "12px" }}>
               Retry
@@ -896,7 +896,7 @@ export default function SurveysPage() {
         ) : filteredSurveys.length === 0 ? (
           <div style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "14px" }}>
             <div style={{ fontSize: "36px", opacity: 0.5 }}>📋</div>
-            <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-white, #ffffff)", margin: 0 }}>
+            <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary, #ffffff)", margin: 0 }}>
               No surveys found
             </h3>
             <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", maxWidth: "400px", margin: 0 }}>
@@ -918,9 +918,9 @@ export default function SurveysPage() {
               <thead>
                 <tr
                   style={{
-                    background: "rgba(10, 22, 40, 0.95)",
-                    borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.18))",
-                    color: "var(--text-dim, #64748b)",
+                    background: "var(--bg-table-header)",
+                    borderBottom: "1px solid var(--border)",
+                    color: "var(--text-secondary)",
                     fontSize: "11px",
                     textTransform: "uppercase",
                     letterSpacing: "0.6px",
@@ -948,15 +948,15 @@ export default function SurveysPage() {
                     <tr
                       key={survey.id}
                       style={{
-                        borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.08))",
+                        borderBottom: "1px solid var(--table-row-border)",
                         transition: "background 0.15s ease",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(96, 165, 250, 0.05)")}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-table-row-hover)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
                       {/* Client & Project with role-guarded link to inside project analytics */}
                       <td style={{ padding: "14px 18px" }}>
-                        <div style={{ fontWeight: 600, color: "var(--text-white, #ffffff)" }}>
+                        <div style={{ fontWeight: 600, color: "var(--text-primary, #ffffff)" }}>
                           {survey.client?.name || "Client"}
                         </div>
                         {survey.project ? (
@@ -1004,10 +1004,10 @@ export default function SurveysPage() {
                       <td style={{ padding: "14px 18px" }}>
                         {survey.client_contact_name ? (
                           <div>
-                            <div style={{ fontWeight: 600, color: "var(--text-white, #fff)", fontSize: "12px" }}>
+                            <div style={{ fontWeight: 600, color: "var(--text-primary, #fff)", fontSize: "12px" }}>
                               {survey.client_contact_name}
                             </div>
-                            <div style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>
+                            <div style={{ fontSize: "11px", color: "var(--text-secondary, #64748b)" }}>
                               {survey.client_contact_email}
                             </div>
                           </div>
@@ -1019,7 +1019,7 @@ export default function SurveysPage() {
                       </td>
 
                       {/* Sent Date */}
-                      <td style={{ padding: "14px 18px", color: "var(--text-muted, #94a3b8)", fontSize: "12px", whiteSpace: "nowrap" }}>
+                      <td style={{ padding: "14px 18px", color: "var(--text-secondary, #94a3b8)", fontSize: "12px", whiteSpace: "nowrap" }}>
                         {survey.sent_at ? new Date(survey.sent_at).toLocaleDateString() : new Date(survey.created_at).toLocaleDateString()}
                       </td>
 
@@ -1040,14 +1040,14 @@ export default function SurveysPage() {
                                 fontWeight: 700,
                                 padding: "4px 10px",
                                 borderRadius: "6px",
-                                background: "rgba(34, 197, 94, 0.15)",
-                                color: "#22c55e",
-                                border: "1px solid rgba(34, 197, 94, 0.35)",
+                                background: "var(--badge-success-bg)",
+                                color: "var(--badge-success-text)",
+                                border: "1px solid var(--badge-success-border)",
                                 cursor: "pointer",
                                 transition: "all 0.15s ease",
                               }}
                             >
-                              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22c55e" }} />
+                              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "currentColor" }} />
                               Responded
                             </span>
 
@@ -1058,11 +1058,11 @@ export default function SurveysPage() {
                                   position: "absolute",
                                   top: "calc(100% + 6px)",
                                   left: "0",
-                                  background: "#0f172a",
-                                  border: "1px solid rgba(96, 165, 250, 0.35)",
+                                  background: "var(--bg-elevated, #0f172a)",
+                                  border: "1px solid var(--border)",
                                   borderRadius: "8px",
                                   padding: "8px 12px",
-                                  boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.7), 0 0 15px rgba(59, 130, 246, 0.2)",
+                                  boxShadow: "var(--shadow-md)",
                                   zIndex: 100,
                                   whiteSpace: "nowrap",
                                 }}
@@ -1073,7 +1073,7 @@ export default function SurveysPage() {
                                     display: "inline-flex",
                                     alignItems: "center",
                                     gap: "6px",
-                                    color: "#60a5fa",
+                                    color: "var(--primary-lt, #60a5fa)",
                                     fontSize: "12px",
                                     fontWeight: 600,
                                     textDecoration: "none",
@@ -1097,12 +1097,12 @@ export default function SurveysPage() {
                               fontWeight: 600,
                               padding: "4px 10px",
                               borderRadius: "6px",
-                              background: "rgba(148, 163, 184, 0.1)",
+                              background: "var(--bg-hover, rgba(148, 163, 184, 0.1))",
                               color: "var(--text-dim, #64748b)",
-                              border: "1px solid rgba(148, 163, 184, 0.2)",
+                              border: "1px solid var(--border, rgba(148, 163, 184, 0.2))",
                             }}
                           >
-                            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#64748b" }} />
+                            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "currentColor" }} />
                             Awaiting Response
                           </span>
                         )}
@@ -1134,7 +1134,7 @@ export default function SurveysPage() {
                             rel="noopener noreferrer"
                             title="Open client response form in new tab"
                             style={{
-                              color: "var(--text-dim, #64748b)",
+                              color: "var(--text-secondary, #64748b)",
                               display: "inline-flex",
                               alignItems: "center",
                               justifyContent: "center",
@@ -1147,12 +1147,12 @@ export default function SurveysPage() {
                               transition: "all 0.15s ease",
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.color = "var(--primary-lt, #93c5fd)";
-                              e.currentTarget.style.borderColor = "var(--border-strong, rgba(96, 165, 250, 0.4))";
+                              e.currentTarget.style.color = "var(--primary)";
+                              e.currentTarget.style.borderColor = "var(--border-strong)";
                             }}
                             onMouseLeave={(e) => {
-                              e.currentTarget.style.color = "var(--text-dim, #64748b)";
-                              e.currentTarget.style.borderColor = "var(--border, rgba(96, 165, 250, 0.15))";
+                              e.currentTarget.style.color = "var(--text-secondary)";
+                              e.currentTarget.style.borderColor = "var(--border)";
                             }}
                           >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1178,7 +1178,8 @@ export default function SurveysPage() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0, 0, 0, 0.75)",
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1189,30 +1190,30 @@ export default function SurveysPage() {
         >
           <div
             style={{
-              background: "#0d1b2a",
-              border: "1px solid rgba(96, 165, 250, 0.3)",
+              background: "var(--bg-card, #0d1b2a)",
+              border: "1px solid var(--border, rgba(96, 165, 250, 0.3))",
               borderRadius: "12px",
               padding: "26px",
               maxWidth: "600px",
               width: "100%",
-              boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
+              boxShadow: "var(--shadow-lg)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-              <h3 style={{ color: "#ffffff", margin: 0, fontSize: "17px", fontWeight: 700 }}>
+              <h3 style={{ color: "var(--text-primary, #ffffff)", margin: 0, fontSize: "17px", fontWeight: 700 }}>
                 Send Follow-up Email
               </h3>
               <button
                 type="button"
                 onClick={() => setFollowupModalSurvey(null)}
-                style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "20px", cursor: "pointer" }}
+                style={{ background: "transparent", border: "none", color: "var(--text-muted, #94a3b8)", fontSize: "20px", cursor: "pointer" }}
               >
                 &times;
               </button>
             </div>
 
-            <p style={{ color: "#94a3b8", fontSize: "13px", margin: "0 0 16px 0", lineHeight: 1.5 }}>
+            <p style={{ color: "var(--text-secondary, #94a3b8)", fontSize: "13px", margin: "0 0 16px 0", lineHeight: 1.5 }}>
               Send an acknowledgment email to <strong>{followupModalSurvey.client_contact_name}</strong> ({followupModalSurvey.client_contact_email}) regarding their {followupModalSurvey.phase} evaluation.
             </p>
 
@@ -1222,10 +1223,10 @@ export default function SurveysPage() {
               rows={8}
               style={{
                 width: "100%",
-                background: "rgba(10, 22, 40, 0.8)",
-                border: "1px solid rgba(96, 165, 250, 0.3)",
+                background: "var(--bg-elevated, #22334A)",
+                border: "1px solid var(--border, #33465f)",
                 borderRadius: "8px",
-                color: "#e2e8f0",
+                color: "var(--text-primary, #e2e8f0)",
                 fontSize: "13px",
                 padding: "12px",
                 outline: "none",

@@ -47,10 +47,10 @@ export default function Modal({
     >
       <div
         style={{
-          background: "var(--bg-surface, #0d1b2a)",
-          border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+          background: "var(--bg-card)",
+          border: "1px solid var(--border)",
           borderRadius: "var(--radius-lg, 12px)",
-          boxShadow: "var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.45))",
+          boxShadow: "var(--shadow-card)",
           width: "100%",
           maxWidth: maxWidth,
           maxHeight: "90vh",
@@ -64,7 +64,7 @@ export default function Modal({
         <div
           style={{
             padding: "18px 24px",
-            borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
+            borderBottom: "1px solid var(--border)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -74,7 +74,7 @@ export default function Modal({
             style={{
               fontSize: "17px",
               fontWeight: 600,
-              color: "var(--text-white, #ffffff)",
+              color: "var(--text-primary)",
               margin: 0,
             }}
           >
@@ -87,7 +87,7 @@ export default function Modal({
             style={{
               background: "transparent",
               border: "none",
-              color: "var(--text-dim, #64748b)",
+              color: "var(--text-muted)",
               fontSize: "20px",
               cursor: "pointer",
               lineHeight: 1,
@@ -95,8 +95,8 @@ export default function Modal({
               borderRadius: "var(--radius-sm, 6px)",
               transition: "color 0.15s",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-white, #ffffff)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-dim, #64748b)")}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
           >
             &times;
           </button>
@@ -118,8 +118,8 @@ export default function Modal({
           <div
             style={{
               padding: "16px 24px",
-              borderTop: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
-              background: "var(--bg-hover, rgba(10, 22, 40, 0.4))",
+              borderTop: "1px solid var(--border)",
+              background: "var(--bg-elevated)",
               display: "flex",
               alignItems: "center",
               justifyContent: "flex-end",

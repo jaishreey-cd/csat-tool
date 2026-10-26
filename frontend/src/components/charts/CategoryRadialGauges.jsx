@@ -28,14 +28,14 @@ export default function CategoryRadialGauges({ categories = [] }) {
         const score = cat.average_rating != null ? cat.average_rating : 0;
         const pct = Math.min(100, Math.max(0, (score / 5.0) * 100));
         const strokeDashoffset = circumference - (pct / 100) * circumference;
-        const color = score >= 4.0 ? "#22c55e" : score >= 3.0 ? "#fbbf24" : "#ef4444";
+        const color = score >= 4.0 ? "var(--success)" : score >= 3.0 ? "var(--warning)" : "var(--danger)";
 
         return (
           <div
             key={cat.section_number}
             style={{
-              background: "rgba(10, 22, 40, 0.55)",
-              border: "1px solid rgba(96, 165, 250, 0.15)",
+              background: "var(--bg-elevated)",
+              border: "1px solid var(--border)",
               borderRadius: "12px",
               padding: "20px 16px",
               display: "flex",
@@ -46,11 +46,11 @@ export default function CategoryRadialGauges({ categories = [] }) {
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = "translateY(-3px)";
-              e.currentTarget.style.borderColor = "rgba(56, 189, 248, 0.35)";
+              e.currentTarget.style.borderColor = "var(--primary)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.borderColor = "rgba(96, 165, 250, 0.15)";
+              e.currentTarget.style.borderColor = "var(--border)";
             }}
           >
             {/* Circular Gauge Ring */}
@@ -61,7 +61,7 @@ export default function CategoryRadialGauges({ categories = [] }) {
                   cx="50"
                   cy="50"
                   r={radius}
-                  stroke="rgba(255, 255, 255, 0.08)"
+                  stroke="var(--bg-track)"
                   strokeWidth="8"
                   fill="transparent"
                 />
@@ -93,10 +93,10 @@ export default function CategoryRadialGauges({ categories = [] }) {
                   justifyContent: "center",
                 }}
               >
-                <span style={{ fontSize: "16px", fontWeight: 800, color: "#ffffff" }}>
+                <span style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)" }}>
                   {score > 0 ? `★ ${score.toFixed(1)}` : "—"}
                 </span>
-                <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)", fontWeight: 600 }}>
+                <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>
                   {score > 0 ? `${Math.round(pct)}%` : "Pending"}
                 </span>
               </div>
@@ -104,10 +104,10 @@ export default function CategoryRadialGauges({ categories = [] }) {
 
             {/* Category Title */}
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-white, #ffffff)", lineHeight: 1.35, minHeight: "36px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.35, minHeight: "36px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {cat.category_name}
               </div>
-              <div style={{ fontSize: "11px", color: "var(--text-dim, #64748b)", marginTop: "4px" }}>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
                 {cat.total_ratings} client response{cat.total_ratings === 1 ? "" : "s"}
               </div>
             </div>
@@ -120,9 +120,9 @@ export default function CategoryRadialGauges({ categories = [] }) {
                   fontWeight: 700,
                   padding: "3px 10px",
                   borderRadius: "9999px",
-                  background: score >= 4.0 ? "rgba(34, 197, 94, 0.15)" : "rgba(245, 158, 11, 0.15)",
-                  color: score >= 4.0 ? "#34d399" : "#fbbf24",
-                  border: `1px solid ${score >= 4.0 ? "rgba(34, 197, 94, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
+                  background: score >= 4.0 ? "var(--badge-success-bg)" : "var(--badge-warning-bg)",
+                  color: score >= 4.0 ? "var(--badge-success-text)" : "var(--badge-warning-text)",
+                  border: `1px solid ${score >= 4.0 ? "var(--badge-success-border)" : "var(--badge-warning-border)"}`,
                 }}
               >
                 ★ {score.toFixed(2)} / 5.0

@@ -64,10 +64,10 @@ export default function CategoryRadarChart({ categories = [] }) {
       {/* Legend & Summary */}
       <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "8px", flexWrap: "wrap", fontSize: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ width: "12px", height: "12px", borderRadius: "3px", background: "rgba(56, 189, 248, 0.4)", border: "2px solid #38bdf8" }} />
-          <span style={{ color: "#e2e8f0", fontWeight: 600 }}>Actual CSAT Rating from Client Responses</span>
+          <span style={{ width: "12px", height: "12px", borderRadius: "3px", background: "var(--primary-badge-bg)", border: "2px solid var(--primary)" }} />
+          <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>Actual CSAT Rating from Client Responses</span>
         </div>
-        <span style={{ color: "var(--text-dim, #64748b)" }}>Scale: 1.0 (Low) — 5.0 (Exceptional)</span>
+        <span style={{ color: "var(--text-muted)" }}>Scale: 1.0 (Low) — 5.0 (Exceptional)</span>
       </div>
 
       <svg
@@ -93,15 +93,15 @@ export default function CategoryRadarChart({ categories = [] }) {
             <g key={lvl}>
               <polygon
                 points={polyStr}
-                fill={lvl === 5.0 ? "rgba(15, 29, 49, 0.4)" : "none"}
-                stroke="rgba(96, 165, 250, 0.15)"
+                fill={lvl === 5.0 ? "var(--chart-sub-bg)" : "none"}
+                stroke="var(--chart-grid)"
                 strokeWidth={lvl === 5.0 ? "1.5" : "1"}
               />
               {/* Level indicator on the vertical top axis */}
               <text
                 x={centerX + 6}
                 y={centerY - (lvl / maxScore) * radius + 4}
-                fill="rgba(148, 163, 184, 0.6)"
+                fill="var(--chart-text)"
                 fontSize="10"
                 fontFamily="inherit"
                 fontWeight="500"
@@ -122,7 +122,7 @@ export default function CategoryRadarChart({ categories = [] }) {
               y1={centerY}
               x2={outer.x}
               y2={outer.y}
-              stroke="rgba(96, 165, 250, 0.2)"
+              stroke="var(--chart-grid)"
               strokeWidth="1"
             />
           );
@@ -187,13 +187,13 @@ export default function CategoryRadarChart({ categories = [] }) {
                 x={lx}
                 y={ly - (line2 ? 10 : 4)}
                 textAnchor={textAnchor}
-                fill={isHovered ? "#38bdf8" : "#e2e8f0"}
+                fill={isHovered ? "var(--primary)" : "var(--chart-text-strong)"}
                 fontSize="11"
                 fontWeight={isHovered ? "700" : "600"}
                 fontFamily="inherit"
               >
                 <tspan x={lx} dy="0">{line1}</tspan>
-                {line2 && <tspan x={lx} dy="14">{line2}</tspan>}
+                {line2 && <tspan x={lx} dy="14" fill={isHovered ? "var(--primary)" : "var(--chart-text)"}>{line2}</tspan>}
               </text>
               <text
                 x={lx}
@@ -217,20 +217,20 @@ export default function CategoryRadarChart({ categories = [] }) {
           style={{
             position: "absolute",
             bottom: "0px",
-            background: "#091424",
-            border: "1px solid rgba(56, 189, 248, 0.4)",
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border)",
             borderRadius: "8px",
             padding: "8px 16px",
             fontSize: "12px",
-            color: "#ffffff",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
+            color: "var(--text-primary)",
+            boxShadow: "var(--shadow-card)",
             display: "flex",
             alignItems: "center",
             gap: "14px",
             pointerEvents: "none",
           }}
         >
-          <span style={{ fontWeight: 700, color: "#38bdf8" }}>{categories[hoveredIndex].category_name}</span>
+          <span style={{ fontWeight: 700, color: "var(--primary)" }}>{categories[hoveredIndex].category_name}</span>
           <span>Average Rating: <strong>★ {categories[hoveredIndex].average_rating?.toFixed(2) ?? "—"} / 5.0</strong></span>
           <span>Responses: <strong>{categories[hoveredIndex].total_ratings}</strong></span>
         </div>

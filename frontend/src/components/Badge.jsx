@@ -8,39 +8,39 @@ export default function Badge({
 }) {
   const variantStyles = {
     active: {
-      background: "rgba(34, 197, 94, 0.12)",
-      borderColor: "rgba(34, 197, 94, 0.35)",
-      color: "var(--success, #22c55e)",
+      background: "var(--badge-success-bg, rgba(34, 197, 94, 0.12))",
+      borderColor: "var(--badge-success-border, rgba(34, 197, 94, 0.35))",
+      color: "var(--badge-success-text, #22c55e)",
     },
     success: {
-      background: "rgba(34, 197, 94, 0.12)",
-      borderColor: "rgba(34, 197, 94, 0.35)",
-      color: "var(--success, #22c55e)",
+      background: "var(--badge-success-bg, rgba(34, 197, 94, 0.12))",
+      borderColor: "var(--badge-success-border, rgba(34, 197, 94, 0.35))",
+      color: "var(--badge-success-text, #22c55e)",
     },
     archived: {
-      background: "rgba(148, 163, 184, 0.12)",
-      borderColor: "rgba(148, 163, 184, 0.3)",
+      background: "var(--bg-hover, rgba(148, 163, 184, 0.12))",
+      borderColor: "var(--border, rgba(148, 163, 184, 0.3))",
       color: "var(--text-muted, #94a3b8)",
     },
     count: {
-      background: "rgba(37, 99, 235, 0.14)",
-      borderColor: "rgba(96, 165, 250, 0.32)",
-      color: "var(--primary-lt, #60a5fa)",
+      background: "var(--badge-count-bg, rgba(37, 99, 235, 0.14))",
+      borderColor: "var(--badge-count-border, rgba(96, 165, 250, 0.32))",
+      color: "var(--badge-count-text, #60a5fa)",
     },
     warning: {
-      background: "rgba(245, 158, 11, 0.14)",
-      borderColor: "rgba(245, 158, 11, 0.35)",
-      color: "var(--warning, #f59e0b)",
+      background: "var(--badge-warning-bg, rgba(245, 158, 11, 0.14))",
+      borderColor: "var(--badge-warning-border, rgba(245, 158, 11, 0.35))",
+      color: "var(--badge-warning-text, #f59e0b)",
     },
     danger: {
-      background: "rgba(239, 68, 68, 0.14)",
-      borderColor: "rgba(239, 68, 68, 0.35)",
-      color: "var(--danger, #ef4444)",
+      background: "var(--badge-danger-bg, rgba(239, 68, 68, 0.14))",
+      borderColor: "var(--badge-danger-border, rgba(239, 68, 68, 0.35))",
+      color: "var(--badge-danger-text, #ef4444)",
     },
     info: {
-      background: "rgba(6, 182, 212, 0.14)",
-      borderColor: "rgba(6, 182, 212, 0.35)",
-      color: "var(--accent, #06b6d4)",
+      background: "var(--badge-info-bg, rgba(6, 182, 212, 0.14))",
+      borderColor: "var(--badge-info-border, rgba(6, 182, 212, 0.35))",
+      color: "var(--badge-info-text, #06b6d4)",
     },
   };
 

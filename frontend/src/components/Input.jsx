@@ -44,7 +44,7 @@ export default function Input({
             fontWeight: 600,
             textTransform: "uppercase",
             letterSpacing: "0.5px",
-            color: error ? "var(--danger, #ef4444)" : "var(--text-muted, #94a3b8)",
+            color: error ? "var(--danger, #ef4444)" : "var(--text-secondary, #475569)",
             display: "flex",
             alignItems: "center",
             gap: "4px",
@@ -77,30 +77,30 @@ export default function Input({
             width: "100%",
             height: "44px",
             padding: isPasswordType ? "0 44px 0 14px" : "0 14px",
-            background: "var(--bg-surface, #0d1b2a)",
+            background: "var(--bg-elevated, #F8FAFF)",
             border: `1px solid ${
               error
                 ? "var(--danger, #ef4444)"
-                : "var(--border-strong, rgba(96, 165, 250, 0.25))"
+                : "var(--border, #D8E1EF)"
             }`,
             borderRadius: "var(--radius-md, 9px)",
-            color: "var(--text-main, #e2e8f0)",
+            color: "var(--text-primary, #172033)",
             fontSize: "14px",
             outline: "none",
-            transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+            transition: "border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease",
             opacity: disabled ? 0.6 : 1,
             cursor: disabled ? "not-allowed" : "text",
           }}
           onFocus={(e) => {
             if (!error) {
-              e.target.style.borderColor = "var(--primary-lt, #60a5fa)";
-              e.target.style.boxShadow = "0 0 0 3px rgba(37, 99, 235, 0.25)";
+              e.target.style.borderColor = "var(--primary, #2563eb)";
+              e.target.style.boxShadow = "0 0 0 3px var(--primary-badge-bg, rgba(37, 99, 235, 0.2))";
             }
           }}
           onBlurCapture={(e) => {
             e.target.style.borderColor = error
               ? "var(--danger, #ef4444)"
-              : "var(--border-strong, rgba(96, 165, 250, 0.25))";
+              : "var(--border, #D8E1EF)";
             e.target.style.boxShadow = "none";
           }}
           {...props}
@@ -117,7 +117,7 @@ export default function Input({
               right: "10px",
               background: "transparent",
               border: "none",
-              color: "var(--text-muted, #94a3b8)",
+              color: "var(--text-secondary, #64748b)",
               cursor: "pointer",
               padding: "6px",
               display: "flex",
@@ -125,7 +125,10 @@ export default function Input({
               justifyContent: "center",
               fontSize: "14px",
               borderRadius: "4px",
+              transition: "color 0.15s ease",
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary, #64748b)")}
           >
             {showPassword ? (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -89,12 +89,12 @@ export function CopyLinkButton({
       return {
         ...BASE_BUTTON_STYLE,
         background: isHovered
-          ? "rgba(34, 197, 94, 0.22)"
-          : "rgba(34, 197, 94, 0.14)",
+          ? "var(--badge-success-border, rgba(34, 197, 94, 0.22))"
+          : "var(--badge-success-bg, rgba(34, 197, 94, 0.14))",
         border: isHovered
-          ? "1px solid rgba(34, 197, 94, 0.65)"
-          : "1px solid rgba(34, 197, 94, 0.4)",
-        color: isHovered ? "#86efac" : "#4ade80",
+          ? "1px solid var(--badge-success-text, #22c55e)"
+          : "1px solid var(--badge-success-border, rgba(34, 197, 94, 0.4))",
+        color: "var(--badge-success-text, #22c55e)",
         boxShadow: isHovered ? "0 2px 10px rgba(34, 197, 94, 0.25)" : "none",
         ...style,
       };
@@ -103,14 +103,14 @@ export function CopyLinkButton({
     return {
       ...BASE_BUTTON_STYLE,
       background: isHovered
-        ? "rgba(56, 189, 248, 0.2)"
-        : "rgba(56, 189, 248, 0.1)",
+        ? "var(--bg-hover, rgba(56, 189, 248, 0.2))"
+        : "var(--badge-count-bg, rgba(56, 189, 248, 0.1))",
       border: isHovered
-        ? "1px solid rgba(56, 189, 248, 0.55)"
-        : "1px solid rgba(56, 189, 248, 0.28)",
-      color: isHovered ? "#7dd3fc" : "#38bdf8",
-      boxShadow: isHovered ? "0 2px 10px rgba(56, 189, 248, 0.2)" : "none",
-      ...(isFocused ? { ring: "2px solid rgba(56, 189, 248, 0.4)" } : {}),
+        ? "1px solid var(--border-strong, rgba(56, 189, 248, 0.55))"
+        : "1px solid var(--border, rgba(56, 189, 248, 0.28))",
+      color: isHovered ? "var(--primary-hover, #1d4ed8)" : "var(--primary, #2563eb)",
+      boxShadow: isHovered ? "0 2px 10px rgba(37, 99, 235, 0.15)" : "none",
+      ...(isFocused ? { ring: "2px solid var(--primary-glow)" } : {}),
       ...style,
     };
   };
@@ -187,17 +187,17 @@ export function ResendMailButton({
   const getStyle = () => ({
     ...BASE_BUTTON_STYLE,
     background: isDisabled
-      ? "rgba(96, 165, 250, 0.05)"
+      ? "var(--bg-hover, rgba(96, 165, 250, 0.05))"
       : isHovered
-      ? "rgba(96, 165, 250, 0.2)"
-      : "rgba(96, 165, 250, 0.1)",
+      ? "var(--bg-hover, rgba(96, 165, 250, 0.2))"
+      : "var(--primary-badge-bg, rgba(96, 165, 250, 0.1))",
     border: isDisabled
-      ? "1px solid rgba(96, 165, 250, 0.15)"
+      ? "1px solid var(--border, rgba(96, 165, 250, 0.15))"
       : isHovered
-      ? "1px solid rgba(96, 165, 250, 0.55)"
-      : "1px solid rgba(96, 165, 250, 0.28)",
-    color: isDisabled ? "rgba(147, 197, 253, 0.5)" : isHovered ? "#93c5fd" : "#60a5fa",
-    boxShadow: isHovered && !isDisabled ? "0 2px 10px rgba(96, 165, 250, 0.2)" : "none",
+      ? "1px solid var(--border-strong, rgba(96, 165, 250, 0.55))"
+      : "1px solid var(--border, rgba(96, 165, 250, 0.28))",
+    color: isDisabled ? "var(--text-dim, rgba(147, 197, 253, 0.5))" : isHovered ? "var(--primary-hover, #1d4ed8)" : "var(--primary, #2563eb)",
+    boxShadow: isHovered && !isDisabled ? "0 2px 10px rgba(37, 99, 235, 0.15)" : "none",
     cursor: isDisabled ? "not-allowed" : "pointer",
     opacity: isDisabled ? 0.7 : 1,
     ...style,
@@ -274,17 +274,17 @@ export function ExportCsvButton({
   const getStyle = () => ({
     ...BASE_BUTTON_STYLE,
     background: isDisabled
-      ? "rgba(16, 185, 129, 0.05)"
+      ? "var(--bg-hover, rgba(16, 185, 129, 0.05))"
       : isHovered
-      ? "rgba(16, 185, 129, 0.2)"
-      : "rgba(16, 185, 129, 0.1)",
+      ? "var(--badge-success-border, rgba(16, 185, 129, 0.2))"
+      : "var(--badge-success-bg, rgba(16, 185, 129, 0.1))",
     border: isDisabled
-      ? "1px solid rgba(16, 185, 129, 0.15)"
+      ? "1px solid var(--border, rgba(16, 185, 129, 0.15))"
       : isHovered
-      ? "1px solid rgba(16, 185, 129, 0.55)"
-      : "1px solid rgba(16, 185, 129, 0.28)",
-    color: isDisabled ? "rgba(110, 231, 183, 0.5)" : isHovered ? "#6ee7b7" : "#34d399",
-    boxShadow: isHovered && !isDisabled ? "0 2px 10px rgba(16, 185, 129, 0.2)" : "none",
+      ? "1px solid var(--badge-success-text, #22c55e)"
+      : "1px solid var(--badge-success-border, rgba(16, 185, 129, 0.28))",
+    color: isDisabled ? "var(--text-dim, rgba(110, 231, 183, 0.5))" : isHovered ? "var(--badge-success-text, #15803d)" : "var(--badge-success-text, #22c55e)",
+    boxShadow: isHovered && !isDisabled ? "0 2px 10px rgba(34, 197, 94, 0.15)" : "none",
     cursor: isDisabled ? "not-allowed" : "pointer",
     opacity: isDisabled ? 0.7 : 1,
     ...style,

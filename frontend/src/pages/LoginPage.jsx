@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Logo from "../components/Logo";
 import Input from "../components/Input";
+import ThemeToggle from "../components/ThemeToggle";
 import styles from "./LoginPage.module.css";
 
 export default function LoginPage() {
@@ -128,6 +129,7 @@ export default function LoginPage() {
         <div className={styles.brand}>
           <Logo size="sm" />
         </div>
+        <ThemeToggle />
       </header>
 
       {/* Main Centered Content */}
@@ -143,17 +145,7 @@ export default function LoginPage() {
           </p>
 
           {/* Microsoft SSO Notice (In development with dev team) */}
-          <div style={{
-            margin: "12px 0 16px 0",
-            padding: "10px 14px",
-            borderRadius: "8px",
-            background: "rgba(30, 41, 59, 0.6)",
-            border: "1px solid rgba(148, 163, 184, 0.2)",
-            fontSize: "12px",
-            color: "#94a3b8",
-            textAlign: "center",
-            lineHeight: 1.4,
-          }}>
+          <div className={styles.ssoNotice}>
             🔒 <strong>Enterprise SSO:</strong> Currently in progress with the dev team. Please sign in with your administrator-approved account credentials below.
           </div>
 
@@ -233,15 +225,15 @@ export default function LoginPage() {
           xmlns="http://www.w3.org/2000/svg"
         >
           <path
-            fill="#1a2c3f"
+            className={styles.wavePath1}
             d="M0,60 C260,110 440,30 760,85 C1080,140 1280,60 1440,75 L1440,180 L0,180 Z"
           />
           <path
-            fill="#32475e"
+            className={styles.wavePath2}
             d="M0,95 C220,55 480,135 840,85 C1120,45 1320,110 1440,95 L1440,180 L0,180 Z"
           />
           <path
-            fill="#546a84"
+            className={styles.wavePath3}
             d="M0,130 C300,90 560,155 920,115 C1180,85 1340,135 1440,120 L1440,180 L0,180 Z"
           />
         </svg>

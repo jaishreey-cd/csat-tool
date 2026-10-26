@@ -121,15 +121,15 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
         style={{
           width: "var(--sidebar-w, 260px)",
           height: "100vh",
-          background: "var(--bg-surface, #0d1b2a)",
-          borderRight: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
+          background: "var(--bg-sidebar, #0F172A)",
+          borderRight: "1px solid var(--border, #33465f)",
           display: "flex",
           flexDirection: "column",
           position: "fixed",
           top: 0,
           left: 0,
           zIndex: 50,
-          transition: "transform 0.25s ease",
+          transition: "transform 0.25s ease, background 0.25s ease, border-color 0.25s ease",
         }}
       >
         {/* Brand Header: CSAT only */}
@@ -140,7 +140,7 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            borderBottom: "1px solid var(--border, rgba(96, 165, 250, 0.1))",
+            borderBottom: "1px solid var(--border, #33465f)",
           }}
         >
           <Logo size="md" />
@@ -233,11 +233,12 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
         <div
           style={{
             padding: "16px",
-            borderTop: "1px solid var(--border, rgba(96, 165, 250, 0.12))",
-            background: "linear-gradient(180deg, rgba(13, 27, 42, 0.6) 0%, rgba(10, 20, 36, 0.95) 100%)",
+            borderTop: "1px solid var(--border, #33465f)",
+            background: "var(--bg-sidebar, #0F172A)",
             display: "flex",
             flexDirection: "column",
             gap: "12px",
+            transition: "background 0.25s ease, border-color 0.25s ease",
           }}
         >
           {/* User Profile Card */}
@@ -248,8 +249,9 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
               gap: "10px",
               padding: "10px 12px",
               borderRadius: "10px",
-              background: "rgba(14, 28, 48, 0.6)",
-              border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
+              background: "var(--bg-elevated, #22334A)",
+              border: "1px solid var(--border, #33465f)",
+              transition: "background 0.25s ease, border-color 0.25s ease",
             }}
           >
             <div
@@ -257,7 +259,7 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
                 width: "36px",
                 height: "36px",
                 borderRadius: "50%",
-                background: "linear-gradient(135deg, var(--accent, #06b6d4), var(--primary, #2563eb))",
+                background: "linear-gradient(135deg, var(--accent, #38bdf8), var(--primary, #60a5fa))",
                 color: "#ffffff",
                 display: "flex",
                 alignItems: "center",
@@ -275,7 +277,7 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
                 style={{
                   fontSize: "13px",
                   fontWeight: 600,
-                  color: "var(--text-white, #ffffff)",
+                  color: "var(--text-primary, #ffffff)",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -291,11 +293,11 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
                     gap: "4px",
                     fontSize: "10px",
                     fontWeight: 700,
-                    background: user?.role === "Admin" ? "rgba(34, 197, 94, 0.15)" : "rgba(37, 99, 235, 0.15)",
-                    color: user?.role === "Admin" ? "var(--success, #22c55e)" : "var(--primary-lt, #60a5fa)",
+                    background: user?.role === "Admin" ? "var(--badge-success-bg)" : "var(--badge-count-bg)",
+                    color: user?.role === "Admin" ? "var(--badge-success-text)" : "var(--badge-count-text)",
                     padding: "1px 6px",
                     borderRadius: "9999px",
-                    border: `1px solid ${user?.role === "Admin" ? "rgba(34, 197, 94, 0.3)" : "rgba(37, 99, 235, 0.3)"}`,
+                    border: `1px solid ${user?.role === "Admin" ? "var(--badge-success-border)" : "var(--badge-count-border)"}`,
                     textTransform: "uppercase",
                     letterSpacing: "0.3px",
                   }}
@@ -314,7 +316,7 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
                 <span
                   style={{
                     fontSize: "11px",
-                    color: "var(--text-dim, #64748b)",
+                    color: "var(--text-secondary, #91A2BB)",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -334,8 +336,8 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
               width: "100%",
               padding: "8px 12px",
               borderRadius: "8px",
-              border: "1px solid rgba(239, 68, 68, 0.22)",
-              background: "rgba(239, 68, 68, 0.06)",
+              border: "1px solid var(--badge-danger-border, rgba(239, 68, 68, 0.3))",
+              background: "var(--badge-danger-bg, rgba(239, 68, 68, 0.08))",
               color: "var(--danger, #ef4444)",
               fontSize: "12px",
               fontWeight: 600,
@@ -347,13 +349,13 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
               gap: "6px",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(239, 68, 68, 0.16)";
-              e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.45)";
+              e.currentTarget.style.background = "var(--danger-glow, rgba(239, 68, 68, 0.18))";
+              e.currentTarget.style.borderColor = "var(--danger, #ef4444)";
               e.currentTarget.style.boxShadow = "0 2px 10px rgba(239, 68, 68, 0.2)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(239, 68, 68, 0.06)";
-              e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.22)";
+              e.currentTarget.style.background = "var(--badge-danger-bg, rgba(239, 68, 68, 0.08))";
+              e.currentTarget.style.borderColor = "var(--badge-danger-border, rgba(239, 68, 68, 0.3))";
               e.currentTarget.style.boxShadow = "none";
             }}
             title="Sign out of CSAT"
