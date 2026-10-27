@@ -47,9 +47,25 @@ csat-tool/
 
 ---
 
-## Getting Started
+## Deployment with Docker (Recommended)
 
-### 1. Backend Setup
+The entire application can be launched in production mode using Docker Compose (PostgreSQL, FastAPI Backend, React/Vite Nginx Frontend):
+
+```bash
+# 1. Create your environment configuration from template
+cp .env.example .env
+
+# 2. Build and start the 3-container cluster
+docker compose up -d --build
+
+# 3. Access the application at http://localhost
+```
+
+For complete architectural details, persistent storage, Nginx proxy configuration, and production SSL deployment, see the **[Docker Deployment Guide](DEPLOYMENT.md)**.
+
+---
+
+## Local Development Setup (Manual)
 
 From the root directory:
 

@@ -94,6 +94,7 @@ app.include_router(analytics_router, prefix=settings.API_V1_STR)
 app.include_router(questions_router, prefix=settings.API_V1_STR)
 
 @app.get("/api/health", tags=["Health"])
+@app.get("/health", tags=["Health"])
 def health_check():
     """Health check endpoint."""
     return {

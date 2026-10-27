@@ -1,0 +1,114 @@
+services:
+  # ── PostgreSQL Database Container ──────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: csat_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-csat_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgrespassword_change_in_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - csat_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-csat_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # PostgreSQL port is kept on internal Docker network by default.
+    # Uncomment the ports mapping below ONLY if local direct DB inspection (e.g., DBeaver/psql) is needed:
+    # ports:
+    #   - "${POSTGRES_PORT:-5432}:5432"
+
+  # ── FastAPI Backend Container ──────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: csat_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Database connection using internal Docker service hostname
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgrespassword_change_in_production}@db:5432/${POSTGRES_DB:-csat_db}
+      # JWT & Security
+      JWT_SECRET: ${JWT_SECRET:-replace-with-a-secure-random-32-plus-character-secret-key-in-prod}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-480}
+      UPLOAD_DIR: /app/uploads
+      # Default Seed Credentials (Maker-Checker workflow)
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@csat.local}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-AdminPassword123!}
+      SEED_REVIEWER_EMAIL: ${SEED_REVIEWER_EMAIL:-reviewer@csat.local}
+      SEED_REVIEWER_PASSWORD: ${SEED_REVIEWER_PASSWORD:-ReviewerPassword123!}
+      # Application URLs
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      # Email & Notifications (SMTP)
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-PMO CSAT Evaluation Team}
+      SMTP_TLS: ${SMTP_TLS:-True}
+      # Microsoft Entra ID / Azure AD SSO
+      AAD_CLIENT_ID: ${AAD_CLIENT_ID:-}
+      AAD_CLIENT_SECRET: ${AAD_CLIENT_SECRET:-}
+      AAD_TENANT_ID: ${AAD_TENANT_ID:-}
+      AAD_REDIRECT_URI: ${AAD_REDIRECT_URI:-http://localhost/auth/callback}
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - csat_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    # Backend port is not exposed to the host by default; all traffic flows through the Nginx proxy.
+    # Uncomment the ports mapping below ONLY for direct local API debugging:
+    # ports:
+    #   - "8000:8000"
+
+  # ── React / Vite Frontend (Nginx) Container ────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_SSO_ENABLED: ${VITE_SSO_ENABLED:-false}
+    container_name: csat_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - csat_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1/nginx-health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+# ── Persistent Storage Volumes ────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    name: csat_postgres_data
+  backend_uploads:
+    name: csat_backend_uploads
+
+# ── Isolated Internal Docker Network ──────────────────────────────────────────
+networks:
+  csat_network:
+    name: csat_network
+    driver: bridge
