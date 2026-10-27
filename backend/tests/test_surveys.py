@@ -53,7 +53,17 @@ def test_create_survey_missing_section_fails(client, test_user, test_client_and_
     token = login_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Only sections 1, 3, 4, 5 (Section 2 missing, which is mandatory)
+def test_create_survey_missing_section_allowed(client, test_user, test_client_and_project):
+    """Test that deleting/omitting sections is now permitted per requirement."""
+    db_client, db_project = test_client_and_project
+    login_resp = client.post(
+        "/api/auth/login",
+        json={"email": "testadmin@example.com", "password": "Password123!"}
+    )
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Only sections 1, 3, 4, 5 (Section 2 deleted/omitted)
     questions = [
         {"section_number": 1, "section_title": "Project Management", "question_text": "Clarity of milestones?", "response_type": "star_rating"},
         {"section_number": 3, "section_title": "Team Responsiveness", "question_text": "Speed of communication?", "response_type": "star_rating"},
@@ -69,8 +79,17 @@ def test_create_survey_missing_section_fails(client, test_user, test_client_and_
     }
 
     resp = client.post("/api/surveys", json=payload, headers=headers)
-    assert resp.status_code == 400
-    assert "Section 2 has no questions" in resp.json()["detail"]
+    assert resp.status_code == 201
+
+    # Empty questions list still fails
+    empty_payload = {
+        "client_id": db_client.id,
+        "project_id": db_project.id,
+        "phase": "Closure",
+        "questions": []
+    }
+    empty_resp = client.post("/api/surveys", json=empty_payload, headers=headers)
+    assert empty_resp.status_code == 400
 
 def test_dispatch_and_submit_public_survey(client, test_user, test_client_and_project):
     """Test full dispatch and client public survey submission."""

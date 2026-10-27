@@ -7,7 +7,7 @@ import ThemeToggle from "../components/ThemeToggle";
 import styles from "./LoginPage.module.css";
 
 export default function LoginPage() {
-  const { login, isAuthenticated } = useAuth();
+  const { login, logout, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -27,12 +27,19 @@ export default function LoginPage() {
   const [authError, setAuthError] = useState("");
   const [networkError, setNetworkError] = useState("");
 
-  // Redirect if already signed in
+  // Handle explicit logout query parameter
   useEffect(() => {
-    if (isAuthenticated) {
+    if (searchParams.get("logout") === "true") {
+      logout();
+    }
+  }, [searchParams, logout]);
+
+  // Only auto-redirect if user arrived with an explicit 'from' target (e.g. from a protected route)
+  useEffect(() => {
+    if (isAuthenticated && searchParams.get("from")) {
       navigate(redirectTarget, { replace: true });
     }
-  }, [isAuthenticated, navigate, redirectTarget]);
+  }, [isAuthenticated, navigate, redirectTarget, searchParams]);
 
   // Validation rules
   const validateEmail = (val) => {
@@ -148,6 +155,61 @@ export default function LoginPage() {
           <div className={styles.ssoNotice}>
             🔒 <strong>Enterprise SSO:</strong> Currently in progress with the dev team. Please sign in with your administrator-approved account credentials below.
           </div>
+
+          {/* Active Session Notification if already authenticated */}
+          {isAuthenticated && user && (
+            <div
+              style={{
+                background: "rgba(37, 99, 235, 0.12)",
+                border: "1px solid rgba(59, 130, 246, 0.3)",
+                borderRadius: "8px",
+                padding: "10px 14px",
+                marginBottom: "16px",
+                fontSize: "12px",
+                color: "var(--primary-lt, #60a5fa)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "8px",
+                flexWrap: "wrap",
+              }}
+            >
+              <span>Currently signed in as <strong>{user.email}</strong> ({user.role})</span>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => navigate(redirectTarget)}
+                  style={{
+                    background: "rgba(37, 99, 235, 0.25)",
+                    border: "1px solid rgba(59, 130, 246, 0.5)",
+                    color: "#ffffff",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    borderRadius: "4px",
+                    padding: "3px 8px",
+                    fontSize: "11px",
+                  }}
+                >
+                  Go to App →
+                </button>
+                <button
+                  type="button"
+                  onClick={() => logout()}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#f87171",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    textDecoration: "underline",
+                    fontSize: "11px",
+                  }}
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Temporary Email + Password Form */}
           <form className={styles.loginForm} onSubmit={handleSubmit} noValidate>

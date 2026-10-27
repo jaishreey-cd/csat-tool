@@ -370,8 +370,19 @@ code {
   font-size: 0.88em;
 }
 
-button { font-family: inherit; }
+button { 
+  font-family: inherit; 
+  box-sizing: border-box;
+}
 input, select, textarea { font-family: inherit; }
+
+/* Table Badge Wrapping Prevention & Global Pill Styles */
+table td > span,
+.badge-pill {
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
 
 /* Micro-Animations */
 @keyframes fadeIn {

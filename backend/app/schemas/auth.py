@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, ConfigDict, field_validator
 
 class LoginRequest(BaseModel):
@@ -21,6 +21,8 @@ class UserResponse(BaseModel):
     role: str = "Admin"
     is_active: bool
     created_at: datetime
+    assigned_project_ids: Optional[List[int]] = []
+    assigned_projects: Optional[List[Dict[str, Any]]] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -34,6 +36,10 @@ class CreateUserRequest(BaseModel):
     full_name: Optional[str] = None
     role: str = "User"
     is_active: bool = True
+    project_ids: Optional[List[int]] = []
+
+class UserProjectsAssignRequest(BaseModel):
+    project_ids: List[int]
 
 class TokenResponse(BaseModel):
     access_token: str

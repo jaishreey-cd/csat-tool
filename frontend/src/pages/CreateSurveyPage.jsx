@@ -13,8 +13,8 @@ import surveysApi from "../api/surveysApi";
 import questionsApi from "../api/questionsApi";
 
 const PHASE_WORKFLOW = [
-  { value: "Weekly", label: "Weekly Review", order: 1, next: "Monthly Milestone", desc: "Short cadence weekly progress and sprint pulse check." },
-  { value: "Monthly", label: "Monthly Milestone", order: 2, next: "Quarterly Review", desc: "Monthly sprint deliverable, governance, and velocity review." },
+  { value: "Weekly", label: "Milestone Completion", order: 1, next: "Monthly Review", desc: "Short cadence review on milestone deliverable and immediate feedback." },
+  { value: "Monthly", label: "Monthly Review", order: 2, next: "Quarterly Review", desc: "Monthly sprint deliverable, governance, and velocity review." },
   { value: "Quarterly", label: "Quarterly Review", order: 3, next: "Project Closure", desc: "Quarterly business review (QBR) assessing strategic value and delivery." },
   { value: "Closure", label: "Project Closure", order: 4, next: "Complete", desc: "Final engagement evaluation, deliverable sign-off, and handover." },
 ];
@@ -102,11 +102,75 @@ export default function CreateSurveyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [createdSurvey, setCreatedSurvey] = useState(null);
+  const [createdSurveys, setCreatedSurveys] = useState([]);
 
-  // Client Contact State
-  const [contactName, setContactName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [copiedLink, setCopiedLink] = useState(false);
+  // Active section categories that haven't been deleted (1 to 6)
+  const [activeSectionNumbers, setActiveSectionNumbers] = useState([1, 2, 3, 4, 5, 6]);
+
+  // Multiple Stakeholders State
+  const [stakeholders, setStakeholders] = useState([
+    { name: "", email: "" },
+  ]);
+  const [copiedLinkIndex, setCopiedLinkIndex] = useState(null);
+
+  // Handlers for deleting and restoring sections
+  const removeSection = (secNum) => {
+    if (activeSectionNumbers.length <= 1) {
+      alert("At least one section must be included in the survey.");
+      return;
+    }
+    const remaining = activeSectionNumbers.filter((n) => n !== secNum);
+    setActiveSectionNumbers(remaining);
+    setSelectedQuestions((prev) => {
+      const next = { ...prev };
+      delete next[secNum];
+      return next;
+    });
+    if (activeSectionTab === secNum) {
+      setActiveSectionTab(remaining[0]);
+    }
+  };
+
+  const restoreSection = (secNum) => {
+    if (activeSectionNumbers.includes(secNum)) return;
+    const nextList = [...activeSectionNumbers, secNum].sort((a, b) => a - b);
+    setActiveSectionNumbers(nextList);
+    const sec = QUESTION_BANK.find((s) => s.number === secNum);
+    if (sec) {
+      const defaultCount = sec.number === 6 ? 2 : 5;
+      setSelectedQuestions((prev) => ({
+        ...prev,
+        [secNum]: (sec.questions || []).slice(0, defaultCount).map((q) => ({
+          section_number: sec.number,
+          section_title: sec.title,
+          question_text: q.text,
+          response_type: sec.responseType,
+          is_custom: false,
+        })),
+      }));
+    }
+    setActiveSectionTab(secNum);
+  };
+
+  // Handlers for adding/removing/updating stakeholders
+  const handleAddStakeholder = () => {
+    setStakeholders((prev) => [...prev, { name: "", email: "" }]);
+  };
+
+  const handleUpdateStakeholder = (index, field, value) => {
+    setStakeholders((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  const handleRemoveStakeholder = (index) => {
+    setStakeholders((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, i) => i !== index);
+    });
+  };
 
   // PostgreSQL Question Templates State
   const [dbQuestions, setDbQuestions] = useState([]);
@@ -258,12 +322,13 @@ export default function CreateSurveyPage() {
     }));
   };
 
-  // Validation checkers across sections: Sections 1-5 require 1-5 questions; Section 6 is optional (0-5)
+  // Validation checkers across active sections: Active sections 1-5 require 1-5 questions; Section 6 is optional (0-5)
   const totalQuestionsCount = Object.values(selectedQuestions).reduce((acc, list) => acc + list.length, 0);
-  const allSectionsHaveQuestions = [1, 2, 3, 4, 5].every(
-    (sec) => (selectedQuestions[sec]?.length || 0) >= 1 && (selectedQuestions[sec]?.length || 0) <= 5
-  ) && (selectedQuestions[6]?.length || 0) <= 5;
-  const emptySections = [1, 2, 3, 4, 5].filter((sec) => (selectedQuestions[sec]?.length || 0) === 0);
+  const allSectionsHaveQuestions = activeSectionNumbers.length > 0 && activeSectionNumbers.every((sec) => {
+    const len = selectedQuestions[sec]?.length || 0;
+    return sec === 6 ? len <= 5 : len >= 1 && len <= 5;
+  });
+  const emptySections = activeSectionNumbers.filter((sec) => (selectedQuestions[sec]?.length || 0) === 0);
 
   // Stepper definition (4 unified steps)
   const steps = [
@@ -273,14 +338,30 @@ export default function CreateSurveyPage() {
     { label: "Preview & Dispatch" },
   ];
 
-  // Submit survey and trigger approval
+  // Submit survey and dispatch to all added stakeholders
   const handleFinalSubmit = async () => {
+    const validStakeholders = stakeholders.filter(
+      (s) => s.name.trim() && s.email.trim()
+    );
+    if (validStakeholders.length === 0) {
+      setSubmitError("Please provide at least one client stakeholder contact name and email.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    for (const s of validStakeholders) {
+      if (!emailRegex.test(s.email.trim())) {
+        setSubmitError(`Invalid email address: '${s.email.trim()}'. Please provide a valid email format.`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     setSubmitError("");
 
-    // Flatten questions in section order
+    // Flatten questions in active section order
     const flatQuestions = [];
-    for (let sec = 1; sec <= 6; sec++) {
+    activeSectionNumbers.forEach((sec) => {
       const qList = selectedQuestions[sec] || [];
       qList.forEach((q, idx) => {
         flatQuestions.push({
@@ -292,29 +373,24 @@ export default function CreateSurveyPage() {
           display_order: idx + 1,
         });
       });
-    }
-
-    if (!contactName.trim() || !contactEmail.trim()) {
-      setSubmitError("Client stakeholder name and email are required to create and dispatch the survey.");
-      setSubmitting(false);
-      return;
-    }
-
-    const trimmedEmail = contactEmail.trim();
-
-    const payload = {
-      client_id: parseInt(selectedClientId, 10),
-      project_id: parseInt(selectedProjectId, 10),
-      phase: selectedPhase,
-      questions: flatQuestions,
-      client_contact_name: contactName.trim(),
-      client_contact_email: trimmedEmail,
-    };
+    });
 
     try {
-      // Create survey directly - no approval state
-      const survey = await surveysApi.createSurvey(payload);
-      setCreatedSurvey(survey);
+      const results = [];
+      for (const s of validStakeholders) {
+        const payload = {
+          client_id: parseInt(selectedClientId, 10),
+          project_id: parseInt(selectedProjectId, 10),
+          phase: selectedPhase,
+          questions: flatQuestions,
+          client_contact_name: s.name.trim(),
+          client_contact_email: s.email.trim(),
+        };
+        const survey = await surveysApi.createSurvey(payload);
+        results.push(survey);
+      }
+      setCreatedSurveys(results);
+      setCreatedSurvey(results[0]);
     } catch (err) {
       setSubmitError(
         err?.response?.data?.detail || "Failed to create survey. Please check requirements and retry."
@@ -325,18 +401,17 @@ export default function CreateSurveyPage() {
   };
 
   // Copy survey link to clipboard
-  const handleCopyLink = (token) => {
+  const handleCopyLink = (token, index = null) => {
     const publicUrl = `${window.location.origin}/s/${token}`;
     navigator.clipboard.writeText(publicUrl);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
+    setCopiedLinkIndex(index !== null ? index : 0);
+    setTimeout(() => setCopiedLinkIndex(null), 2500);
   };
 
-  // CONFIRMATION PAGE (Requirement 3: Show only message and link with copy button)
-  if (createdSurvey) {
-    const clientName = currentClient?.name || createdSurvey.client?.name || createdSurvey.client_contact_name || "Client";
-    const surveyUrl = `${window.location.origin}/s/${createdSurvey.unique_token || ""}`;
-    const emailResult = createdSurvey.email_dispatch_result;
+  // CONFIRMATION PAGE (Show confirmation and links for all stakeholders)
+  if (createdSurvey || createdSurveys.length > 0) {
+    const surveysToShow = createdSurveys.length > 0 ? createdSurveys : [createdSurvey];
+    const clientName = currentClient?.name || createdSurvey?.client?.name || "Client";
 
     return (
       <div
@@ -345,8 +420,8 @@ export default function CreateSurveyPage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          maxWidth: "600px",
-          margin: "80px auto",
+          maxWidth: "680px",
+          margin: "60px auto",
           padding: "36px 32px",
           background: "var(--bg-surface, #0d1b2a)",
           border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
@@ -374,96 +449,110 @@ export default function CreateSurveyPage() {
           ✓
         </div>
 
-        <h2
-          style={{
-            fontSize: "22px",
-            fontWeight: 700,
-            color: "var(--text-white, #ffffff)",
-            margin: 0,
-            lineHeight: 1.4,
-          }}
-        >
-          Survey link dispatched to {clientName}
-        </h2>
-
-        {createdSurvey.client_contact_email && (
-          <div
+        <div>
+          <h2
             style={{
-              padding: "10px 18px",
-              borderRadius: "8px",
-              background: emailResult?.success
-                ? "rgba(34, 197, 94, 0.12)"
-                : emailResult?.mode === "error"
-                ? "rgba(239, 68, 68, 0.12)"
-                : "rgba(37, 99, 235, 0.12)",
-              border: `1px solid ${
-                emailResult?.success
-                  ? "rgba(34, 197, 94, 0.3)"
-                  : emailResult?.mode === "error"
-                  ? "rgba(239, 68, 68, 0.3)"
-                  : "rgba(96, 165, 250, 0.3)"
-              }`,
-              fontSize: "13px",
-              lineHeight: 1.5,
-              marginTop: "-8px",
+              fontSize: "22px",
+              fontWeight: 700,
+              color: "var(--text-white, #ffffff)",
+              margin: 0,
+              lineHeight: 1.4,
             }}
           >
-            {emailResult?.success ? (
-              <span style={{ color: "#34d399", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                <span>✉</span> Invitation email successfully sent to <strong>{createdSurvey.client_contact_email}</strong>
-              </span>
-            ) : emailResult?.mode === "error" ? (
-              <span style={{ color: "#f87171", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                <span>⚠</span> Email dispatch notice: {emailResult.message}
-              </span>
-            ) : (
-              <span style={{ color: "#93c5fd", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                <span>✉</span> Invitation email triggered for <strong>{createdSurvey.client_contact_email}</strong>
-              </span>
-            )}
-          </div>
-        )}
+            Survey link{surveysToShow.length > 1 ? "s" : ""} dispatched for {clientName}
+          </h2>
+          <p style={{ fontSize: "14px", color: "var(--text-muted, #94a3b8)", margin: "6px 0 0 0" }}>
+            Dispatched to {surveysToShow.length} stakeholder{surveysToShow.length > 1 ? "s" : ""}. Unique survey links have been generated below:
+          </p>
+        </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            width: "100%",
-            background: "var(--bg-hover, rgba(10, 22, 40, 0.8))",
-            border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
-            borderRadius: "8px",
-            padding: "8px 10px 8px 14px",
-            boxSizing: "border-box",
-          }}
-        >
-          <input
-            type="text"
-            readOnly
-            value={surveyUrl}
-            style={{
-              flex: 1,
-              background: "transparent",
-              border: "none",
-              color: "var(--primary-lt, #60a5fa)",
-              fontSize: "13px",
-              fontFamily: "monospace",
-              outline: "none",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-            onClick={(e) => e.target.select()}
-          />
-          <Button
-            variant="primary"
-            size="sm"
-            type="button"
-            onClick={() => handleCopyLink(createdSurvey.unique_token)}
-            style={{ whiteSpace: "nowrap" }}
-          >
-            {copiedLink ? "✓ Copied!" : "Copy"}
-          </Button>
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%" }}>
+          {surveysToShow.map((srv, idx) => {
+            const surveyUrl = `${window.location.origin}/s/${srv.unique_token || ""}`;
+            const emailResult = srv.email_dispatch_result;
+            const isCopied = copiedLinkIndex === idx;
+
+            return (
+              <div
+                key={srv.id || idx}
+                style={{
+                  background: "rgba(15, 23, 42, 0.6)",
+                  border: "1px solid rgba(96, 165, 250, 0.2)",
+                  borderRadius: "10px",
+                  padding: "16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                  textAlign: "left",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-white, #fff)" }}>
+                    {srv.client_contact_name || `Stakeholder #${idx + 1}`}
+                  </span>
+                  <span style={{ fontSize: "12px", color: "var(--primary-lt, #60a5fa)" }}>
+                    {srv.client_contact_email}
+                  </span>
+                </div>
+
+                {srv.client_contact_email && (
+                  <div
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      background: emailResult?.success
+                        ? "rgba(34, 197, 94, 0.12)"
+                        : "rgba(37, 99, 235, 0.12)",
+                      border: `1px solid ${
+                        emailResult?.success ? "rgba(34, 197, 94, 0.3)" : "rgba(96, 165, 250, 0.3)"
+                      }`,
+                      fontSize: "12px",
+                    }}
+                  >
+                    <span style={{ color: emailResult?.success ? "#34d399" : "#93c5fd" }}>
+                      ✉ Invitation email {emailResult?.success ? "successfully sent to" : "dispatched to"} {srv.client_contact_email}
+                    </span>
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    background: "var(--bg-hover, rgba(10, 22, 40, 0.8))",
+                    border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.25))",
+                    borderRadius: "8px",
+                    padding: "6px 8px 6px 12px",
+                  }}
+                >
+                  <input
+                    type="text"
+                    readOnly
+                    value={surveyUrl}
+                    style={{
+                      flex: 1,
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--primary-lt, #60a5fa)",
+                      fontSize: "12px",
+                      fontFamily: "monospace",
+                      outline: "none",
+                    }}
+                    onClick={(e) => e.target.select()}
+                  />
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    type="button"
+                    onClick={() => handleCopyLink(srv.unique_token, idx)}
+                  >
+                    {isCopied ? "✓ Copied!" : "Copy"}
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <Button
@@ -473,7 +562,7 @@ export default function CreateSurveyPage() {
           onClick={() => navigate("/dashboard")}
           style={{ marginTop: "4px" }}
         >
-          Back to Create Survey Dashboard
+          Back to Dashboard
         </Button>
       </div>
     );
@@ -566,29 +655,6 @@ export default function CreateSurveyPage() {
                   label: p.name,
                 }))}
               />
-
-              {/* Selected Project Summary Pill */}
-              {currentProject && (
-                <div
-                  style={{
-                    background: "rgba(37, 99, 235, 0.1)",
-                    border: "1px solid rgba(96, 165, 250, 0.25)",
-                    borderRadius: "var(--radius-md, 9px)",
-                    padding: "12px 16px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-white, #ffffff)" }}>
-                      {currentProject.name}
-                    </span>
-                  </div>
-                  <Badge variant="active">Active</Badge>
-                </div>
-              )}
-
             </div>
           )}
 
@@ -766,79 +832,114 @@ export default function CreateSurveyPage() {
             </div>
           </div>
 
-          {/* Section Navigation Tabs (1 to 6) */}
-          <div
-            style={{
-              display: "flex",
-              gap: "6px",
-              overflowX: "auto",
-              paddingBottom: "4px",
-            }}
-          >
-            {QUESTION_BANK.map((sec) => {
-              const count = selectedQuestions[sec.number]?.length || 0;
-              const isTabActive = activeSectionTab === sec.number;
-              const isValid = sec.number === 6 ? count <= 5 : count >= 1 && count <= 5;
+          {/* Section Navigation Tabs & Restore Deleted Sections */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "6px",
+                overflowX: "auto",
+                paddingBottom: "4px",
+              }}
+            >
+              {QUESTION_BANK.filter((sec) => activeSectionNumbers.includes(sec.number)).map((sec) => {
+                const count = selectedQuestions[sec.number]?.length || 0;
+                const isTabActive = activeSectionTab === sec.number;
+                const isValid = sec.number === 6 ? count <= 5 : count >= 1 && count <= 5;
 
-              return (
-                <button
-                  key={sec.number}
-                  type="button"
-                  onClick={() => setActiveSectionTab(sec.number)}
-                  style={{
-                    flex: 1,
-                    minWidth: "140px",
-                    padding: "10px 12px",
-                    background: isTabActive ? "rgba(37, 99, 235, 0.25)" : "var(--bg-surface, #0d1b2a)",
-                    border: `1.5px solid ${isTabActive ? "var(--primary-lt, #60a5fa)" : "var(--border, rgba(96, 165, 250, 0.15))"}`,
-                    borderRadius: "var(--radius-md, 9px)",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "4px",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-dim, #64748b)" }}>
-                      Section {sec.number}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        padding: "1px 6px",
-                        borderRadius: "var(--radius-sm, 6px)",
-                        background: isValid ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                        color: isValid ? "var(--success, #22c55e)" : "var(--danger, #ef4444)",
-                      }}
-                    >
-                      {sec.number === 6 ? (count > 0 ? `${count}/5` : "Optional") : `${count}/5`}
-                    </span>
-                  </div>
-
-                  <span
+                return (
+                  <button
+                    key={sec.number}
+                    type="button"
+                    onClick={() => setActiveSectionTab(sec.number)}
                     style={{
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: isTabActive ? "var(--text-white, #ffffff)" : "var(--text-muted, #94a3b8)",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
+                      flex: 1,
+                      minWidth: "140px",
+                      padding: "10px 12px",
+                      background: isTabActive ? "rgba(37, 99, 235, 0.25)" : "var(--bg-surface, #0d1b2a)",
+                      border: `1.5px solid ${isTabActive ? "var(--primary-lt, #60a5fa)" : "var(--border, rgba(96, 165, 250, 0.15))"}`,
+                      borderRadius: "var(--radius-md, 9px)",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "4px",
+                      transition: "all 0.15s ease",
                     }}
                   >
-                    {sec.title}
-                  </span>
-                </button>
-              );
-            })}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-dim, #64748b)" }}>
+                        Section {sec.number}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          padding: "1px 6px",
+                          borderRadius: "var(--radius-sm, 6px)",
+                          background: isValid ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                          color: isValid ? "var(--success, #22c55e)" : "var(--danger, #ef4444)",
+                        }}
+                      >
+                        {sec.number === 6 ? (count > 0 ? `${count}/5` : "Optional") : `${count}/5`}
+                      </span>
+                    </div>
+
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: isTabActive ? "var(--text-white, #ffffff)" : "var(--text-muted, #94a3b8)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {sec.title}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Restore Deleted Categories banner if any section is deleted */}
+            {activeSectionNumbers.length < 6 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 14px",
+                  borderRadius: "8px",
+                  background: "rgba(37, 99, 235, 0.08)",
+                  border: "1px dashed rgba(96, 165, 250, 0.3)",
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", fontWeight: 600 }}>
+                  Deleted Sections:
+                </span>
+                {QUESTION_BANK.filter((sec) => !activeSectionNumbers.includes(sec.number)).map((sec) => (
+                  <Button
+                    key={sec.number}
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => restoreSection(sec.number)}
+                    style={{ fontSize: "11px", padding: "0 10px", height: "28px" }}
+                    title={`Restore Section ${sec.number}: ${sec.title}`}
+                  >
+                    + Restore Section {sec.number}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Active Section Question Bank */}
           {(() => {
-            const currentSection = QUESTION_BANK.find((s) => s.number === activeSectionTab);
-            const currentSelected = selectedQuestions[activeSectionTab] || [];
+            const currentSection = QUESTION_BANK.find((s) => s.number === activeSectionTab) || QUESTION_BANK.find((s) => activeSectionNumbers.includes(s.number)) || QUESTION_BANK[0];
+            const currentSelected = selectedQuestions[currentSection.number] || [];
             const atLimit = currentSelected.length >= 5;
 
             return (
@@ -872,20 +973,32 @@ export default function CreateSurveyPage() {
                     </p>
                   </div>
 
-                  {/* Section Count */}
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <span
-                      style={{
-                        fontSize: "14px",
-                        fontWeight: 700,
-                        color: currentSelected.length >= 1 ? "var(--success, #22c55e)" : "var(--danger, #ef4444)",
-                      }}
+                  {/* Section Count & Delete Section Button */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
+                    <div style={{ textAlign: "right" }}>
+                      <span
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: 700,
+                          color: currentSelected.length >= 1 ? "var(--success, #22c55e)" : "var(--danger, #ef4444)",
+                        }}
+                      >
+                        {currentSelected.length}/5 Selected
+                      </span>
+                      {atLimit && (
+                        <div style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>Maximum reached</div>
+                      )}
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      onClick={() => removeSection(currentSection.number)}
+                      title={`Delete Section ${currentSection.number} (${currentSection.title})`}
                     >
-                      {currentSelected.length}/5 Selected
-                    </span>
-                    {atLimit && (
-                      <div style={{ fontSize: "11px", color: "var(--text-dim, #64748b)" }}>Maximum reached</div>
-                    )}
+                      Delete Section
+                    </Button>
                   </div>
                 </div>
 
@@ -1740,7 +1853,7 @@ export default function CreateSurveyPage() {
               </div>
             </div>
 
-            {/* Stakeholder Details Box (Order: Preview form, then Stakeholder Details, then button) */}
+            {/* Stakeholder Details Box (with + Add Stakeholders button) */}
             <div
               style={{
                 background: "var(--bg-surface, #0d1b2a)",
@@ -1749,36 +1862,77 @@ export default function CreateSurveyPage() {
                 padding: "20px 24px",
                 display: "flex",
                 flexDirection: "column",
-                gap: "12px",
+                gap: "16px",
               }}
             >
-              <div>
-                <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-                  Client Stakeholder Details
-                </h4>
-                <p style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-                  Enter the client stakeholder contact name and email address who will receive this survey invitation.
-                </p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+                <div>
+                  <h4 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
+                    Client Stakeholder Details
+                  </h4>
+                  <p style={{ fontSize: "12px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
+                    Enter client stakeholder contacts who will receive this survey invitation. You can add multiple stakeholders below.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleAddStakeholder}
+                >
+                  + Add Stakeholders
+                </Button>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
-                <Input
-                  id="previewStakeholderName"
-                  label="Client Stakeholder Contact Name *"
-                  placeholder="e.g. Sarah Jenkins"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  required
-                />
-                <Input
-                  id="previewStakeholderEmail"
-                  label="Client Stakeholder Contact Email *"
-                  type="email"
-                  placeholder="e.g. sjenkins@acmeglobal.com"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  required
-                />
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {stakeholders.map((sh, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-end",
+                      gap: "12px",
+                      background: "rgba(15, 23, 42, 0.5)",
+                      padding: "14px 16px",
+                      borderRadius: "8px",
+                      border: "1px solid rgba(96, 165, 250, 0.15)",
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <Input
+                        id={`sh_name_${idx}`}
+                        label={`Stakeholder #${idx + 1} Contact Name *`}
+                        placeholder="e.g. Sarah Jenkins"
+                        value={sh.name}
+                        onChange={(e) => handleUpdateStakeholder(idx, "name", e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div style={{ flex: 1.2 }}>
+                      <Input
+                        id={`sh_email_${idx}`}
+                        label={`Stakeholder #${idx + 1} Contact Email *`}
+                        type="email"
+                        placeholder="e.g. sjenkins@acmeglobal.com"
+                        value={sh.email}
+                        onChange={(e) => handleUpdateStakeholder(idx, "email", e.target.value)}
+                        required
+                      />
+                    </div>
+                    {stakeholders.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="md"
+                        onClick={() => handleRemoveStakeholder(idx)}
+                        style={{ height: "40px", padding: "0 12px" }}
+                        title="Remove this stakeholder"
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -1807,10 +1961,10 @@ export default function CreateSurveyPage() {
                 variant="primary"
                 size="lg"
                 loading={submitting}
-                disabled={submitting || !contactName.trim() || !contactEmail.trim()}
+                disabled={submitting || !stakeholders.some((s) => s.name.trim() && s.email.trim())}
                 onClick={handleFinalSubmit}
               >
-                Create Survey & Dispatch
+                Create Survey & Dispatch ({stakeholders.filter((s) => s.name.trim() && s.email.trim()).length} Stakeholder{stakeholders.filter((s) => s.name.trim() && s.email.trim()).length > 1 ? "s" : ""})
               </Button>
             </div>
           </div>

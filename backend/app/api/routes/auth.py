@@ -6,8 +6,17 @@ from typing import List, Optional, Dict, Any
 from app.api.deps import get_db, get_current_user, require_admin
 from app.core.config import settings
 from app.models.user import User
+from app.models.project import Project
+from app.models.project_pmo import ProjectPmoAssignment
 from app.core.security import hash_password
-from app.schemas.auth import LoginRequest, TokenResponse, UserResponse, UpdateUserRoleRequest, CreateUserRequest
+from app.schemas.auth import (
+    LoginRequest,
+    TokenResponse,
+    UserResponse,
+    UpdateUserRoleRequest,
+    CreateUserRequest,
+    UserProjectsAssignRequest,
+)
 from app.services.auth_service import authenticate_user, build_token_response
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -18,19 +27,36 @@ ADMIN_LIMIT_ERROR_DETAIL = (
 )
 
 def is_admin_role(role: Optional[str]) -> bool:
-    """Helper to check if a given role string matches Admin."""
+    """Helper to check if a given role string matches Admin (excludes Super Admin)."""
     return bool(role and role.strip().lower() == "admin")
 
 def normalize_role(role: Optional[str]) -> str:
     """Normalize role string to standardized capitalization."""
     if not role:
-        return "PMO"
+        return "User"
     r = role.strip()
+    if r.lower() in ("super admin", "superadmin", "sa"):
+        return "Super Admin"
     if r.lower() == "admin":
         return "Admin"
     if r.lower() == "pmo":
         return "PMO"
+    if r.lower() == "user":
+        return "User"
     return r
+
+def _enrich_user_response(user: User, db: Session) -> UserResponse:
+    assignments = db.query(ProjectPmoAssignment).filter(ProjectPmoAssignment.user_id == user.id).all()
+    project_ids = [a.project_id for a in assignments]
+    projects = []
+    if project_ids:
+        project_records = db.query(Project).filter(Project.id.in_(project_ids)).all()
+        projects = [{"id": p.id, "name": p.name, "project_code": p.project_code} for p in project_records]
+    
+    resp = UserResponse.model_validate(user)
+    resp.assigned_project_ids = project_ids
+    resp.assigned_projects = projects
+    return resp
 
 def count_active_admins(db: Session, exclude_user_id: Optional[int] = None, for_update: bool = False) -> int:
     """
@@ -96,9 +122,9 @@ def list_system_users(
     db: Session = Depends(get_db),
     admin_user: User = Depends(require_admin),
 ):
-    """Admin-only: List all registered users and their permission roles."""
+    """Admin-only: List all registered users, roles, and their assigned projects."""
     users = db.query(User).order_by(User.id).all()
-    return [UserResponse.model_validate(u) for u in users]
+    return [_enrich_user_response(u, db) for u in users]
 
 @router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_authorized_user(
@@ -107,8 +133,9 @@ def create_authorized_user(
     admin_user: User = Depends(require_admin),
 ):
     """
-    Enable administrators to grant access to users by entering their email and role (PMO/Admin).
-    Enforces maximum of 3 active Admin users.
+    Enable administrators to grant access to users by entering their email, role (User/Admin),
+    and assigning projects to them.
+    Enforces maximum of 3 active Admin users (unlimited Users).
     """
     normalized_email = payload.email.strip().lower()
     target_role = normalize_role(payload.role)
@@ -138,9 +165,13 @@ def create_authorized_user(
     if existing:
         existing.role = target_role
         existing.is_active = target_is_active
+        if payload.project_ids is not None:
+            db.query(ProjectPmoAssignment).filter(ProjectPmoAssignment.user_id == existing.id).delete(synchronize_session=False)
+            for pid in payload.project_ids:
+                db.add(ProjectPmoAssignment(user_id=existing.id, project_id=pid))
         db.commit()
         db.refresh(existing)
-        return UserResponse.model_validate(existing)
+        return _enrich_user_response(existing, db)
 
     new_user = User(
         email=normalized_email,
@@ -150,9 +181,15 @@ def create_authorized_user(
         is_active=target_is_active,
     )
     db.add(new_user)
+    db.flush()
+
+    if payload.project_ids:
+        for pid in payload.project_ids:
+            db.add(ProjectPmoAssignment(user_id=new_user.id, project_id=pid))
+
     db.commit()
     db.refresh(new_user)
-    return UserResponse.model_validate(new_user)
+    return _enrich_user_response(new_user, db)
 
 @router.put("/users/{user_id}/permissions", response_model=UserResponse)
 def update_user_permissions(
@@ -194,5 +231,30 @@ def update_user_permissions(
         target_user.is_active = payload.is_active
     db.commit()
     db.refresh(target_user)
-    return UserResponse.model_validate(target_user)
+    return _enrich_user_response(target_user, db)
+
+@router.put("/users/{user_id}/projects", response_model=UserResponse)
+def assign_user_projects(
+    user_id: int,
+    payload: UserProjectsAssignRequest,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+):
+    """
+    Assign or update projects assigned to a user (Admin/SA only).
+    """
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Clear existing assignments
+    db.query(ProjectPmoAssignment).filter(ProjectPmoAssignment.user_id == user_id).delete(synchronize_session=False)
+
+    # Add new project assignments
+    for pid in payload.project_ids:
+        db.add(ProjectPmoAssignment(user_id=user_id, project_id=pid))
+
+    db.commit()
+    db.refresh(target_user)
+    return _enrich_user_response(target_user, db)
 

@@ -82,7 +82,13 @@ def create_survey(
                 detail=f"You are not assigned to create surveys for project '{project.name}'."
             )
 
-    # 2. Validate Questions across 6 sections
+    # 2. Validate Questions across sections (categories can be deleted/omitted)
+    if not survey_in.questions or len(survey_in.questions) < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Survey must contain at least 1 question."
+        )
+
     section_counts = {sec: 0 for sec in range(1, 7)}
     for q in survey_in.questions:
         if q.section_number not in section_counts:
@@ -92,13 +98,8 @@ def create_survey(
             )
         section_counts[q.section_number] += 1
 
-    # Ensure sections 1-5 have 1 to 5 questions; Section 6 is optional (0 to 5 questions)
+    # Any active section must have at most 5 questions
     for sec_num, count in section_counts.items():
-        if sec_num <= 5 and count < 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Section {sec_num} has no questions. Sections 1 to 5 must each have between 1 and 5 questions."
-            )
         if count > 5:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

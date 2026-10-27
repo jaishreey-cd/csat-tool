@@ -33,23 +33,33 @@ export const authApi = {
     return res.data;
   },
 
-  /** Grant access to a user by entering their email and role (PMO/Admin) */
-  grantUserAccess: async ({ email, role = "PMO" }) => {
+  /** Grant access to a user by entering their email, role, and assigned projects */
+  grantUserAccess: async ({ email, role = "User", project_ids = [] }) => {
     const res = await axiosClient.post("/auth/users", {
       email,
       role,
+      project_ids,
+    });
+    return res.data;
+  },
+
+  /** Assign projects to a user */
+  assignUserProjects: async (userId, projectIds) => {
+    const res = await axiosClient.put(`/auth/users/${userId}/projects`, {
+      project_ids: projectIds,
     });
     return res.data;
   },
 
   /** Create/authorize a new user account (Admin) */
-  createUser: async ({ email, password, full_name, role = "PMO", is_active = true }) => {
+  createUser: async ({ email, password, full_name, role = "User", is_active = true, project_ids = [] }) => {
     const res = await axiosClient.post("/auth/users", {
       email,
       password,
       full_name,
       role,
       is_active,
+      project_ids,
     });
     return res.data;
   },

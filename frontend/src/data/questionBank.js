@@ -223,8 +223,8 @@ export const QUESTION_BANK = [
 ];
 
 export const SURVEY_PHASES = [
-  { value: "Weekly", label: "Weekly", desc: "Regular weekly pulse check on sprint progress and immediate feedback." },
-  { value: "Monthly", label: "Monthly", desc: "Monthly milestone review covering sprint deliverables and collaboration." },
-  { value: "Quarterly", label: "Quarterly", desc: "Quarterly business review (QBR) assessing strategic value and delivery." },
-  { value: "Closure", label: "Closure", desc: "Final project closure survey evaluating overall engagement success." },
+  { value: "Weekly", label: "Milestone Completion", desc: "Short cadence review on milestone deliverable and immediate feedback." },
+  { value: "Monthly", label: "Monthly Review", desc: "Monthly review covering sprint deliverables, governance, and collaboration." },
+  { value: "Quarterly", label: "Quarterly Review", desc: "Quarterly business review (QBR) assessing strategic value and delivery." },
+  { value: "Closure", label: "Project Closure", desc: "Final project closure survey evaluating overall engagement success." },
 ];

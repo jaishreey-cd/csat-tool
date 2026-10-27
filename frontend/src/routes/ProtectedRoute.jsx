@@ -30,8 +30,18 @@ export default function ProtectedRoute({ children, requiredRole = null }) {
     return <Navigate to={`/login?from=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
-  if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/dashboard" replace />;
+  if (requiredRole) {
+    const userRole = (user?.role || "").toLowerCase();
+    const reqRole = requiredRole.toLowerCase();
+
+    if (reqRole === "admin") {
+      // Both Admin and Super Admin have admin access
+      if (!userRole.includes("admin")) {
+        return <Navigate to="/dashboard" replace />;
+      }
+    } else if (userRole !== reqRole) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return children;

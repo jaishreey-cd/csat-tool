@@ -100,10 +100,10 @@ def get_current_user(
 
 def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """
-    Ensure the authenticated user has the Admin role.
+    Ensure the authenticated user has an Admin or Super Admin role.
     Raises HTTP 403 Forbidden for non-Admin users.
     """
-    if current_user.role != "Admin":
+    if not current_user.role or "admin" not in current_user.role.lower():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Administrator access required for this action.",

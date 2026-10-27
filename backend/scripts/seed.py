@@ -21,7 +21,7 @@ def seed():
     """
     db = SessionLocal()
     try:
-        # 1. Seed Admin User
+        # 1. Seed Initial Super Admin User (admin@csat.local)
         admin_email = settings.SEED_ADMIN_EMAIL.strip().lower()
         admin_password = settings.SEED_ADMIN_PASSWORD
         admin_user = db.query(User).filter(User.email == admin_email).first()
@@ -29,22 +29,46 @@ def seed():
         if not admin_user:
             admin_user = User(
                 email=admin_email,
-                full_name="Admin User",
+                full_name="Super Admin",
                 hashed_password=hash_password(admin_password),
-                role="Admin",
+                role="Super Admin",
                 is_active=True
             )
             db.add(admin_user)
             db.commit()
             db.refresh(admin_user)
-            print(f"[SEED] Created initial admin user: {admin_email}")
+            print(f"[SEED] Created initial super admin user: {admin_email}")
         else:
-            admin_user.role = "Admin"
+            admin_user.role = "Super Admin"
             admin_user.hashed_password = hash_password(admin_password)
             db.commit()
-            print(f"[SEED] Initial admin user verified: {admin_email}")
+            print(f"[SEED] Initial super admin user verified: {admin_email}")
 
-        # 2. Seed Reviewer User (Maker-Checker workflow)
+        # 2. Seed Additional Super Admins (Mythili P and Shanmugaraj B)
+        additional_super_admins = [
+            ("mythilip@clouddestinations.com", "Mythili P"),
+            ("shanmugarajb@clouddestinations.com", "Shanmugaraj B"),
+        ]
+        for sa_email, sa_name in additional_super_admins:
+            sa_user = db.query(User).filter(User.email == sa_email.lower()).first()
+            if not sa_user:
+                sa_user = User(
+                    email=sa_email.lower(),
+                    full_name=sa_name,
+                    hashed_password=hash_password("Welcome@123!"),
+                    role="Super Admin",
+                    is_active=True
+                )
+                db.add(sa_user)
+                db.commit()
+                print(f"[SEED] Created super admin: {sa_email}")
+            else:
+                sa_user.role = "Super Admin"
+                sa_user.is_active = True
+                db.commit()
+                print(f"[SEED] Super admin verified: {sa_email}")
+
+        # 3. Seed Reviewer User (Maker-Checker workflow)
         reviewer_email = settings.SEED_REVIEWER_EMAIL.strip().lower()
         reviewer_password = settings.SEED_REVIEWER_PASSWORD
         reviewer_user = db.query(User).filter(User.email == reviewer_email).first()
@@ -54,7 +78,7 @@ def seed():
                 email=reviewer_email,
                 full_name="Reviewer User",
                 hashed_password=hash_password(reviewer_password),
-                role="PMO",
+                role="User",
                 is_active=True
             )
             db.add(reviewer_user)
@@ -63,7 +87,7 @@ def seed():
             print(f"[SEED] Created reviewer user: {reviewer_email}")
         else:
             reviewer_user.hashed_password = hash_password(reviewer_password)
-            reviewer_user.role = "PMO"
+            reviewer_user.role = "User"
             db.commit()
             print(f"[SEED] Reviewer user verified: {reviewer_email}")
 

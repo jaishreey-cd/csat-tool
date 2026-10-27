@@ -7,9 +7,7 @@ import Toast from "../components/Toast";
 import EmptyState from "../components/EmptyState";
 import ErrorState from "../components/ErrorState";
 import analyticsApi from "../api/analyticsApi";
-import CategoryRadarChart from "../components/charts/CategoryRadarChart";
 import CategoryBarChart from "../components/charts/CategoryBarChart";
-import CategoryDistributionChart from "../components/charts/CategoryDistributionChart";
 import CategoryRadialGauges from "../components/charts/CategoryRadialGauges";
 
 export default function ProjectAnalyticsPage() {
@@ -868,9 +866,7 @@ export default function ProjectAnalyticsPage() {
             >
               {[
                 { id: "BAR", label: "Bar Chart" },
-                { id: "RADAR", label: "Radar Chart" },
-                { id: "DISTRIBUTION", label: "Rating Distribution" },
-                { id: "GAUGES", label: "Circular Gauges" },
+                { id: "GAUGES", label: "Gauge Chart" },
               ].map((tab) => {
                 const active = categoryChartView === tab.id;
                 return (
@@ -907,16 +903,6 @@ export default function ProjectAnalyticsPage() {
               {categoryChartView === "BAR" && (
                 <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "24px" }}>
                   <CategoryBarChart categories={categoriesForCharts} />
-                </div>
-              )}
-              {categoryChartView === "RADAR" && (
-                <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "24px", display: "flex", justifyContent: "center" }}>
-                  <CategoryRadarChart categories={categoriesForCharts} />
-                </div>
-              )}
-              {categoryChartView === "DISTRIBUTION" && (
-                <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "22px" }}>
-                  <CategoryDistributionChart categories={categoriesForCharts} />
                 </div>
               )}
               {categoryChartView === "GAUGES" && (

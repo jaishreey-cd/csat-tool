@@ -1,11 +1,22 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { useAuth } from "../context/AuthContext";
 
 export default function Sidebar({ isOpen = true, onClose = null }) {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-  const isAdmin = user?.role === "Admin";
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
+  const isAdmin = Boolean(
+    user?.role &&
+      (user.role.toLowerCase() === "admin" ||
+       user.role.toLowerCase() === "super admin" ||
+       user.role.toLowerCase().includes("admin"))
+  );
 
   const navItems = isAdmin
     ? [
@@ -318,7 +329,7 @@ export default function Sidebar({ isOpen = true, onClose = null }) {
           {/* Sign Out Button */}
           <button
             type="button"
-            onClick={logout}
+            onClick={handleLogout}
             style={{
               width: "100%",
               padding: "8px 12px",

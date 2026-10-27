@@ -12,9 +12,7 @@ import Spinner from "../components/Spinner";
 import Toast from "../components/Toast";
 import { ResendMailButton, ViewResponseButton } from "../components/SurveyActionButtons";
 import { SURVEY_PHASES } from "../data/questionBank";
-import CategoryRadarChart from "../components/charts/CategoryRadarChart";
 import CategoryBarChart from "../components/charts/CategoryBarChart";
-import CategoryDistributionChart from "../components/charts/CategoryDistributionChart";
 import CategoryRadialGauges from "../components/charts/CategoryRadialGauges";
 
 const getSurveyStatus = (survey) => {
@@ -35,7 +33,9 @@ const getSurveyStatus = (survey) => {
 export default function SurveysPage({ scope = null }) {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const isAdmin = scope ? scope === "all" : user?.role === "Admin";
+  const isAdmin = scope
+    ? scope === "all"
+    : Boolean(user?.role && (user.role.toLowerCase() === "admin" || user.role.toLowerCase() === "super admin" || user.role.toLowerCase().includes("admin")));
 
   const cachedSurveys = surveysApi.getCachedSurveys();
   const cachedClients = clientsApi.getCachedClients();
@@ -47,7 +47,6 @@ export default function SurveysPage({ scope = null }) {
   // Role-based Project Switcher & View States
   const [selectedProjectId, setSelectedProjectId] = useState(() => searchParams.get("project") || "ALL");
   const [activeTableTab, setActiveTableTab] = useState("surveys"); // "surveys" | "projects"
-  const [showAdvancedCharts, setShowAdvancedCharts] = useState(false);
 
   // Filters for Existing Survey Registry
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
@@ -70,47 +69,10 @@ export default function SurveysPage({ scope = null }) {
   const [analyticsDatePreset, setAnalyticsDatePreset] = useState("ALL");
   const [categoryChartView, setCategoryChartView] = useState("BAR");
   const [projectAttentionFilter, setProjectAttentionFilter] = useState("ALL");
-  const [selectedPmoId, setSelectedPmoId] = useState("");
-  const [assignModalProject, setAssignModalProject] = useState(null);
-  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState([]);
-  const [assigningPmos, setAssigningPmos] = useState(false);
 
-  const openAssignModal = (project) => {
-    setAssignModalProject(project);
-    const currentIds = (project.assigned_pmos || []).map((u) => u.id);
-    setSelectedAssigneeIds(currentIds);
-  };
-
-  const handleToggleAssignee = (userId) => {
-    setSelectedAssigneeIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    );
-  };
-
-  const handleSaveAssignments = async () => {
-    if (!assignModalProject) return;
-    try {
-      setAssigningPmos(true);
-      await analyticsApi.assignProjectPmos(assignModalProject.project_id, selectedAssigneeIds);
-      setToast({
-        message: `PMO assignments updated for ${assignModalProject.project_name}!`,
-        type: "success",
-      });
-      setAssignModalProject(null);
-      fetchAnalytics(analyticsDatePreset, selectedProjectId, selectedPmoId);
-    } catch (err) {
-      console.error("Failed to assign PMOs:", err);
-      setToast({
-        message: err?.response?.data?.detail || "Failed to update PMO assignments.",
-        type: "danger",
-      });
-    } finally {
-      setAssigningPmos(false);
-    }
-  };
 
   // Fetch Dashboard Analytics with role scoping & project filter
-  const fetchAnalytics = useCallback(async (preset = analyticsDatePreset, projId = selectedProjectId, pmoId = selectedPmoId) => {
+  const fetchAnalytics = useCallback(async (preset = analyticsDatePreset, projId = selectedProjectId) => {
     setAnalyticsLoading(true);
     setAnalyticsError("");
 
@@ -136,7 +98,6 @@ export default function SurveysPage({ scope = null }) {
       if (start_date) params.start_date = start_date;
       if (end_date) params.end_date = end_date;
       if (projId && projId !== "ALL") params.project_id = Number(projId);
-      if (pmoId && pmoId !== "ALL" && pmoId !== "") params.pmo_user_id = Number(pmoId);
       const data = await analyticsApi.getDashboardAnalytics(params);
       setAnalytics(data);
     } catch (err) {
@@ -145,7 +106,7 @@ export default function SurveysPage({ scope = null }) {
     } finally {
       setAnalyticsLoading(false);
     }
-  }, [analyticsDatePreset, selectedProjectId, selectedPmoId]);
+  }, [analyticsDatePreset, selectedProjectId]);
 
   // Fetch surveys and clients independently (Original logic preserved)
   const fetchSurveys = async (force = false) => {
@@ -375,43 +336,7 @@ export default function SurveysPage({ scope = null }) {
             </select>
           </div>
 
-          {/* PMO Filter Switcher (Admin Only) */}
-          {isAdmin && analytics?.pmo_users && analytics.pmo_users.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted, #94a3b8)" }}>
-                PMO:
-              </span>
-              <select
-                id="pmo-filter-select"
-                value={selectedPmoId}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSelectedPmoId(val);
-                  fetchAnalytics(analyticsDatePreset, selectedProjectId, val);
-                }}
-                style={{
-                  height: "36px",
-                  padding: "0 12px",
-                  borderRadius: "8px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  background: "var(--bg-card, #18263B)",
-                  border: "1px solid var(--border, #33465f)",
-                  color: "var(--text-primary, #ffffff)",
-                  cursor: "pointer",
-                  outline: "none",
-                  boxShadow: "var(--shadow-sm)",
-                }}
-              >
-                <option value="">All PMOs</option>
-                {analytics.pmo_users.map((u) => (
-                  <option key={u.id} value={String(u.id)}>
-                    {u.full_name || u.email}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+
 
           {/* Date Filter Tabs for Analytics */}
           <div
@@ -768,76 +693,46 @@ export default function SurveysPage({ scope = null }) {
             </p>
           </div>
 
-          {/* Toggle button to expand/collapse secondary visualization views */}
+          {/* Chart View Tabs: Bar Chart & Gauge Chart */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {showAdvancedCharts && (
-              <div
-                style={{
-                  display: "inline-flex",
-                  background: "var(--bg-elevated, #22334A)",
-                  border: "1px solid var(--border, #33465f)",
-                  borderRadius: "8px",
-                  padding: "2px",
-                  gap: "2px",
-                }}
-              >
-                {[
-                  { id: "BAR", label: "Bar" },
-                  { id: "RADAR", label: "Radar" },
-                  { id: "DISTRIBUTION", label: "Distribution" },
-                  { id: "GAUGES", label: "Gauges" },
-                ].map((tab) => {
-                  const active = categoryChartView === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setCategoryChartView(tab.id)}
-                      style={{
-                        padding: "4px 10px",
-                        fontSize: "11px",
-                        fontWeight: active ? 700 : 500,
-                        borderRadius: "6px",
-                        border: "none",
-                        cursor: "pointer",
-                        whiteSpace: "nowrap",
-                        background: active ? "var(--primary, #2563eb)" : "transparent",
-                        color: active ? "#ffffff" : "var(--text-secondary, #94a3b8)",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                const nextState = !showAdvancedCharts;
-                setShowAdvancedCharts(nextState);
-                if (!nextState) setCategoryChartView("BAR");
-              }}
+            <div
               style={{
-                fontSize: "12px",
-                fontWeight: 600,
-                padding: "6px 12px",
-                borderRadius: "8px",
-                border: "1px solid var(--border, #33465f)",
-                background: showAdvancedCharts ? "rgba(37, 99, 235, 0.15)" : "var(--bg-elevated, #22334A)",
-                color: showAdvancedCharts ? "var(--primary-lt, #60a5fa)" : "var(--text-muted, #94a3b8)",
-                cursor: "pointer",
                 display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                whiteSpace: "nowrap",
-                transition: "all 0.15s ease",
+                background: "var(--bg-elevated, #22334A)",
+                border: "1px solid var(--border, #33465f)",
+                borderRadius: "8px",
+                padding: "3px",
+                gap: "4px",
               }}
             >
-              <span>{showAdvancedCharts ? "Hide Secondary Views ▲" : "Explore More Chart Views ▼"}</span>
-            </button>
+              {[
+                { id: "BAR", label: "Bar Chart" },
+                { id: "GAUGES", label: "Gauge Chart" },
+              ].map((tab) => {
+                const active = categoryChartView === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setCategoryChartView(tab.id)}
+                    style={{
+                      padding: "5px 14px",
+                      fontSize: "12px",
+                      fontWeight: active ? 700 : 500,
+                      borderRadius: "6px",
+                      border: "none",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      background: active ? "var(--primary, #2563eb)" : "transparent",
+                      color: active ? "#ffffff" : "var(--text-secondary, #94a3b8)",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -856,28 +751,14 @@ export default function SurveysPage({ scope = null }) {
           </div>
         ) : (
           <div>
-            {/* View: Bar Chart (Primary) */}
+            {/* View: Bar Chart */}
             {categoryChartView === "BAR" && (
               <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "20px" }}>
                 <CategoryBarChart categories={analytics.categories} />
               </div>
             )}
 
-            {/* View: Radar Chart (Secondary) */}
-            {categoryChartView === "RADAR" && (
-              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "20px", display: "flex", justifyContent: "center" }}>
-                <CategoryRadarChart categories={analytics.categories} />
-              </div>
-            )}
-
-            {/* View: Rating Distribution (Secondary) */}
-            {categoryChartView === "DISTRIBUTION" && (
-              <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "20px" }}>
-                <CategoryDistributionChart categories={analytics.categories} />
-              </div>
-            )}
-
-            {/* View: Circular Gauges (Secondary) */}
+            {/* View: Circular Gauges */}
             {categoryChartView === "GAUGES" && (
               <div style={{ background: "var(--chart-sub-bg, #F8FAFC)", border: "1px solid var(--border, #33465f)", borderRadius: "10px", padding: "20px" }}>
                 <CategoryRadialGauges categories={analytics.categories} />
@@ -1029,13 +910,12 @@ export default function SurveysPage({ scope = null }) {
                   <thead>
                     <tr style={{ background: "var(--bg-table-header)", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                       <th style={{ padding: "12px 18px", fontWeight: 700 }}>Project / Client</th>
-                      <th style={{ padding: "12px 18px", fontWeight: 700 }}>Assigned PMO</th>
                       <th style={{ padding: "12px 18px", fontWeight: 700 }}>Surveys Sent</th>
                       <th style={{ padding: "12px 18px", fontWeight: 700 }}>Responses</th>
                       <th style={{ padding: "12px 18px", fontWeight: 700, minWidth: "160px" }}>Response Rate</th>
-                      <th style={{ padding: "12px 18px", fontWeight: 700 }}>Average CSAT</th>
-                      <th style={{ padding: "12px 18px", fontWeight: 700 }}>Status</th>
-                      <th style={{ padding: "12px 18px", fontWeight: 700, textAlign: "right" }}>Action</th>
+                      <th style={{ padding: "12px 18px", fontWeight: 700, whiteSpace: "nowrap" }}>Average CSAT</th>
+                      <th style={{ padding: "12px 18px", fontWeight: 700, whiteSpace: "nowrap" }}>Status</th>
+                      <th style={{ padding: "12px 18px", fontWeight: 700, textAlign: "right", whiteSpace: "nowrap" }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1056,58 +936,10 @@ export default function SurveysPage({ scope = null }) {
                               {p.client_name}
                             </div>
                           </td>
-                          <td style={{ padding: "12px 18px" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                              {(p.assigned_pmos && p.assigned_pmos.length > 0) ? (
-                                p.assigned_pmos.map((u) => (
-                                  <span
-                                    key={u.id}
-                                    style={{
-                                      fontSize: "11px",
-                                      fontWeight: 600,
-                                      padding: "2px 8px",
-                                      borderRadius: "12px",
-                                      background: "rgba(37, 99, 235, 0.15)",
-                                      border: "1px solid rgba(59, 130, 246, 0.35)",
-                                      color: "var(--primary-lt, #60a5fa)",
-                                      whiteSpace: "nowrap",
-                                    }}
-                                    title={u.email}
-                                  >
-                                    {u.full_name || u.email}
-                                  </span>
-                                ))
-                              ) : (
-                                <span style={{ fontSize: "11px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
-                                  Unassigned
-                                </span>
-                              )}
-                              {isAdmin && (
-                                <button
-                                  type="button"
-                                  onClick={() => openAssignModal(p)}
-                                  title="Assign PMO users to this project"
-                                  style={{
-                                    background: "transparent",
-                                    border: "1px dashed var(--border-strong, rgba(96, 165, 250, 0.4))",
-                                    color: "var(--text-muted, #94a3b8)",
-                                    fontSize: "11px",
-                                    padding: "2px 6px",
-                                    borderRadius: "4px",
-                                    cursor: "pointer",
-                                    fontWeight: 600,
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  + Assign
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                          <td style={{ padding: "12px 18px", fontWeight: 600, color: "var(--text-primary, #ffffff)" }}>
+                          <td style={{ padding: "12px 18px", fontWeight: 600, color: "var(--text-primary, #ffffff)", whiteSpace: "nowrap" }}>
                             {p.surveys_sent}
                           </td>
-                          <td style={{ padding: "12px 18px" }}>
+                          <td style={{ padding: "12px 18px", whiteSpace: "nowrap" }}>
                             <span style={{ fontWeight: 600, color: "var(--success, #22c55e)" }}>{p.submitted_responses}</span>
                             {p.awaiting_responses > 0 && (
                               <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", marginLeft: "6px" }}>
@@ -1131,14 +963,18 @@ export default function SurveysPage({ scope = null }) {
                               </div>
                             </div>
                           </td>
-                          <td style={{ padding: "12px 18px" }}>
+                          <td style={{ padding: "12px 18px", whiteSpace: "nowrap" }}>
                             {hasRating ? (
                               <span
                                 style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
                                   fontSize: "12px",
                                   fontWeight: 700,
-                                  padding: "2px 8px",
+                                  padding: "3px 8px",
                                   borderRadius: "6px",
+                                  whiteSpace: "nowrap",
                                   background: p.average_csat >= 4.0 ? "rgba(34, 197, 94, 0.15)" : p.average_csat >= 3.0 ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)",
                                   color: p.average_csat >= 4.0 ? "#22c55e" : p.average_csat >= 3.0 ? "#fbbf24" : "#ef4444",
                                   border: `1px solid ${p.average_csat >= 4.0 ? "rgba(34, 197, 94, 0.3)" : p.average_csat >= 3.0 ? "rgba(245, 158, 11, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
@@ -1147,22 +983,22 @@ export default function SurveysPage({ scope = null }) {
                                 ★ {p.average_csat.toFixed(2)}
                               </span>
                             ) : (
-                              <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", fontStyle: "italic" }}>
+                              <span style={{ fontSize: "12px", color: "var(--text-dim, #64748b)", fontStyle: "italic", whiteSpace: "nowrap" }}>
                                 No ratings yet
                               </span>
                             )}
                           </td>
-                          <td style={{ padding: "12px 18px" }}>
+                          <td style={{ padding: "12px 18px", whiteSpace: "nowrap" }}>
                             {p.has_low_rating ? (
-                              <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: "rgba(239, 68, 68, 0.15)", color: "#fca5a5", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: "rgba(239, 68, 68, 0.15)", color: "#fca5a5", border: "1px solid rgba(239, 68, 68, 0.3)", whiteSpace: "nowrap" }}>
                                 ⚠️ Low CSAT
                               </span>
                             ) : p.has_pending ? (
-                              <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: "rgba(245, 158, 11, 0.15)", color: "#fcd34d", border: "1px solid rgba(245, 158, 11, 0.3)" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: "rgba(245, 158, 11, 0.15)", color: "#fcd34d", border: "1px solid rgba(245, 158, 11, 0.3)", whiteSpace: "nowrap" }}>
                                 ⏳ {p.awaiting_responses} Pending
                               </span>
                             ) : (
-                              <span style={{ fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "6px", background: "rgba(34, 197, 94, 0.1)", color: "#86efac" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "6px", background: "rgba(34, 197, 94, 0.1)", color: "#86efac", border: "1px solid rgba(34, 197, 94, 0.25)", whiteSpace: "nowrap" }}>
                                 ✓ Healthy
                               </span>
                             )}
@@ -1306,15 +1142,26 @@ export default function SurveysPage({ scope = null }) {
                 </p>
               </div>
             ) : (
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ width: "100%", overflowX: "hidden" }}>
                 <table
                   style={{
                     width: "100%",
                     borderCollapse: "collapse",
                     textAlign: "left",
                     fontSize: "13px",
+                    tableLayout: "fixed",
                   }}
                 >
+                  <colgroup>
+                    <col style={{ width: "14%" }} />
+                    <col style={{ width: "20%" }} />
+                    <col style={{ width: "11%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "10%" }} />
+                    <col style={{ width: "16%" }} />
+                    <col style={{ width: "9%" }} />
+                    <col style={{ width: "10%" }} />
+                  </colgroup>
                   <thead>
                     <tr
                       style={{
@@ -1326,14 +1173,14 @@ export default function SurveysPage({ scope = null }) {
                         letterSpacing: "0.6px",
                       }}
                     >
-                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client</th>
-                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Project</th>
-                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Phase</th>
-                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Status</th>
-                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Average CSAT</th>
-                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Client Contact</th>
-                      <th style={{ padding: "14px 18px", fontWeight: 700 }}>Sent Date</th>
-                      <th style={{ padding: "14px 18px", fontWeight: 700, textAlign: "right", minWidth: "160px", whiteSpace: "nowrap" }}>Actions</th>
+                      <th style={{ padding: "10px 12px", fontWeight: 700 }}>Client</th>
+                      <th style={{ padding: "10px 12px", fontWeight: 700 }}>Project</th>
+                      <th style={{ padding: "10px 12px", fontWeight: 700 }}>Phase</th>
+                      <th style={{ padding: "10px 12px", fontWeight: 700 }}>Status</th>
+                      <th style={{ padding: "10px 12px", fontWeight: 700, whiteSpace: "nowrap" }}>Average CSAT</th>
+                      <th style={{ padding: "10px 12px", fontWeight: 700 }}>Client Contact</th>
+                      <th style={{ padding: "10px 12px", fontWeight: 700, whiteSpace: "nowrap" }}>Sent Date</th>
+                      <th style={{ padding: "10px 12px", fontWeight: 700, textAlign: "right", whiteSpace: "nowrap" }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1349,12 +1196,30 @@ export default function SurveysPage({ scope = null }) {
                           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                         >
                           {/* Client */}
-                          <td style={{ padding: "14px 18px", fontWeight: 600, color: "var(--text-primary, #ffffff)" }}>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              fontWeight: 600,
+                              color: "var(--text-primary, #ffffff)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                            title={survey.client?.name || ""}
+                          >
                             {survey.client?.name || "—"}
                           </td>
 
                           {/* Project */}
-                          <td style={{ padding: "14px 18px" }}>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                            title={survey.project?.name || ""}
+                          >
                             {survey.project ? (
                               <Link
                                 to={`/projects/${survey.project.id}/analytics`}
@@ -1366,11 +1231,17 @@ export default function SurveysPage({ scope = null }) {
                                   gap: "4px",
                                   textDecoration: "none",
                                   fontWeight: 500,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: "100%",
                                 }}
                                 title="View dedicated project analytics dashboard"
                               >
-                                <span>{survey.project.name}</span>
-                                <span style={{ fontSize: "10px" }}>↗</span>
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {survey.project.name}
+                                </span>
+                                <span style={{ fontSize: "10px", flexShrink: 0 }}>↗</span>
                               </Link>
                             ) : (
                               <span style={{ color: "var(--text-muted, #94a3b8)" }}>—</span>
@@ -1378,35 +1249,45 @@ export default function SurveysPage({ scope = null }) {
                           </td>
 
                           {/* Phase */}
-                          <td style={{ padding: "14px 18px" }}>
+                          <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                             <Badge variant="count">{survey.phase}</Badge>
                           </td>
 
                           {/* Status */}
-                          <td style={{ padding: "14px 18px" }}>
+                          <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                             <Badge variant={survey.status === "Completed" ? "success" : survey.status === "Sent" ? "info" : "neutral"}>
                               {survey.status}
                             </Badge>
                           </td>
 
                           {/* Average CSAT */}
-                          <td style={{ padding: "14px 18px", fontWeight: 700, color: survey.average_score ? "var(--success, #22c55e)" : "var(--text-muted, #94a3b8)" }}>
+                          <td style={{ padding: "10px 12px", fontWeight: 700, whiteSpace: "nowrap", color: survey.average_score ? "var(--success, #22c55e)" : "var(--text-muted, #94a3b8)" }}>
                             {survey.average_score ? `${Number(survey.average_score).toFixed(2)} ★` : "—"}
                           </td>
 
                           {/* Client Contact */}
-                          <td style={{ padding: "14px 18px", color: "var(--text-secondary, #94a3b8)", fontSize: "12px" }}>
+                          <td
+                            style={{
+                              padding: "10px 12px",
+                              color: "var(--text-secondary, #94a3b8)",
+                              fontSize: "12px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                            title={survey.client_contact_email || ""}
+                          >
                             {survey.client_contact_email || "—"}
                           </td>
 
                           {/* Sent Date */}
-                          <td style={{ padding: "14px 18px", color: "var(--text-secondary, #94a3b8)", fontSize: "12px", whiteSpace: "nowrap" }}>
+                          <td style={{ padding: "10px 12px", color: "var(--text-secondary, #94a3b8)", fontSize: "12px", whiteSpace: "nowrap" }}>
                             {survey.sent_at ? new Date(survey.sent_at).toLocaleDateString() : (survey.created_at ? new Date(survey.created_at).toLocaleDateString() : "—")}
                           </td>
 
                           {/* Actions */}
-                          <td style={{ padding: "14px 18px", textAlign: "right", whiteSpace: "nowrap" }}>
-                            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
+                          <td style={{ padding: "10px 12px", textAlign: "right", whiteSpace: "nowrap" }}>
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "flex-end" }}>
                               {survey.client_contact_email && survey.status !== "Completed" && (
                                 <ResendMailButton
                                   onClick={() => handleResendEmail(survey)}
@@ -1508,140 +1389,7 @@ export default function SurveysPage({ scope = null }) {
         </div>
       )}
 
-      {/* Assign PMO Modal (Admin Only) */}
-      {assignModalProject && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.75)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "20px",
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setAssignModalProject(null);
-          }}
-        >
-          <div
-            style={{
-              background: "var(--bg-surface, #0d1b2a)",
-              border: "1px solid var(--border-strong, rgba(96, 165, 250, 0.35))",
-              borderRadius: "14px",
-              padding: "24px 28px",
-              maxWidth: "480px",
-              width: "100%",
-              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
-              <div>
-                <h3 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-white, #ffffff)", margin: 0 }}>
-                  Assign PMO to Project
-                </h3>
-                <p style={{ fontSize: "13px", color: "var(--text-muted, #94a3b8)", margin: "4px 0 0 0" }}>
-                  {assignModalProject.project_name} ({assignModalProject.client_name})
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setAssignModalProject(null)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "var(--text-muted, #94a3b8)",
-                  fontSize: "20px",
-                  cursor: "pointer",
-                  lineHeight: 1,
-                }}
-              >
-                &times;
-              </button>
-            </div>
 
-            <p style={{ fontSize: "12px", color: "var(--text-secondary, #cbd5e1)", marginBottom: "14px", lineHeight: 1.5 }}>
-              Select one or more PMO managers who are responsible for this project and its CSAT surveys:
-            </p>
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-                maxHeight: "260px",
-                overflowY: "auto",
-                padding: "8px",
-                borderRadius: "8px",
-                background: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid var(--border, rgba(96, 165, 250, 0.15))",
-                marginBottom: "20px",
-              }}
-            >
-              {analytics?.pmo_users && analytics.pmo_users.length > 0 ? (
-                analytics.pmo_users.map((u) => {
-                  const checked = selectedAssigneeIds.includes(u.id);
-                  return (
-                    <label
-                      key={u.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        padding: "8px 12px",
-                        borderRadius: "6px",
-                        background: checked ? "rgba(37, 99, 235, 0.18)" : "transparent",
-                        border: `1px solid ${checked ? "rgba(59, 130, 246, 0.35)" : "transparent"}`,
-                        cursor: "pointer",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => handleToggleAssignee(u.id)}
-                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                      />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-white, #ffffff)" }}>
-                          {u.full_name || u.email}
-                        </div>
-                        <div style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)" }}>
-                          {u.email}
-                        </div>
-                      </div>
-                    </label>
-                  );
-                })
-              ) : (
-                <div style={{ padding: "16px", textAlign: "center", color: "var(--text-muted, #94a3b8)", fontSize: "12px" }}>
-                  No active users found. Grant access on Permissions page.
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", alignItems: "center" }}>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setAssignModalProject(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                loading={assigningPmos}
-                onClick={handleSaveAssignments}
-              >
-                Save Assignments
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
